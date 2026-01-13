@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "methil-vibe"
+version = "0.1.0"
+description = "Agent de code local propulsé par LFM 2.5 et Apple MLX"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mlx-lm>=0.21.0",
+    "rich>=13.0.0",
+    "click>=8.0.0",
+    "pathspec>=0.12.0",
+]
+
+[project.scripts]
+methil-vibe = "src.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
