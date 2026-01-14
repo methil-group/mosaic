@@ -1,99 +1,96 @@
-"""LFM 2.5 MLX LLM implementation."""
+"""MLX LLM implementation - supports any MLX model."""
 
-from typing import Generator
-from src.framework.abstract_llm import AbstractLLM, Message, LLMResponse
-from src.framework.config import LLMConfig, DEFAULT_LLM_CONFIG
+from dataclasses import dataclass
 
 
-class LFMLLM(AbstractLLM):
-    """LLM implementation using LFM 2.5 via MLX."""
+@dataclass 
+class LLMConfig:
+    """LLM configuration."""
+    model_name: str
+    temperature: float = 0.1
+    top_p: float = 0.9
+    max_tokens: int = 4096
+
+
+class MLXLLM:
+    """LLM implementation using MLX - works with any MLX model."""
     
-    def __init__(self, config: LLMConfig | None = None):
-        self.config = config or DEFAULT_LLM_CONFIG
+    def __init__(self, model_name: str, config: LLMConfig | None = None):
+        self.model_name = model_name
+        self.config = config or LLMConfig(model_name=model_name)
         self._model = None
         self._tokenizer = None
-        self._sampler = None
-        self._logits_processors = None
     
-    def _ensure_loaded(self):
-        """Lazy load the model."""
+    def load(self):
+        """Load the model (call this explicitly to show progress)."""
+        if self._model is not None:
+            return
+            
+        from mlx_lm import load
+        
+        print(f"🔄 Loading model: {self.model_name}")
+        print("   (this may take a moment on first run...)")
+        
+        self._model, self._tokenizer = load(self.model_name)
+        
+        print("✅ Model loaded!")
+    
+    def generate(self, messages: list[dict], max_tokens: int | None = None) -> str:
+        """Generate a response from the model.
+        
+        Args:
+            messages: List of {"role": "user"|"assistant"|"system", "content": "..."}
+            max_tokens: Override max tokens
+            
+        Returns:
+            Generated text response
+        """
         if self._model is None:
-            from mlx_lm import load
-            from mlx_lm.sample_utils import make_sampler, make_logits_processors
-            
-            print(f"🔄 Loading model: {self.config.model_name}")
-            self._model, self._tokenizer = load(self.config.model_name)
-            
-            self._sampler = make_sampler(
-                temp=self.config.temperature,
-                top_k=self.config.top_k,
-                top_p=self.config.top_p
-            )
-            
-            self._logits_processors = make_logits_processors(
-                repetition_penalty=self.config.repetition_penalty
-            )
-            
-            print("✅ Model loaded successfully")
-    
-    def _format_messages(self, messages: list[Message]) -> str:
-        """Format messages using the chat template."""
-        self._ensure_loaded()
+            self.load()
         
-        # Convert to dict format expected by tokenizer
-        messages_dict = [{"role": m.role, "content": m.content} for m in messages]
+        from mlx_lm import generate
+        from mlx_lm.sample_utils import make_sampler
         
-        if self._tokenizer.chat_template is not None:
-            return self._tokenizer.apply_chat_template(
-                messages_dict,
+        # Format messages using tokenizer's chat template
+        if self._tokenizer.chat_template:
+            prompt = self._tokenizer.apply_chat_template(
+                messages,
                 tokenize=False,
                 add_generation_prompt=True
             )
         else:
             # Fallback formatting
-            formatted = ""
-            for msg in messages_dict:
-                if msg["role"] == "system":
-                    formatted += f"System: {msg['content']}\n\n"
-                elif msg["role"] == "user":
-                    formatted += f"User: {msg['content']}\n\n"
-                elif msg["role"] == "assistant":
-                    formatted += f"Assistant: {msg['content']}\n\n"
-            formatted += "Assistant: "
-            return formatted
-    
-    def generate(self, messages: list[Message], max_tokens: int | None = None) -> LLMResponse:
-        """Generate a response from the LLM."""
-        self._ensure_loaded()
-        from mlx_lm import generate as mlx_generate
+            prompt = self._format_messages_fallback(messages)
         
-        prompt = self._format_messages(messages)
+        # Create sampler
+        sampler = make_sampler(
+            temp=self.config.temperature,
+            top_p=self.config.top_p
+        )
         
-        response = mlx_generate(
+        # Generate
+        response = generate(
             self._model,
             self._tokenizer,
             prompt=prompt,
             max_tokens=max_tokens or self.config.max_tokens,
-            sampler=self._sampler,
-            logits_processors=self._logits_processors,
+            sampler=sampler,
             verbose=False
         )
         
-        return LLMResponse(content=response)
+        return response
     
-    def generate_stream(self, messages: list[Message], max_tokens: int | None = None) -> Generator[str, None, None]:
-        """Generate a streaming response from the LLM."""
-        self._ensure_loaded()
-        from mlx_lm import stream_generate
-        
-        prompt = self._format_messages(messages)
-        
-        for token in stream_generate(
-            self._model,
-            self._tokenizer,
-            prompt=prompt,
-            max_tokens=max_tokens or self.config.max_tokens,
-            sampler=self._sampler,
-            logits_processors=self._logits_processors
-        ):
-            yield token
+    def _format_messages_fallback(self, messages: list[dict]) -> str:
+        """Fallback message formatting if no chat template."""
+        formatted = ""
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            if role == "system":
+                formatted += f"System: {content}\n\n"
+            elif role == "user":
+                formatted += f"User: {content}\n\n"
+            elif role == "assistant":
+                formatted += f"Assistant: {content}\n\n"
+        formatted += "Assistant: "
+        return formatted

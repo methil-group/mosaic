@@ -26,8 +26,8 @@ methil-vibe
 
 ```bash
 methil-vibe --help
-methil-vibe --working-dir /chemin/vers/projet
-methil-vibe --no-confirm
+methil-vibe --dir /chemin/vers/projet
+methil-vibe --model LiquidAI/LFM2.5-1.2B-Instruct-MLX-4bit
 ```
 
 ## Commandes
@@ -35,10 +35,8 @@ methil-vibe --no-confirm
 | Commande | Description |
 |----------|-------------|
 | `/quit` | Quitter |
-| `/clear` | Effacer l'historique |
+| `/clear` | Effacer l'historique du contexte |
 | `/help` | Afficher l'aide |
-| `/confirm` | Confirmer une écriture |
-| `/reject` | Rejeter une écriture |
 
 ## Tests
 
