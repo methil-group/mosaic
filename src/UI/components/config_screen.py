@@ -20,8 +20,11 @@ class ConfigScreen(ModalScreen):
                 current_provider = provider_id
                 break
 
-        # Get model options for current provider
+        # Get initial model options
         model_options = LLMRegistry.get_models(current_provider) if current_provider else []
+        
+        # Get current base url if available
+        current_base_url = getattr(llm, "base_url", "http://localhost:1234/v1")
 
         with Center():
             with Vertical(id="config-modal"):
@@ -44,6 +47,9 @@ class ConfigScreen(ModalScreen):
                 yield Label("Custom Model ID (Optional):")
                 yield Input(value=model_id, placeholder="e.g. meta-llama/llama-3-8b", id="model-id-input")
                 
+                yield Label("Base URL (LM Studio / External):")
+                yield Input(value=current_base_url, placeholder="http://localhost:1234/v1", id="base-url-input")
+
                 yield Label("Press ESC to cancel", id="config-footer")
                 
                 with Vertical(id="config-buttons"):
@@ -64,6 +70,7 @@ class ConfigScreen(ModalScreen):
             provider = self.query_one("#provider-select", Select).value
             model_select_val = self.query_one("#model-select", Select).value
             model_input_val = self.query_one("#model-id-input", Input).value
+            base_url = self.query_one("#base-url-input", Input).value
             
             # Prefer dropdown selection if it's not blank, otherwise use input
             model_id = model_select_val if (model_select_val is not Select.BLANK and model_select_val is not None) else model_input_val
@@ -71,5 +78,6 @@ class ConfigScreen(ModalScreen):
             if provider and model_id:
                 self.dismiss({
                     "provider": provider,
-                    "model_id": str(model_id).strip()
+                    "model_id": str(model_id).strip(),
+                    "base_url": base_url.strip() if base_url else None
                 })

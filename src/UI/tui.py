@@ -103,18 +103,22 @@ class AgentTUI(App):
     def action_show_config(self) -> None:
         def handle_config(data):
             if data:
-                self.update_llm_config(data["provider"], data["model_id"])
+                self.update_llm_config(data["provider"], data["model_id"], data.get("base_url"))
 
         self.push_screen(ConfigScreen(), handle_config)
 
-    def update_llm_config(self, provider: str, model_id: str) -> None:
+    def update_llm_config(self, provider: str, model_id: str, base_url: Optional[str] = None) -> None:
         """Swap the LLM driver and update the UI."""
         try:
             llm_class = LLMRegistry.get_class(provider)
             if not llm_class:
                 raise ValueError(f"Unknown provider: {provider}")
             
-            new_llm = llm_class(model_id)
+            # Instantiate with base_url if provided and supported (using keyword args)
+            if base_url:
+                new_llm = llm_class(model_id, base_url=base_url)
+            else:
+                new_llm = llm_class(model_id)
 
             # Update agent's LLM
             self.agent.llm = new_llm

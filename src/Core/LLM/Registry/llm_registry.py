@@ -2,6 +2,7 @@ from typing import Dict, Type, List, Tuple
 from src.Framework.LLM.abstract_llm import AbstractLLM
 from src.Core.LLM.openrouter_llm import OpenRouterLLM
 from src.Core.LLM.mlx_llm import MLXLLM
+from src.Core.LLM.lmstudio_llm import LMStudioLLM
 
 class LLMRegistry:
     """Registry for available LLM providers and their models."""
@@ -14,6 +15,10 @@ class LLMRegistry:
         "mlx": {
             "name": "MLX (Local)",
             "class": MLXLLM,
+        },
+        "lmstudio": {
+            "name": "LM Studio",
+            "class": LMStudioLLM,
         }
     }
 
