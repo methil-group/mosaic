@@ -4,6 +4,11 @@ Screen {
 
 #main-layout {
     height: 1fr;
+    border: solid transparent;
+}
+
+#main-layout.processing {
+    border: solid #af87ff;
 }
 
 #sidebar {
@@ -37,6 +42,28 @@ ListView > ListItem.--highlight {
     width: 1fr;
 }
 
+#chat-header {
+    height: 1;
+    dock: top;
+    background: #0f0f0f;
+    padding: 0 1;
+    layout: horizontal;
+    align-vertical: middle;
+}
+
+#workspace-status {
+    color: #666;
+    width: 1fr;
+    content-align: left middle;
+}
+
+#model-indicator {
+    color: #444;
+    width: 1fr;
+    content-align: right middle;
+    text-style: bold;
+}
+
 #chat-scroll {
     height: 1fr;
     background: #0f0f0f;
@@ -57,7 +84,6 @@ ListView > ListItem.--highlight {
 }
 
 Input {
-    dock: bottom;
     background: #222;
     border: solid #333;
     margin: 1;
@@ -67,18 +93,23 @@ Input {
 ChatMessage {
     margin: 1 0;
     padding: 1;
-    background: #222;
+    background: #1e1e1e;
+    color: #ffffff;
+    height: auto;
 }
 
 .tool-log {
-    color: #44aa44;
+    color: #888888;
     text-style: italic;
+    margin-top: 1;
 }
 
 .tool-result {
-    color: #4444aa;
-    background: #111;
-    padding: 0 1;
+    color: #888888;
+    background: #0d0d0d;
+    padding: 1;
+    margin-bottom: 1;
+    margin-left: 2;
 }
 
 #config-modal {
@@ -112,4 +143,64 @@ ChatMessage {
 
 #close-btn {
     width: 100%;
+}
+
+#add-workspace-modal {
+    width: 60;
+    height: auto;
+    background: #222;
+    border: thick #333;
+    padding: 1 2;
+}
+
+#add-workspace-modal Label {
+    margin-top: 1;
+}
+
+#add-workspace-modal Button {
+    margin: 1 1 0 1;
+}
+
+#modal-title {
+    text-align: center;
+    text-style: bold;
+    background: #333;
+    color: #fff;
+    padding: 1;
+    margin-bottom: 1;
+}
+
+#actions_container {
+    max-height: 8;
+    height: auto;
+    overflow-y: auto;
+    background: #000000;
+    padding: 1;
+}
+
+#actions_log {
+    color: #888;
+}
+
+.action-item {
+    padding: 0 1;
+    margin-bottom: 1;
+    background: #111;
+    color: #aaa;
+    border-left: solid #af87ff;
+    height: auto;
+}
+
+Collapsible {
+    background: #000000;
+    margin-top: 1;
+    margin-bottom: 1;
+    padding: 0;
+    padding-bottom: 1;
+}
+
+CollapsibleTitle {
+    background: #000000;
+    color: #fff;
+    text-style: bold;
 }

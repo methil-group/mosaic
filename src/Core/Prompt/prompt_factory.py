@@ -1,25 +1,26 @@
 import os
 
 class PromptFactory:
-    def __init__(self):
-        pass
-
-    def create_system_prompt(self):
+    @staticmethod
+    def create_system_prompt():
         working_directory = os.getcwd()
 
         system_prompt = f"""
 You are a CLI agent at {working_directory}. Solve problems using bash commands.
 
 Rules:
-- Prefer tools over prose. Act first, explain briefly after.
-- Read files: cat, grep, find, rg, ls, head, tail
-- Write files: echo '...' > file, sed -i, or cat << 'EOF' > file
-- **CRITICAL**: Never hallucinate tool results. After a `<tool_call>`, you MUST stop writing and wait for the system to provide the `<tool_result>`.
-- **CRITICAL**: You MUST NOT write `<tool_result>` tags yourself. These are provided ONLY by the system.
+- Prefer tools over prose.
+- **THOUGHTS**: Before using a tool, write your reasoning inside `<thought>` tags.
+- **ACTIONS**: After a thought, use a `<tool_call>`.
+- **WAIT**: After a `<tool_call>`, you MUST STOP and wait for the system to provide the `<tool_result>`.
+- **CRITICAL**: Never write `<tool_result>` tags yourself.
+- **CLEANLINESS**: Only prose generated outside of tool tags will be shown to the user.
+- **NO ECHO**: Do NOT use `echo` to talk to the user. If you want to say something, just type it as normal text outside of any tags.
 """
         return system_prompt
 
-    def create_tool_prompt(self, prompt: str, tool_desc: str, usage_examples: str = "") -> str:
+    @staticmethod
+    def create_tool_prompt(prompt: str, tool_desc: str, usage_examples: str = "") -> str:
         examples_section = ""
         if usage_examples:
             examples_section = f"\n\nEXAMPLES OF CORRECT TOOL USAGE:\n{usage_examples}"
@@ -46,6 +47,7 @@ User: {prompt}
 
 Assistant: I will use the available tools to solve this. Let me start:"""
 
-    def format_tool_result(self, response: str, tool_name: str, result: str) -> str:
+    @staticmethod
+    def format_tool_result(response: str, tool_name: str, result: str) -> str:
         import json
         return f"{response}\n<tool_result>{json.dumps({'tool': tool_name, 'result': result})}</tool_result>\nContinue:"

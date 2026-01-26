@@ -4,12 +4,12 @@ from src.Framework.Tools.tool_registry import ToolRegistry
 from src.Framework.Tools.tool import Tool
 from src.Framework.Utils.tool_utils import ToolUtils
 from src.Core.Prompt.prompt_factory import PromptFactory
+from src.Framework.Utils.logger import llm_logger
 
 
 class AbstractLLM(ABC):
     def __init__(self, model_path: str):
         self.tool_registry = ToolRegistry()
-        self.prompt_factory = PromptFactory()
 
     def register_tool(self, name: str, func: callable, description: str = "", parameters: Dict[str, Any] = None):
         self.tool_registry.register_tool(name, func, description, parameters)
@@ -31,13 +31,13 @@ class AbstractLLM(ABC):
             history = []
 
         if not system_prompt:
-            system_prompt = self.prompt_factory.create_system_prompt()
+            system_prompt = PromptFactory.create_system_prompt()
 
         if tools:
             for tool in tools:
                 self.tool_registry.register(tool)
             tool_desc = ToolUtils.format_tools_for_prompt(tools)
-            prompt = self.prompt_factory.create_tool_prompt(prompt, tool_desc)
+            prompt = PromptFactory.create_tool_prompt(prompt, tool_desc)
 
         messages = [{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": prompt}]
         
@@ -61,7 +61,7 @@ class AbstractLLM(ABC):
                 if verbose:
                     log_callback(f"[TOOL RESULT] {result}\n")
                 
-                result_prompt = self.prompt_factory.format_tool_result(response, tool_name, result)
+                result_prompt = PromptFactory.format_tool_result(response, tool_name, result)
                 
                 messages.append({"role": "assistant", "content": response})
                 messages.append({"role": "user", "content": result_prompt})
@@ -73,29 +73,36 @@ class AbstractLLM(ABC):
     def chat_stream(self, prompt: str, system_prompt: str = "", history: Optional[List[Dict[str, str]]] = None, tools: Optional[List[Tool]] = None, verbose: bool = False, log_callback: callable = print):
         """
         Streaming version of chat. Yields response chunks and handles tool calls.
+        Technical tags are preserved in the stream for UI handling.
         """
         if history is None:
             history = []
 
         if not system_prompt:
-            system_prompt = self.prompt_factory.create_system_prompt()
+            system_prompt = PromptFactory.create_system_prompt()
 
         if tools:
             for tool in tools:
                 self.tool_registry.register(tool)
             tool_desc = ToolUtils.format_tools_for_prompt(tools)
-            prompt = self.prompt_factory.create_tool_prompt(prompt, tool_desc)
+            prompt = PromptFactory.create_tool_prompt(prompt, tool_desc)
 
         messages = [{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": prompt}]
         
         while True:
             full_response = ""
+            
             if verbose:
                  log_callback("\n[MODEL RESPONSE STREAMING START]")
+            
+            llm_logger.log(f"Turn start. Messages: {messages[-1]['content'][:100]}...")
 
             for chunk in self._generate_stream(messages):
                 full_response += chunk
-                yield chunk
+                if chunk:
+                    # VERBOSE LOGGING FOR DEBUGGING
+                    llm_logger.log(f"Stream Chunk Received: {chunk[:50]}{'...' if len(chunk) > 50 else ''}")
+                    yield chunk
 
             if verbose:
                 log_callback("\n[MODEL RESPONSE STREAMING END]\n")
@@ -109,12 +116,15 @@ class AbstractLLM(ABC):
                 if verbose:
                     log_callback(f"[EXECUTING TOOL] {tool_name} with params: {tool_call.get('parameters')}")
                 
+                llm_logger.log(f"Executing Tool: {tool_name} {tool_call.get('parameters')}")
                 result = ToolUtils.execute_tool_call(tool_call, self.tool_registry)
                 
                 if verbose:
                     log_callback(f"[TOOL RESULT] {result}\n")
+                
+                llm_logger.log(f"Tool Result: {str(result)[:500]}")
                     
-                result_prompt = self.prompt_factory.format_tool_result(full_response, tool_name, result)
+                result_prompt = PromptFactory.format_tool_result(full_response, tool_name, result)
                 
                 messages.append({"role": "assistant", "content": full_response})
                 messages.append({"role": "user", "content": result_prompt})

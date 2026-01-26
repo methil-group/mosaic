@@ -52,6 +52,9 @@ class OpenRouterLLM(AbstractLLM):
         """
         Streaming implementation for OpenRouter.
         """
+        from src.Framework.Utils.logger import llm_logger
+        llm_logger.log(f"Requesting OpenRouter stream for model: {self.model_id}")
+        
         response = self.client.chat.completions.create(
             model=self.model_id,
             messages=messages,
