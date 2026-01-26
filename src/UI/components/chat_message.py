@@ -46,10 +46,14 @@ class ChatMessage(Vertical):
         # specific class for styling, disable markup to prevent crashes
         container.mount(Static(log_text.strip(), classes="action-item", markup=False))
 
-    def start_streaming_action(self) -> None:
+    def start_streaming_action(self, tag: str = "") -> None:
         """Begin a new streaming action item."""
         container = self.query_one("#actions_container", Vertical)
-        self.current_action_item = Static("", classes="action-item", markup=False)
+        classes = "action-item"
+        if tag == "<thought>":
+            classes += " thought-item"
+        
+        self.current_action_item = Static("", classes=classes, markup=False)
         self.current_action_text = ""
         container.mount(self.current_action_item)
         

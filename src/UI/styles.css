@@ -171,7 +171,7 @@ ChatMessage {
 }
 
 #actions_container {
-    max-height: 8;
+    max-height: 20;
     height: auto;
     overflow-y: auto;
     background: #000000;
@@ -183,12 +183,17 @@ ChatMessage {
 }
 
 .action-item {
-    padding: 0 1;
+    padding: 1 2;
     margin-bottom: 1;
     background: #111;
-    color: #aaa;
+    color: #eee;
     border-left: solid #af87ff;
     height: auto;
+}
+
+.thought-item {
+    color: #af87ff;
+    text-style: italic;
 }
 
 Collapsible {

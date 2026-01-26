@@ -241,7 +241,7 @@ class AgentTUI(App):
                             buffer_main += content
                         elif event_type == 'start_block':
                             # log_to_tui(f"[DEBUG] Tag started: {content}")
-                            assistant_msg.start_streaming_action()
+                            assistant_msg.start_streaming_action(content)
                         elif event_type == 'block_content':
                             llm_logger.log(f"[DEBUG] Action content: {content}")
                             buffer_action += content

@@ -45,7 +45,8 @@ class AbstractLLM(ABC):
 
         while True:
             if verbose:
-                log_callback(f"\n[MODEL RESPONSE]\n{response}\n")
+                # log_callback(f"\n[MODEL RESPONSE]\n{response}\n")
+                pass
 
             tool_calls = ToolUtils.extract_tool_calls(response)
             if not tool_calls:
@@ -95,7 +96,8 @@ class AbstractLLM(ABC):
             full_response = ""
             
             if verbose:
-                 log_callback("\n[MODEL RESPONSE STREAMING START]")
+                # log_callback("\n[MODEL RESPONSE STREAMING START]")
+                pass
             
             llm_logger.log(f"Turn start. Messages: {messages[-1]['content'][:100]}...")
 
@@ -107,7 +109,8 @@ class AbstractLLM(ABC):
                     yield chunk
 
             if verbose:
-                log_callback("\n[MODEL RESPONSE STREAMING END]\n")
+                # log_callback("\n[MODEL RESPONSE STREAMING END]\n")
+                pass
             
             ui_logger.log(f"[AbstractLLM] Full response gathered: {repr(full_response)}")
 
