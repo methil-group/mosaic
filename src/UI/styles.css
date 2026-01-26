@@ -117,7 +117,8 @@ ConfigScreen {
 }
 
 #config-modal {
-    width: 60;
+    width: 80%;
+    max-width: 120;
     height: auto;
     background: #1e1e1e;
     border: thick #af87ff;
@@ -130,6 +131,12 @@ ConfigScreen {
 
 .hidden {
     display: none;
+}
+
+Markdown {
+    width: 100%;
+    margin: 0;
+    background: transparent;
 }
 
 Collapsible {

@@ -338,16 +338,28 @@ class AgentTUI(App):
             self.call_from_thread(self.log_scroll.mount, Static(f"[red]CRITICAL ERROR: {str(outer_e)}[/]"))
         finally:
             ui_logger.log("[TUI] run_agent_loop finally block")
-            self.call_from_thread(self.log_scroll.mount, Static("[yellow]Agent cycle finished.[/]"))
-            self.call_from_thread(self.log_scroll.scroll_end)
+            self.log_scroll.mount(Static("[yellow]Agent cycle finished.[/]"))
+            self.log_scroll.scroll_end()
             
+            # Unlock UI components directly (we are on main thread)
+            self.reset_ui_state()
+            
+    def reset_ui_state(self) -> None:
+        """Reset UI state after agent loop finishes."""
+        try:
+            ui_logger.log("[TUI] Resetting UI state...")
             # Unlock UI components
-            main_layout.remove_class("processing")
-            workspace_list.disabled = False
-            add_btn.disabled = False
+            self.query_one("#main-layout").remove_class("processing")
+            self.query_one("#workspace-list").disabled = False
+            self.query_one("#add-ws-btn").disabled = False
             
-            # Re-enable input slightly later to ensure UI is ready
-            self.call_later(self.restore_input)
+            # Restore input
+            self.restore_input()
+            ui_logger.log("[TUI] UI state reset successfully")
+        except Exception as e:
+            ui_logger.log(f"[TUI] Error resetting UI state: {e}", level="ERROR")
+            import traceback
+            ui_logger.log(traceback.format_exc(), level="ERROR")
 
     def restore_input(self) -> None:
         """Restore input field state."""
@@ -358,6 +370,7 @@ class AgentTUI(App):
             cwd_name = "Workspace"
         self.input.placeholder = f"Chatting in {cwd_name}..."
         self.input.focus()
+        self.input.value = "" # Ensure it's empty
         self.input.refresh()
 
 if __name__ == "__main__":

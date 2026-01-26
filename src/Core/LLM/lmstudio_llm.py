@@ -4,8 +4,10 @@ from openai import OpenAI
 from src.Framework.LLM.abstract_llm import AbstractLLM
 
 class LMStudioLLM(AbstractLLM):
+    # Temporary, the logics should be to ask lm studio what models are available
+    # and populate the list from that
     MODELS = [
-        ("Current Loaded Model", "lmstudio-community/loaded-model"), # LM Studio often uses this surrogate ID
+        ("Current Loaded Model", "lmstudio-community/loaded-model"),
         ("Llama 3 8B", "meta-llama/llama-3-8b"),
         ("Custom...", "custom"),
     ]
