@@ -4,7 +4,9 @@ import datetime
 class Logger:
     """Simple file-based logger for persistent tracking."""
     def __init__(self, log_path: str = "logs/llm_log.txt"):
-        self.log_path = log_path
+        # Make path absolute based on project root
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+        self.log_path = os.path.join(project_root, log_path)
         # Ensure directory exists
         os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
 
@@ -18,5 +20,6 @@ class Logger:
             # Fallback to print if file logging fails
             print(f"FAILED TO WRITE TO LOG: {str(e)}")
 
-# Global instance for easy access
+# Global instances for easy access
 llm_logger = Logger()
+ui_logger = Logger("logs/ui_log.txt")

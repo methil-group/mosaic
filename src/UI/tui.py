@@ -14,7 +14,7 @@ from rich.markdown import Markdown
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 from src.Framework.Utils.stream_processor import StreamProcessor
-from src.Framework.Utils.logger import llm_logger
+from src.Framework.Utils.logger import llm_logger, ui_logger
 
 from src.Core.Agent.agent import Agent
 from src.Core.LLM.openrouter_llm import OpenRouterLLM
@@ -150,63 +150,73 @@ class AgentTUI(App):
         loop = asyncio.get_event_loop()
         self.assistant_msg = assistant_msg 
         
-        import time
-        stream_processor = StreamProcessor()
-        
-        def log_to_tui(message: str, level: str = "DEBUG"):
-            """Unified callback for all logging from the agent thread."""
-            msg_text = str(message).strip()
-            
-            # Check for end of stream signal
-            if "[MODEL RESPONSE STREAMING END]" in msg_text:
-                if stream_processor.in_block:
-                    # Force close the block
-                    self.call_from_thread(self.log_scroll.mount, Static("[yellow]Warning: Force closing unclosed action block[/]", classes="tool-log"))
-                    stream_processor.in_block = False
-                    stream_processor.buffer = "" # Clear buffer
-                    self.call_from_thread(assistant_msg.end_streaming_action)
-            
-            # Persistent file log
-            llm_logger.log(msg_text, level=level) 
-            
-            # Format sidebar log
-            if "[TOOL RESULT]" in msg_text:
-                style = "tool-result"
-                self.call_from_thread(self.log_scroll.mount, Static(f"\n{msg_text}", classes=style, markup=False))
-            elif "[EXECUTING TOOL]" in msg_text:
-                style = "tool-log"
-                self.call_from_thread(self.log_scroll.mount, Static(msg_text, classes=style, markup=False))
-            else:
-                self.call_from_thread(self.log_scroll.mount, Static(f"[blue]{level}:[/] {msg_text}"))
-            
-            # Add to message actions panel
-            self.call_from_thread(assistant_msg.add_action, msg_text)
-            self.call_from_thread(self.log_scroll.scroll_end)
-
-        # Lock UI components
-        main_layout = self.query_one("#main-layout")
-        workspace_list = self.query_one("#workspace-list")
-        add_btn = self.query_one("#add-ws-btn")
-        
-        main_layout.add_class("processing")
-        workspace_list.disabled = True
-        add_btn.disabled = True
-
-
-
-        buffer_main = ""
-        buffer_action = ""
-        last_update = time.time()
-        chunk_count = 0
-
+        ui_logger.log(f"[TUI] run_agent_loop entry with prompt: {prompt[:50]}...")
         try:
+            import time
+            stream_processor = StreamProcessor()
+            
+            import threading
+            def log_to_tui(message: str, level: str = "INFO"):
+                """Unified callback for all logging from the agent thread."""
+                msg_text = str(message).strip()
+                
+                # Persistent file log
+                llm_logger.log(msg_text, level=level) 
+
+                def do_log_update():
+                    # Check for end of stream signal
+                    if "[MODEL RESPONSE STREAMING END]" in msg_text:
+                        if stream_processor.in_block:
+                            # Force close the block
+                            self.log_scroll.mount(Static("[yellow]Warning: Force closing unclosed action block[/]", classes="tool-log"))
+                            stream_processor.in_block = False
+                            stream_processor.buffer = "" # Clear buffer
+                            assistant_msg.end_streaming_action()
+                    
+                    # Format sidebar log
+                    if "[TOOL RESULT]" in msg_text:
+                        style = "tool-result"
+                        self.log_scroll.mount(Static(f"\n{msg_text}", classes=style, markup=False))
+                    elif "[EXECUTING TOOL]" in msg_text:
+                        style = "tool-log"
+                        self.log_scroll.mount(Static(msg_text, classes=style, markup=False))
+                    else:
+                        self.log_scroll.mount(Static(f"[blue]{level}:[/] {msg_text}"))
+                    
+                    # Add to message actions panel
+                    assistant_msg.add_action(msg_text)
+                    self.log_scroll.scroll_end()
+
+                if threading.current_thread() is threading.main_thread():
+                    do_log_update()
+                else:
+                    self.call_from_thread(do_log_update)
+
+            # Lock UI components
+            main_layout = self.query_one("#main-layout")
+            workspace_list = self.query_one("#workspace-list")
+            add_btn = self.query_one("#add-ws-btn")
+            
+            main_layout.add_class("processing")
+            workspace_list.disabled = True
+            add_btn.disabled = True
+
+            buffer_main = ""
+            buffer_action = ""
+            last_update = time.time()
+            chunk_count = 0
+
+            ui_logger.log("[TUI] Calling agent.run_stream")
             # Start the generator with our TUI logger
             gen = self.agent.run_stream(prompt, log_callback=log_to_tui)
+            ui_logger.log("[TUI] Generator obtained. Starting loop.")
             
             while True:
                 try:
+                    ui_logger.log("[TUI] Awaiting next(gen) in executor")
                     # Iterate through the generator in a way that doesn't block the event loop
                     chunk = await loop.run_in_executor(None, next, gen, None)
+                    ui_logger.log(f"[TUI] Received chunk: {repr(chunk)}")
                     if chunk is None:
                         log_to_tui("Stream generator returned None (finished)", level="DEBUG")
                         break
@@ -214,20 +224,29 @@ class AgentTUI(App):
                     chunk_count += 1
                     # HEARTBEAT
                     if chunk_count % 10 == 0:
-                        log_to_tui(f"[DEBUG] Received {chunk_count} chunks...")
+                        # log_to_tui(f"[DEBUG] Received {chunk_count} chunks...")
+                        pass
                     
-                    events = stream_processor.process(chunk)
+                    ui_logger.log(f"[TUI] Stream Generator yielded chunk")
+                    try:
+                        events = stream_processor.process(chunk)
+                        ui_logger.log(f"[TUI] StreamProcessor returned {len(events)} events")
+                        # log_to_tui(f"[DEBUG] Process returned {len(events)} events")
+                    except Exception as error:
+                        log_to_tui(f"[ERROR] Failed to process chunk: {error}", level="ERROR")
+                        break
                     
                     for event_type, content in events:
                         if event_type == 'main':
                             buffer_main += content
                         elif event_type == 'start_block':
-                            log_to_tui(f"[DEBUG] Tag started: {content}")
+                            # log_to_tui(f"[DEBUG] Tag started: {content}")
                             assistant_msg.start_streaming_action()
                         elif event_type == 'block_content':
+                            llm_logger.log(f"[DEBUG] Action content: {content}")
                             buffer_action += content
                         elif event_type == 'end_block':
-                            log_to_tui(f"[DEBUG] Block ended")
+                            # log_to_tui(f"[DEBUG] Block ended")
                             # Flush action buffer immediately on block end
                             if buffer_action:
                                 assistant_msg.stream_to_action(buffer_action)
@@ -257,7 +276,8 @@ class AgentTUI(App):
                 except Exception as e:
                     import traceback
                     tb = traceback.format_exc()
-                    self.call_from_thread(self.log_scroll.mount, Static(f"[red]Error during stream: {str(e)}\n{tb}[/]"))
+                    ui_logger.log(f"[TUI] Error during stream: {str(e)}\n{tb}", level="ERROR")
+                    log_to_tui(f"[ERROR] Error during stream: {str(e)}", level="ERROR")
                     break
             
             # Flush remaining buffers
@@ -274,7 +294,13 @@ class AgentTUI(App):
             if buffer_action:
                 assistant_msg.stream_to_action(buffer_action)
                 
+        except Exception as outer_e:
+            import traceback
+            outer_tb = traceback.format_exc()
+            ui_logger.log(f"[TUI] CRITICAL ERROR IN run_agent_loop: {outer_e}\n{outer_tb}", level="ERROR")
+            self.call_from_thread(self.log_scroll.mount, Static(f"[red]CRITICAL ERROR: {str(outer_e)}[/]"))
         finally:
+            ui_logger.log("[TUI] run_agent_loop finally block")
             self.call_from_thread(self.log_scroll.mount, Static("[yellow]Agent cycle finished.[/]"))
             self.call_from_thread(self.log_scroll.scroll_end)
             

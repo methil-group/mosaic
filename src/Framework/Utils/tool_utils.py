@@ -5,6 +5,8 @@ from src.Framework.Tools.tool import Tool
 from src.Framework.Tools.tool_registry import ToolRegistry
 
 
+from src.Framework.Utils.logger import ui_logger
+
 class ToolUtils:
     @staticmethod
     def format_tools_for_prompt(tools: List[Tool]) -> str:
@@ -23,12 +25,16 @@ class ToolUtils:
         tool_pattern = r'<tool_call>(.*?)</tool_call>'
         matches = re.findall(tool_pattern, response, re.DOTALL)
         
+        if matches:
+            ui_logger.log(f"[ToolUtils] Found {len(matches)} <tool_call> matches")
+        
         for match in matches:
             try:
                 tool_data = json.loads(match.strip())
                 if 'name' in tool_data:
                     tool_calls.append(tool_data)
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                ui_logger.log(f"[ToolUtils] JSON error in <tool_call>: {e}\nMatch: {repr(match)}")
                 continue
         
         # Support for [TOOL_CALLS] format (observed deviation)
@@ -36,6 +42,8 @@ class ToolUtils:
         if not tool_calls:
             dev_pattern = r'\[TOOL_CALLS\](\w+)\s*({.*?})'
             matches = re.findall(dev_pattern, response, re.DOTALL)
+            if matches:
+                ui_logger.log(f"[ToolUtils] Found {len(matches)} [TOOL_CALLS] matches")
             for tool_name, params_str in matches:
                 try:
                     params = json.loads(params_str)
@@ -51,6 +59,8 @@ class ToolUtils:
         if not tool_calls:
             json_pattern = r'```json\s*\n\s*({.*?})\s*\n\s*```'
             matches = re.findall(json_pattern, response, re.DOTALL)
+            if matches:
+                 ui_logger.log(f"[ToolUtils] Found {len(matches)} markdown code block matches")
             
             for match in matches:
                 try:
@@ -66,6 +76,8 @@ class ToolUtils:
             try:
                 # Look for JSON-like objects that have a "name" key
                 json_objects = re.findall(r'({[^{}]*"name"[^{}]*})', response)
+                if json_objects:
+                    ui_logger.log(f"[ToolUtils] Found {len(json_objects)} raw JSON-like object matches")
                 for json_str in json_objects:
                     try:
                         tool_data = json.loads(json_str)
@@ -76,6 +88,9 @@ class ToolUtils:
             except:
                 pass
                 
+        if not tool_calls:
+            ui_logger.log(f"[ToolUtils] No tool calls extracted from response (first 200 chars): {repr(response[:200])}")
+            
         return tool_calls
     
     @staticmethod

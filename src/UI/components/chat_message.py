@@ -3,6 +3,8 @@ from textual.containers import Vertical
 from textual.reactive import reactive
 from rich.text import Text
 
+from src.Framework.Utils.logger import llm_logger
+
 class ChatMessage(Vertical):
     """A widget to display a chat message with markdown support and expandable actions."""
     

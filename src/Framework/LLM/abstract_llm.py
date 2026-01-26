@@ -4,7 +4,7 @@ from src.Framework.Tools.tool_registry import ToolRegistry
 from src.Framework.Tools.tool import Tool
 from src.Framework.Utils.tool_utils import ToolUtils
 from src.Core.Prompt.prompt_factory import PromptFactory
-from src.Framework.Utils.logger import llm_logger
+from src.Framework.Utils.logger import llm_logger, ui_logger
 
 
 class AbstractLLM(ABC):
@@ -89,6 +89,8 @@ class AbstractLLM(ABC):
 
         messages = [{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": prompt}]
         
+        llm_logger.log(f"[AbstractLLM] chat_stream entry. Message count: {len(messages)}")
+        
         while True:
             full_response = ""
             
@@ -106,9 +108,14 @@ class AbstractLLM(ABC):
 
             if verbose:
                 log_callback("\n[MODEL RESPONSE STREAMING END]\n")
+            
+            ui_logger.log(f"[AbstractLLM] Full response gathered: {repr(full_response)}")
 
             tool_calls = ToolUtils.extract_tool_calls(full_response)
+            ui_logger.log(f"[AbstractLLM] Extracted {len(tool_calls)} tool calls")
+            
             if not tool_calls:
+                ui_logger.log("[AbstractLLM] No tool calls found. Ending cycle.")
                 break
 
             for tool_call in tool_calls:
