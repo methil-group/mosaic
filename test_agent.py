@@ -6,9 +6,7 @@ def main():
     agent = Agent(llm)
     
     prompt = """
-    Find all python files in the src/Core directory using bash and tell me if there is a LLM folder.
-    If there is one, analyze the content of the file in them and explain it to me.
-    Also explain the WHOLE architecture of the project (every folders etc) like I am a noobie.
+    Add comment in main.py of what it is doing here.
     """
     print(f"User: {prompt}")
     

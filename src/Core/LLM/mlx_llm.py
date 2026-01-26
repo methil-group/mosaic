@@ -16,7 +16,7 @@ class MLXLLM(AbstractLLM):
     def register_tool(self, name: str, func: callable, description: str = "", parameters: Dict[str, Any] = None):
         self.tool_registry.register_tool(name, func, description, parameters)
 
-    def chat(self, prompt: str, system_prompt: str = "", history: Optional[List[Dict[str, str]]] = None, tools: Optional[List[Dict[str, Any]]] = None) -> str:
+    def chat(self, prompt: str, system_prompt: str = "", history: Optional[List[Dict[str, str]]] = None, tools: Optional[List[Tool]] = None) -> str:
         if history is None:
             history = []
 
@@ -25,12 +25,13 @@ class MLXLLM(AbstractLLM):
 
         full_prompt = prompt
         if tools:
-            tool_objects = [Tool(name=t['name'], function=lambda: None, description=t.get('description', ''), parameters=t.get('parameters')) for t in tools]
-            tool_desc = ToolUtils.format_tools_for_prompt(tool_objects)
+            for tool in tools:
+                self.tool_registry.register(tool)
+            tool_desc = ToolUtils.format_tools_for_prompt(tools)
             
             usage_examples = ""
-            if tools and len(tools) > 0 and 'usage_examples' in tools[0]:
-                usage_examples = "\n".join(tools[0]['usage_examples'])
+            # Note: Usage examples are not currently stored in the Tool dataclass. 
+            # If they are needed, they should be added there.
             
             full_prompt = self.prompt_factory.create_tool_prompt(prompt, tool_desc, usage_examples)
 
