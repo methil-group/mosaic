@@ -19,18 +19,35 @@ class ToolUtils:
     def extract_tool_calls(response: str) -> List[Dict[str, Any]]:
         tool_calls = []
         
-        # Try primary format: <tool_call> tags
+        # Primary format: <tool_call> tags
         tool_pattern = r'<tool_call>(.*?)</tool_call>'
         matches = re.findall(tool_pattern, response, re.DOTALL)
         
         for match in matches:
             try:
                 tool_data = json.loads(match.strip())
-                tool_calls.append(tool_data)
+                if 'name' in tool_data:
+                    tool_calls.append(tool_data)
             except json.JSONDecodeError:
                 continue
         
-        # If no tool calls found, try markdown JSON format as fallback
+        # Support for [TOOL_CALLS] format (observed deviation)
+        # (Basically for models like devstrall)
+        if not tool_calls:
+            dev_pattern = r'\[TOOL_CALLS\](\w+)\s*({.*?})'
+            matches = re.findall(dev_pattern, response, re.DOTALL)
+            for tool_name, params_str in matches:
+                try:
+                    params = json.loads(params_str)
+                    tool_calls.append({
+                        "name": tool_name,
+                        "parameters": params
+                    })
+                except json.JSONDecodeError:
+                    continue
+
+        # Fallback: Markdown JSON format
+        # (Qwen2.5 Coder for example)
         if not tool_calls:
             json_pattern = r'```json\s*\n\s*({.*?})\s*\n\s*```'
             matches = re.findall(json_pattern, response, re.DOTALL)
@@ -38,21 +55,24 @@ class ToolUtils:
             for match in matches:
                 try:
                     tool_data = json.loads(match.strip())
-                    # Verify it's a tool call format
-                    if 'name' in tool_data and 'parameters' in tool_data:
+                    if 'name' in tool_data:
                         tool_calls.append(tool_data)
                 except json.JSONDecodeError:
                     continue
         
-        # Try raw JSON format as another fallback
+        # Fallback: Raw JSON objects with "name" and "parameters" or just "name"
+        # (never happens normally lol)
         if not tool_calls:
             try:
-                # Look for JSON objects in the response
-                json_objects = re.findall(r'({[^{}]*"name"[^{}]*"parameters"[^{}]*})', response)
+                # Look for JSON-like objects that have a "name" key
+                json_objects = re.findall(r'({[^{}]*"name"[^{}]*})', response)
                 for json_str in json_objects:
-                    tool_data = json.loads(json_str)
-                    if 'name' in tool_data and 'parameters' in tool_data:
-                        tool_calls.append(tool_data)
+                    try:
+                        tool_data = json.loads(json_str)
+                        if 'name' in tool_data:
+                            tool_calls.append(tool_data)
+                    except:
+                        continue
             except:
                 pass
                 

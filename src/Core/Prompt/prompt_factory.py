@@ -31,9 +31,19 @@ The subagent runs in isolation and returns only its final summary.
 
         return f"""{tool_desc}
 
-IMPORTANT: You MUST use tools to solve this problem. Do NOT explain what you would do - EXECUTE commands immediately using the tools.
-Format your tool calls as follows:
-<tool_call>{{"name": "tool_name", "parameters": {{"param1": "value1"}}}}</tool_call>
+### CRITICAL: TOOL CALL FORMAT
+You MUST use tools to solve this problem. Do NOT explain what you would do - EXECUTE commands immediately using the tools.
+Format EVERY tool call exactly like this:
+<tool_call>
+{{
+  "name": "tool_name",
+  "parameters": {{
+    "arg1": "value1"
+  }}
+}}
+</tool_call>
+
+Strictly adhere to the JSON structure above. Do not use [TOOL_CALLS] or any other format.
 
 {examples_section}
 

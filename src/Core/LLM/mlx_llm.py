@@ -12,6 +12,12 @@ class MLXLLM(AbstractLLM):
         super().__init__(model_path)
         self.model, self.tokenizer = load(model_path)
 
+    def test_connection(self) -> bool:
+        """
+        Tests if the MLX model is loaded correctly.
+        """
+        return self.model is not None and self.tokenizer is not None
+
     def _generate(self, messages: List[Dict[str, str]]) -> str:
         prompt = ""
         if hasattr(self.tokenizer, "apply_chat_template") and self.tokenizer.chat_template is not None:
@@ -31,3 +37,9 @@ class MLXLLM(AbstractLLM):
             verbose=True
         )
         return response
+
+    def _generate_stream(self, messages: List[Dict[str, str]]):
+        """
+        Streaming implementation for MLX (pass-through for now).
+        """
+        yield self._generate(messages)
