@@ -18,8 +18,9 @@ class ToolUtils:
         return tools_desc
     
     @staticmethod
-    def extract_tool_calls(response: str) -> List[Dict[str, Any]]:
+    def extract_tool_calls(response: str) -> tuple[List[Dict[str, Any]], str | None]:
         tool_calls = []
+        errors = []
         
         # Primary format: <tool_call> tags
         tool_pattern = r'<tool_call>(.*?)</tool_call>'
@@ -34,11 +35,12 @@ class ToolUtils:
                 if 'name' in tool_data:
                     tool_calls.append(tool_data)
             except json.JSONDecodeError as e:
-                ui_logger.log(f"[ToolUtils] JSON error in <tool_call>: {e}\nMatch: {repr(match)}")
+                error_msg = f"JSON error in <tool_call>: {e}"
+                ui_logger.log(f"[ToolUtils] {error_msg}\nMatch: {repr(match)}")
+                errors.append(f"{error_msg} in content: {match[:200]}...")
                 continue
         
         # Support for [TOOL_CALLS] format (observed deviation)
-        # (Basically for models like devstrall)
         if not tool_calls:
             dev_pattern = r'\[TOOL_CALLS\](\w+)\s*({.*?})'
             matches = re.findall(dev_pattern, response, re.DOTALL)
@@ -51,11 +53,11 @@ class ToolUtils:
                         "name": tool_name,
                         "parameters": params
                     })
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    errors.append(f"JSON error in [TOOL_CALLS]: {e}")
                     continue
 
         # Fallback: Markdown JSON format
-        # (Qwen2.5 Coder for example)
         if not tool_calls:
             json_pattern = r'```json\s*\n\s*({.*?})\s*\n\s*```'
             matches = re.findall(json_pattern, response, re.DOTALL)
@@ -67,11 +69,11 @@ class ToolUtils:
                     tool_data = json.loads(match.strip())
                     if 'name' in tool_data:
                         tool_calls.append(tool_data)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    errors.append(f"JSON error in markdown block: {e}")
                     continue
         
-        # Fallback: Raw JSON objects with "name" and "parameters" or just "name"
-        # (never happens normally lol)
+        # Fallback: Raw JSON objects
         if not tool_calls:
             try:
                 # Look for JSON-like objects that have a "name" key
@@ -91,7 +93,8 @@ class ToolUtils:
         if not tool_calls:
             ui_logger.log(f"[ToolUtils] No tool calls extracted from response (first 200 chars): {repr(response[:200])}")
             
-        return tool_calls
+        error_result = "; ".join(errors) if errors and not tool_calls else None
+        return tool_calls, error_result
     
     @staticmethod
     def execute_tool_call(tool_call: Dict[str, Any], registry: ToolRegistry) -> Any:

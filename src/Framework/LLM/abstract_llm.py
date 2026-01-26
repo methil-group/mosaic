@@ -48,9 +48,17 @@ class AbstractLLM(ABC):
                 # log_callback(f"\n[MODEL RESPONSE]\n{response}\n")
                 pass
 
-            tool_calls = ToolUtils.extract_tool_calls(response)
+            tool_calls, error_message = ToolUtils.extract_tool_calls(response)
+            
             if not tool_calls:
-                break
+                if error_message:
+                    ui_logger.log(f"[AbstractLLM] JSON error detected: {error_message}. Retrying...")
+                    messages.append({"role": "assistant", "content": response})
+                    messages.append({"role": "user", "content": f"System Error: The tool call JSON was invalid. {error_message}. Please correct the JSON and try again."})
+                    response = self._generate(messages)
+                    continue
+                else:
+                    break
 
             for tool_call in tool_calls:
                 tool_name = tool_call.get('name')
@@ -114,12 +122,19 @@ class AbstractLLM(ABC):
             
             ui_logger.log(f"[AbstractLLM] Full response gathered: {repr(full_response)}")
 
-            tool_calls = ToolUtils.extract_tool_calls(full_response)
+            tool_calls, error_message = ToolUtils.extract_tool_calls(full_response)
             ui_logger.log(f"[AbstractLLM] Extracted {len(tool_calls)} tool calls")
             
             if not tool_calls:
-                ui_logger.log("[AbstractLLM] No tool calls found. Ending cycle.")
-                break
+                if error_message:
+                    ui_logger.log(f"[AbstractLLM] JSON error detected: {error_message}. Retrying...")
+                    messages.append({"role": "assistant", "content": full_response})
+                    messages.append({"role": "user", "content": f"System Error: The tool call JSON was invalid. {error_message}. Please correct the JSON and try again."})
+                    yield f"\n[System Error: Invalid JSON detected. Retrying...]\n"
+                    continue
+                else:
+                    ui_logger.log("[AbstractLLM] No tool calls found. Ending cycle.")
+                    break
 
             for tool_call in tool_calls:
                 tool_name = tool_call.get('name')
