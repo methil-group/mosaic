@@ -12,6 +12,7 @@ class OpenRouterLLM(AbstractLLM):
         ("Claude 3.5 Sonnet", "anthropic/claude-3.5-sonnet"),
         ("Llama 3.1 405B", "meta-llama/llama-3.1-405b"),
         ("Gemini Pro 1.5", "google/gemini-pro-1.5"),
+        ("Custom...", "custom"),
     ]
 
     def __init__(self, model_path: str):

@@ -12,6 +12,7 @@ class MLXLLM(AbstractLLM):
         ("Llama 3 8B (4-bit)", "mlx-community/Meta-Llama-3-8B-Instruct-4bit"),
         ("Phi-3 Mini (4-bit)", "mlx-community/Phi-3-mini-4k-instruct-4bit"),
         ("Mistral 7B v0.3", "mlx-community/Mistral-7B-Instruct-v0.3-4bit"),
+        ("Custom...", "custom"),
     ]
 
     def __init__(self, model_path: str):

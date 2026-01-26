@@ -112,15 +112,27 @@ ChatMessage {
     margin-left: 2;
 }
 
+ConfigScreen {
+    align: center middle;
+}
+
 #config-modal {
     width: 60;
     height: auto;
-    background: #222;
-    border: thick #444;
+    background: #1e1e1e;
+    border: thick #af87ff;
     padding: 1 2;
 }
 
-#config-title {
+#config-modal Label {
+    margin-top: 1;
+}
+
+.hidden {
+    display: none;
+}
+
+Collapsible {
     text-align: center;
     background: #444;
     color: #eee;

@@ -7,6 +7,7 @@ class LMStudioLLM(AbstractLLM):
     MODELS = [
         ("Current Loaded Model", "lmstudio-community/loaded-model"), # LM Studio often uses this surrogate ID
         ("Llama 3 8B", "meta-llama/llama-3-8b"),
+        ("Custom...", "custom"),
     ]
 
     def __init__(self, model_path: str, base_url: str = "http://localhost:1234/v1"):

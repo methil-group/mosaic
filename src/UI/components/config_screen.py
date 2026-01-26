@@ -23,45 +23,69 @@ class ConfigScreen(ModalScreen):
         # Get initial model options
         model_options = LLMRegistry.get_models(current_provider) if current_provider else []
         
+        # Determine if we have a known model or custom
+        is_known_model = any(m[1] == model_id for m in model_options)
+        dropdown_value = model_id if is_known_model else "custom"
+        
         # Get current base url if available
         current_base_url = getattr(llm, "base_url", "http://localhost:1234/v1")
 
-        with Center():
-            with Vertical(id="config-modal"):
-                yield Label("CONFIGURATION", id="config-title")
-                
-                yield Label("Provider:")
-                yield Select(
-                    options=LLMRegistry.get_providers(),
-                    value=current_provider,
-                    id="provider-select"
-                )
-                
-                yield Label("Model Selection:")
-                yield Select(
-                    options=model_options,
-                    value=model_id if any(m[1] == model_id for m in model_options) else Select.BLANK,
-                    id="model-select"
-                )
+        
+        with Vertical(id="config-modal"):
+            yield Label("CONFIGURATION", id="config-title")
+            
+            yield Label("Provider:")
+            yield Select(
+                options=LLMRegistry.get_providers(),
+                value=current_provider,
+                id="provider-select"
+            )
+            
+            yield Label("Model Selection:")
+            yield Select(
+                options=model_options,
+                value=dropdown_value,
+                id="model-select"
+            )
 
-                yield Label("Custom Model ID (Optional):")
-                yield Input(value=model_id, placeholder="e.g. meta-llama/llama-3-8b", id="model-id-input")
-                
-                yield Label("Base URL (LM Studio / External):")
-                yield Input(value=current_base_url, placeholder="http://localhost:1234/v1", id="base-url-input")
+            # Custom Model ID - hidden by default unless custom is selected
+            custom_classes = "" if dropdown_value == "custom" else "hidden"
+            yield Label("Custom Model ID:", id="lbl-custom-id", classes=custom_classes)
+            yield Input(value=model_id, placeholder="e.g. meta-llama/llama-3-8b", id="model-id-input", classes=custom_classes)
+            
+            # Base URL - hidden by default unless needed (like lmstudio)
+            base_url_classes = "" if current_provider == "lmstudio" else "hidden"
+            yield Label("Base URL (LM Studio):", id="lbl-base-url", classes=base_url_classes)
+            yield Input(value=current_base_url, placeholder="http://localhost:1234/v1", id="base-url-input", classes=base_url_classes)
 
-                yield Label("Press ESC to cancel", id="config-footer")
-                
-                with Vertical(id="config-buttons"):
-                    yield Button("Save & Apply", variant="success", id="save-btn")
-                    yield Button("Cancel", variant="error", id="close-btn")
+            yield Label("Press ESC to cancel", id="config-footer")
+            
+            with Vertical(id="config-buttons"):
+                yield Button("Save & Apply", variant="success", id="save-btn")
+                yield Button("Cancel", variant="error", id="close-btn")
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        """Update model options when provider changes."""
+        """Update options and visibility when selections change."""
+        
         if event.select.id == "provider-select":
+            provider = event.value
             model_select = self.query_one("#model-select", Select)
-            new_options = LLMRegistry.get_models(str(event.value))
+            
+            # Update model options
+            new_options = LLMRegistry.get_models(str(provider))
             model_select.set_options(new_options)
+            model_select.value = Select.BLANK
+
+            # Toggle Base URL visibility
+            is_lmstudio = (provider == "lmstudio")
+            self.query_one("#lbl-base-url").set_class(not is_lmstudio, "hidden")
+            self.query_one("#base-url-input").set_class(not is_lmstudio, "hidden")
+
+        elif event.select.id == "model-select":
+            # Toggle Custom Model ID visibility
+            is_custom = (event.value == "custom")
+            self.query_one("#lbl-custom-id").set_class(not is_custom, "hidden")
+            self.query_one("#model-id-input").set_class(not is_custom, "hidden")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close-btn":
@@ -73,7 +97,13 @@ class ConfigScreen(ModalScreen):
             base_url = self.query_one("#base-url-input", Input).value
             
             # Prefer dropdown selection if it's not blank, otherwise use input
-            model_id = model_select_val if (model_select_val is not Select.BLANK and model_select_val is not None) else model_input_val
+            # Determine the final model ID
+            if model_select_val == "custom":
+                model_id = model_input_val
+            elif model_select_val is not Select.BLANK and model_select_val is not None:
+                model_id = model_select_val
+            else:
+                model_id = model_input_val
             
             if provider and model_id:
                 self.dismiss({

@@ -115,7 +115,8 @@ class AgentTUI(App):
                 raise ValueError(f"Unknown provider: {provider}")
             
             # Instantiate with base_url if provided and supported (using keyword args)
-            if base_url:
+            # Instantiate with base_url only for providers that support it (like lmstudio)
+            if provider == "lmstudio" and base_url:
                 new_llm = llm_class(model_id, base_url=base_url)
             else:
                 new_llm = llm_class(model_id)
