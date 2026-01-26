@@ -13,7 +13,6 @@ from rich.markdown import Markdown
 # Add root project path to sys.path to allow imports from src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from src.Framework.Utils.stream_processor import StreamProcessor
 from src.Framework.Utils.logger import llm_logger, ui_logger
 
 from src.Core.Agent.agent import Agent
@@ -55,8 +54,7 @@ class AgentTUI(App):
             with Vertical(id="sidebar"):
                 yield Label("WORKSPACES", classes="workspace-header")
                 with ListView(id="workspace-list"):
-                    # Start empty or with current dir? 
-                    # User said "If I'm not in a workspace...", implying they might not be.
+                    # Start empty or pass
                     pass
                 yield Button("＋ Add Workspace", id="add-ws-btn", variant="success")
             with Vertical(id="chat-area"):
@@ -68,7 +66,12 @@ class AgentTUI(App):
                 yield ScrollableContainer(id="chat-scroll")
                 # Input starts disabled until a workspace is selected
                 yield Input(placeholder="Select a workspace to start chatting...", id="user-input", disabled=True)
-            yield ScrollableContainer(id="log-scroll")
+            
+            with Vertical(id="log-container"):
+                with Horizontal(id="log-header"):
+                     yield Button("Copy Logs", id="copy-logs-btn", variant="primary")
+                yield ScrollableContainer(id="log-scroll")
+
         yield Footer()
 
     def on_mount(self) -> None:
@@ -87,6 +90,7 @@ class AgentTUI(App):
             
         self.input = self.query_one("#user-input")
         self.chat_scroll = self.query_one("#chat-scroll")
+        self.log_container = self.query_one("#log-container")
         self.log_scroll = self.query_one("#log-scroll")
         self.workspace_list = self.query_one("#workspace-list")
         
@@ -98,7 +102,23 @@ class AgentTUI(App):
         self.query_one("#workspace-status", Label).update(f"Workspace: Current Project")
 
     def action_toggle_verbose(self) -> None:
-        self.log_scroll.toggle_class("visible")
+        self.log_container.toggle_class("visible")
+        
+    def action_copy_logs(self) -> None:
+        """Copy all logs to clipboard."""
+        try:
+            # We can read from the persistent file or just grab the text from the UI
+            # Reading file is safer/more complete
+            log_path = "logs/ui_log.txt"
+            if os.path.exists(log_path):
+                with open(log_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.app.copy_to_clipboard(content)
+                self.notify("Logs copied to clipboard!")
+            else:
+                 self.notify("No log file found.", severity="error")
+        except Exception as e:
+            self.notify(f"Failed to copy logs: {e}", severity="error")
 
     def action_show_config(self) -> None:
         def handle_config(data):
@@ -145,6 +165,8 @@ class AgentTUI(App):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "add-ws-btn":
             self.action_add_workspace()
+        elif event.button.id == "copy-logs-btn":
+            self.action_copy_logs()
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         if isinstance(event.item, WorkspaceItem):
@@ -184,158 +206,95 @@ class AgentTUI(App):
         asyncio.create_task(self.run_agent_loop(prompt, assistant_msg))
 
     async def run_agent_loop(self, prompt: str, assistant_msg: ChatMessage):
-        loop = asyncio.get_event_loop()
         self.assistant_msg = assistant_msg 
-        
         ui_logger.log(f"[TUI] run_agent_loop entry with prompt: {prompt[:50]}...")
-        try:
-            import time
-            stream_processor = StreamProcessor()
-            
-            import threading
-            def log_to_tui(message: str, level: str = "INFO"):
-                """Unified callback for all logging from the agent thread."""
-                msg_text = str(message).strip()
-                
-                # Persistent file log
-                llm_logger.log(msg_text, level=level) 
+        
+        # 1. UI Setup
+        main_layout = self.query_one("#main-layout")
+        workspace_list = self.query_one("#workspace-list")
+        add_btn = self.query_one("#add-ws-btn")
+        
+        main_layout.add_class("processing")
+        workspace_list.disabled = True
+        add_btn.disabled = True
 
-                def do_log_update():
-                    # Check for end of stream signal
-                    if "[MODEL RESPONSE STREAMING END]" in msg_text:
-                        if stream_processor.in_block:
-                            # Force close the block
-                            self.log_scroll.mount(Static("[yellow]Warning: Force closing unclosed action block[/]", classes="tool-log"))
-                            stream_processor.in_block = False
-                            stream_processor.buffer = "" # Clear buffer
-                            assistant_msg.end_streaming_action()
-                    
-                    # Format sidebar log
-                    if "[TOOL RESULT]" in msg_text:
-                        style = "tool-result"
-                        self.log_scroll.mount(Static(f"\n{msg_text}", classes=style, markup=False))
-                    elif "[EXECUTING TOOL]" in msg_text:
-                        style = "tool-log"
-                        self.log_scroll.mount(Static(msg_text, classes=style, markup=False))
-                    else:
-                        self.log_scroll.mount(Static(f"[blue]{level}:[/] {msg_text}"))
-                    
-                    # Add to message actions panel
-                    assistant_msg.add_action(msg_text)
-                    self.log_scroll.scroll_end()
+        # 2. Callbacks
+        def on_token(text: str):
+            # Already on main thread via run_async await
+            assistant_msg.text_content += text
+            assistant_msg.update_text(assistant_msg.text_content)
+            self.chat_scroll.scroll_end()
 
-                if threading.current_thread() is threading.main_thread():
-                    do_log_update()
+        def on_tool_start(tag: str):
+            # Already on main thread
+            assistant_msg.start_streaming_action(tag)
+
+        def on_tool_output(content: str):
+            # Already on main thread
+            assistant_msg.stream_to_action(content)
+
+        def on_tool_end(result: str = ""):
+            # Already on main thread
+            assistant_msg.end_streaming_action()
+
+        import threading
+        def on_log(msg: str, level: str = "INFO"):
+            msg_text = str(msg).strip()
+            # Persistent file log
+            llm_logger.log(msg_text, level=level)
+
+            def _update():
+                 # Format sidebar log
+                if "[TOOL RESULT]" in msg_text:
+                    style = "tool-result"
+                    self.log_scroll.mount(Static(f"\n{msg_text}", classes=style, markup=False))
+                elif "[EXECUTING TOOL]" in msg_text:
+                    style = "tool-log"
+                    self.log_scroll.mount(Static(msg_text, classes=style, markup=False))
                 else:
-                    self.call_from_thread(do_log_update)
-
-            # Lock UI components
-            main_layout = self.query_one("#main-layout")
-            workspace_list = self.query_one("#workspace-list")
-            add_btn = self.query_one("#add-ws-btn")
-            
-            main_layout.add_class("processing")
-            workspace_list.disabled = True
-            add_btn.disabled = True
-
-            buffer_main = ""
-            buffer_action = ""
-            last_update = time.time()
-            chunk_count = 0
-
-            ui_logger.log("[TUI] Calling agent.run_stream")
-            # Start the generator with our TUI logger
-            gen = self.agent.run_stream(prompt, log_callback=log_to_tui)
-            ui_logger.log("[TUI] Generator obtained. Starting loop.")
-            
-            while True:
-                try:
-                    ui_logger.log("[TUI] Awaiting next(gen) in executor")
-                    # Iterate through the generator in a way that doesn't block the event loop
-                    chunk = await loop.run_in_executor(None, next, gen, None)
-                    ui_logger.log(f"[TUI] Received chunk: {repr(chunk)}")
-                    if chunk is None:
-                        log_to_tui("Stream generator returned None (finished)", level="DEBUG")
-                        break
-                    
-                    chunk_count += 1
-                    # HEARTBEAT
-                    if chunk_count % 10 == 0:
-                        # log_to_tui(f"[DEBUG] Received {chunk_count} chunks...")
-                        pass
-                    
-                    ui_logger.log(f"[TUI] Stream Generator yielded chunk")
-                    try:
-                        events = stream_processor.process(chunk)
-                        ui_logger.log(f"[TUI] StreamProcessor returned {len(events)} events")
-                        # log_to_tui(f"[DEBUG] Process returned {len(events)} events")
-                    except Exception as error:
-                        log_to_tui(f"[ERROR] Failed to process chunk: {error}", level="ERROR")
-                        break
-                    
-                    for event_type, content in events:
-                        if event_type == 'main':
-                            buffer_main += content
-                        elif event_type == 'start_block':
-                            # log_to_tui(f"[DEBUG] Tag started: {content}")
-                            assistant_msg.start_streaming_action(content)
-                        elif event_type == 'block_content':
-                            llm_logger.log(f"[DEBUG] Action content: {content}")
-                            buffer_action += content
-                        elif event_type == 'end_block':
-                            # log_to_tui(f"[DEBUG] Block ended")
-                            # Flush action buffer immediately on block end
-                            if buffer_action:
-                                assistant_msg.stream_to_action(buffer_action)
-                                buffer_action = ""
-                            assistant_msg.end_streaming_action()
-                    
-                    current_time = time.time()
-                    
-                    # Update UI at most every 50ms (20fps) to prevent lag
-                    if current_time - last_update > 0.05:
-                        if buffer_main:
-                            assistant_msg.text_content += buffer_main
-                            assistant_msg.update_text(assistant_msg.text_content)
-                            buffer_main = ""
-                            self.chat_scroll.scroll_end()
-                        
-                        if buffer_action:
-                            assistant_msg.stream_to_action(buffer_action)
-                            buffer_action = ""
-                            
-                        last_update = current_time
-                    
-                    # Yield to the event loop
-                    await asyncio.sleep(0)
-                except StopIteration:
-                    break
-                except Exception as e:
-                    import traceback
-                    tb = traceback.format_exc()
-                    ui_logger.log(f"[TUI] Error during stream: {str(e)}\n{tb}", level="ERROR")
-                    log_to_tui(f"[ERROR] Error during stream: {str(e)}", level="ERROR")
-                    break
-            
-            # Flush remaining buffers
-            # First check if processor has leftovers
-            if stream_processor.buffer:
-                 # Treat leftover as main text
-                 buffer_main += stream_processor.buffer
-            
-            if buffer_main:
-                assistant_msg.text_content += buffer_main
-                assistant_msg.update_text(assistant_msg.text_content)
-                self.chat_scroll.scroll_end()
+                    self.log_scroll.mount(Static(f"[blue]{level}:[/] {msg_text}"))
                 
-            if buffer_action:
-                assistant_msg.stream_to_action(buffer_action)
+                # Add to message actions panel if it's a tool-related log
+                if "[EXECUTING TOOL]" in msg_text or "[TOOL RESULT]" in msg_text:
+                     assistant_msg.add_action(msg_text)
                 
+                self.log_scroll.scroll_end()
+            
+            # Handle both main thread (async loop) and worker thread (LLM generator) calls
+            if threading.current_thread() is threading.main_thread():
+                _update()
+            else:
+                self.call_from_thread(_update)
+            
+        def on_error(e: Exception):
+             ui_logger.log(f"[TUI] Agent Error: {e}", level="ERROR")
+             def _update():
+                 self.log_scroll.mount(Static(f"[red]Error: {str(e)}[/]"))
+             
+             if threading.current_thread() is threading.main_thread():
+                _update()
+             else:
+                self.call_from_thread(_update)
+
+        # 3. Execution
+        try:
+            ui_logger.log("[TUI] Calling agent.run_async")
+            await self.agent.run_async(
+                prompt,
+                on_token=on_token,
+                on_tool_start=on_tool_start,
+                on_tool_output=on_tool_output,
+                on_tool_end=on_tool_end,
+                on_log=on_log,
+                on_error=on_error
+            )
+            
         except Exception as outer_e:
             import traceback
             outer_tb = traceback.format_exc()
             ui_logger.log(f"[TUI] CRITICAL ERROR IN run_agent_loop: {outer_e}\n{outer_tb}", level="ERROR")
-            self.call_from_thread(self.log_scroll.mount, Static(f"[red]CRITICAL ERROR: {str(outer_e)}[/]"))
+            self.log_scroll.mount(Static(f"[red]CRITICAL ERROR: {str(outer_e)}[/]"))
+            
         finally:
             ui_logger.log("[TUI] run_agent_loop finally block")
             self.log_scroll.mount(Static("[yellow]Agent cycle finished.[/]"))
