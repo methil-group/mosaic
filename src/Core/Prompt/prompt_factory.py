@@ -14,8 +14,6 @@ Rules:
 - Prefer tools over prose. Act first, explain briefly after.
 - Read files: cat, grep, find, rg, ls, head, tail
 - Write files: echo '...' > file, sed -i, or cat << 'EOF' > file
-- Subagent: For complex subtasks, spawn a subagent to keep context clean:
-  python v0_bash_agent.py "explore src/ and summarize the architecture"
 
 When to use subagent:
 - Task requires reading many files (isolate the exploration)
@@ -34,6 +32,9 @@ The subagent runs in isolation and returns only its final summary.
         return f"""{tool_desc}
 
 IMPORTANT: You MUST use tools to solve this problem. Do NOT explain what you would do - EXECUTE commands immediately using the tools.
+Format your tool calls as follows:
+<tool_call>{{"name": "tool_name", "parameters": {{"param1": "value1"}}}}</tool_call>
+
 {examples_section}
 
 User: {prompt}

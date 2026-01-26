@@ -47,8 +47,11 @@ class MLXLLM(AbstractLLM):
             verbose=True
         )
 
-        tool_calls = ToolUtils.extract_tool_calls(response)
-        if tool_calls:
+        while True:
+            tool_calls = ToolUtils.extract_tool_calls(response)
+            if not tool_calls:
+                break
+
             for tool_call in tool_calls:
                 result = ToolUtils.execute_tool_call(tool_call, self.tool_registry)
                 
@@ -60,12 +63,12 @@ class MLXLLM(AbstractLLM):
                     prompt = self.tokenizer.apply_chat_template(
                         messages, tokenize=False, add_generation_prompt=True
                     )
-                
-                response = generate(
-                    self.model, 
-                    self.tokenizer, 
-                    prompt=prompt,
-                    verbose=True
-                )
+            
+            response = generate(
+                self.model, 
+                self.tokenizer, 
+                prompt=prompt,
+                verbose=True
+            )
 
         return response
