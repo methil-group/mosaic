@@ -14,14 +14,9 @@ Rules:
 - Prefer tools over prose. Act first, explain briefly after.
 - Read files: cat, grep, find, rg, ls, head, tail
 - Write files: echo '...' > file, sed -i, or cat << 'EOF' > file
-
-When to use subagent:
-- Task requires reading many files (isolate the exploration)
-- Task is independent and self-contained
-- You want to avoid polluting current conversation with intermediate details
-
-The subagent runs in isolation and returns only its final summary.
-        """
+- **CRITICAL**: Never hallucinate tool results. After a `<tool_call>`, you MUST stop writing and wait for the system to provide the `<tool_result>`.
+- **CRITICAL**: You MUST NOT write `<tool_result>` tags yourself. These are provided ONLY by the system.
+"""
         return system_prompt
 
     def create_tool_prompt(self, prompt: str, tool_desc: str, usage_examples: str = "") -> str:

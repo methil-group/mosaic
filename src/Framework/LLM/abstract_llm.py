@@ -26,7 +26,7 @@ class AbstractLLM(ABC):
     def _generate_stream(self, messages: List[Dict[str, str]]) -> Any:
         pass
 
-    def chat(self, prompt: str, system_prompt: str = "", history: Optional[List[Dict[str, str]]] = None, tools: Optional[List[Tool]] = None, verbose: bool = False) -> str:
+    def chat(self, prompt: str, system_prompt: str = "", history: Optional[List[Dict[str, str]]] = None, tools: Optional[List[Tool]] = None, verbose: bool = False, log_callback: callable = print) -> str:
         if history is None:
             history = []
 
@@ -45,7 +45,7 @@ class AbstractLLM(ABC):
 
         while True:
             if verbose:
-                print(f"\n[MODEL RESPONSE]\n{response}\n")
+                log_callback(f"\n[MODEL RESPONSE]\n{response}\n")
 
             tool_calls = ToolUtils.extract_tool_calls(response)
             if not tool_calls:
@@ -54,12 +54,12 @@ class AbstractLLM(ABC):
             for tool_call in tool_calls:
                 tool_name = tool_call.get('name')
                 if verbose:
-                    print(f"[EXECUTING TOOL] {tool_name} with params: {tool_call.get('parameters')}")
+                    log_callback(f"[EXECUTING TOOL] {tool_name} with params: {tool_call.get('parameters')}")
                 
                 result = ToolUtils.execute_tool_call(tool_call, self.tool_registry)
                 
                 if verbose:
-                    print(f"[TOOL RESULT] {result}\n")
+                    log_callback(f"[TOOL RESULT] {result}\n")
                 
                 result_prompt = self.prompt_factory.format_tool_result(response, tool_name, result)
                 
@@ -70,7 +70,7 @@ class AbstractLLM(ABC):
 
         return response
 
-    def chat_stream(self, prompt: str, system_prompt: str = "", history: Optional[List[Dict[str, str]]] = None, tools: Optional[List[Tool]] = None, verbose: bool = False):
+    def chat_stream(self, prompt: str, system_prompt: str = "", history: Optional[List[Dict[str, str]]] = None, tools: Optional[List[Tool]] = None, verbose: bool = False, log_callback: callable = print):
         """
         Streaming version of chat. Yields response chunks and handles tool calls.
         """
@@ -90,15 +90,15 @@ class AbstractLLM(ABC):
         
         while True:
             full_response = ""
-            if verbose and full_response == "":
-                 print("\n[MODEL RESPONSE STREAMING START]")
+            if verbose:
+                 log_callback("\n[MODEL RESPONSE STREAMING START]")
 
             for chunk in self._generate_stream(messages):
                 full_response += chunk
                 yield chunk
 
             if verbose:
-                print("\n[MODEL RESPONSE STREAMING END]\n")
+                log_callback("\n[MODEL RESPONSE STREAMING END]\n")
 
             tool_calls = ToolUtils.extract_tool_calls(full_response)
             if not tool_calls:
@@ -107,12 +107,12 @@ class AbstractLLM(ABC):
             for tool_call in tool_calls:
                 tool_name = tool_call.get('name')
                 if verbose:
-                    print(f"[EXECUTING TOOL] {tool_name} with params: {tool_call.get('parameters')}")
+                    log_callback(f"[EXECUTING TOOL] {tool_name} with params: {tool_call.get('parameters')}")
                 
                 result = ToolUtils.execute_tool_call(tool_call, self.tool_registry)
                 
                 if verbose:
-                    print(f"[TOOL RESULT] {result}\n")
+                    log_callback(f"[TOOL RESULT] {result}\n")
                     
                 result_prompt = self.prompt_factory.format_tool_result(full_response, tool_name, result)
                 

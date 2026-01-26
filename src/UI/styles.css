@@ -1,0 +1,115 @@
+Screen {
+    background: #1a1a1a;
+}
+
+#main-layout {
+    height: 1fr;
+}
+
+#sidebar {
+    width: 30;
+    height: 1fr;
+    background: #111;
+    border-right: solid #333;
+}
+
+.workspace-header {
+    padding: 1;
+    background: #222;
+    color: #fff;
+    text-align: center;
+    text-style: bold;
+}
+
+.workspace-label {
+    padding: 1;
+    width: 100%;
+    color: #aaa;
+}
+
+ListView > ListItem.--highlight {
+    background: #222;
+    color: #fff;
+}
+
+#chat-area {
+    height: 1fr;
+    width: 1fr;
+}
+
+#chat-scroll {
+    height: 1fr;
+    background: #0f0f0f;
+    padding: 1;
+}
+
+#log-scroll {
+    width: 35%;
+    border-left: solid #333;
+    background: #050505;
+    padding: 1;
+    color: #777;
+    display: none;
+}
+
+#log-scroll.visible {
+    display: block;
+}
+
+Input {
+    dock: bottom;
+    background: #222;
+    border: solid #333;
+    margin: 1;
+    color: #eee;
+}
+
+ChatMessage {
+    margin: 1 0;
+    padding: 1;
+    background: #222;
+}
+
+.tool-log {
+    color: #44aa44;
+    text-style: italic;
+}
+
+.tool-result {
+    color: #4444aa;
+    background: #111;
+    padding: 0 1;
+}
+
+#config-modal {
+    width: 60;
+    height: auto;
+    background: #222;
+    border: thick #444;
+    padding: 1 2;
+}
+
+#config-title {
+    text-align: center;
+    background: #444;
+    color: #eee;
+    padding: 1;
+    margin-bottom: 1;
+    text-style: bold;
+}
+
+.config-info {
+    margin: 1 0;
+    padding: 0 1;
+}
+
+#config-footer {
+    text-align: center;
+    color: #888;
+    text-style: italic;
+    margin: 1 0;
+}
+
+#close-btn {
+    width: 100%;
+}
