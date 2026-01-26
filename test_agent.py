@@ -3,6 +3,7 @@ from src.Core.Agent.agent import Agent
 
 def main():
     llm = MLXLLM("./models/qwen3-8b-vl")
+    # llm = MLXLLM("./models/qwen2.5-coder")
     agent = Agent(llm)
     
     prompt = """
