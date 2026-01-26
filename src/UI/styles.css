@@ -141,6 +141,17 @@ ChatMessage {
     margin: 1 0;
 }
 
+#config-buttons {
+    layout: horizontal;
+    height: auto;
+    margin-top: 1;
+}
+
+#config-buttons Button {
+    width: 1fr;
+    margin: 0 1;
+}
+
 #close-btn {
     width: 100%;
 }

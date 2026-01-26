@@ -5,6 +5,15 @@ from dotenv import load_dotenv
 from src.Framework.LLM.abstract_llm import AbstractLLM
 
 class OpenRouterLLM(AbstractLLM):
+    MODELS = [
+        ("Mistral Devstral", "mistralai/devstral-2512"),
+        ("GPT-4o", "openai/gpt-4o"),
+        ("GPT-4o Mini", "openai/gpt-4o-mini"),
+        ("Claude 3.5 Sonnet", "anthropic/claude-3.5-sonnet"),
+        ("Llama 3.1 405B", "meta-llama/llama-3.1-405b"),
+        ("Gemini Pro 1.5", "google/gemini-pro-1.5"),
+    ]
+
     def __init__(self, model_path: str):
         """
         model_path here is the OpenRouter model ID (e.g., 'openai/gpt-4o')

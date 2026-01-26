@@ -17,7 +17,7 @@ from src.Framework.Utils.stream_processor import StreamProcessor
 from src.Framework.Utils.logger import llm_logger, ui_logger
 
 from src.Core.Agent.agent import Agent
-from src.Core.LLM.openrouter_llm import OpenRouterLLM
+from src.Core.LLM.Registry.llm_registry import LLMRegistry
 from src.UI.components.chat_message import ChatMessage
 from src.UI.components.workspace_sidebar import WorkspaceItem
 from src.UI.components.config_screen import ConfigScreen
@@ -74,10 +74,16 @@ class AgentTUI(App):
     def on_mount(self) -> None:
         # Initialize our Agent
         try:
-            llm = OpenRouterLLM("mistralai/devstral-2512")
+            # Default to OpenRouter Mistral
+            llm_class = LLMRegistry.get_class("openrouter")
+            llm = llm_class("mistralai/devstral-2512")
             self.agent = Agent(llm, verbose=True)
         except Exception as e:
-            self.notify(f"Initialization Error: {str(e)}", severity="error")
+            # Import here to avoid circular or early import issues if needed
+            from src.Core.LLM.openrouter_llm import OpenRouterLLM
+            llm = OpenRouterLLM("mistralai/devstral-2512")
+            self.agent = Agent(llm, verbose=True)
+            self.notify(f"Initialization Warn: {str(e)} - Using fallback", severity="warning")
             
         self.input = self.query_one("#user-input")
         self.chat_scroll = self.query_one("#chat-scroll")
@@ -88,14 +94,40 @@ class AgentTUI(App):
         self.workspace_list.append(WorkspaceItem("Current Project", os.getcwd()))
         
         # Initialize status bar
-        self.query_one("#model-indicator", Label).update(f"Model: {llm.model_id}")
+        self.query_one("#model-indicator", Label).update(f"Model: {self.agent.llm.model_id}")
         self.query_one("#workspace-status", Label).update(f"Workspace: Current Project")
 
     def action_toggle_verbose(self) -> None:
         self.log_scroll.toggle_class("visible")
 
     def action_show_config(self) -> None:
-        self.push_screen(ConfigScreen())
+        def handle_config(data):
+            if data:
+                self.update_llm_config(data["provider"], data["model_id"])
+
+        self.push_screen(ConfigScreen(), handle_config)
+
+    def update_llm_config(self, provider: str, model_id: str) -> None:
+        """Swap the LLM driver and update the UI."""
+        try:
+            llm_class = LLMRegistry.get_class(provider)
+            if not llm_class:
+                raise ValueError(f"Unknown provider: {provider}")
+            
+            new_llm = llm_class(model_id)
+
+            # Update agent's LLM
+            self.agent.llm = new_llm
+            
+            # Update UI indicators
+            self.query_one("#model-indicator", Label).update(f"Model: {model_id}")
+            self.notify(f"Updated LLM to {model_id} ({provider})")
+            
+            self.log_scroll.mount(Static(f"[bold green]LLM UPDATED:[/] {model_id} via {provider}", classes="tool-log"))
+            self.log_scroll.scroll_end()
+            
+        except Exception as e:
+            self.notify(f"Failed to update LLM: {str(e)}", severity="error")
 
     def action_add_workspace(self) -> None:
         def handle_added(data):
