@@ -25,3 +25,21 @@ When to use subagent:
 The subagent runs in isolation and returns only its final summary.
         """
         return system_prompt
+
+    def create_tool_prompt(self, prompt: str, tool_desc: str, usage_examples: str = "") -> str:
+        examples_section = ""
+        if usage_examples:
+            examples_section = f"\n\nEXAMPLES OF CORRECT TOOL USAGE:\n{usage_examples}"
+
+        return f"""{tool_desc}
+
+IMPORTANT: You MUST use tools to solve this problem. Do NOT explain what you would do - EXECUTE commands immediately using the tools.
+{examples_section}
+
+User: {prompt}
+
+Assistant: I will use the available tools to solve this. Let me start:"""
+
+    def format_tool_result(self, response: str, tool_name: str, result: str) -> str:
+        import json
+        return f"{response}\n<tool_result>{json.dumps({'tool': tool_name, 'result': result})}</tool_result>\nContinue:"
