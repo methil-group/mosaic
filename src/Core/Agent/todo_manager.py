@@ -30,6 +30,7 @@ class TodoManager:
     def __init__(self):
         self.items: List[TodoItem] = []
         self.max_items = 20
+        self.on_update: Optional[callable] = None
 
     def update(self, items_data: List[Dict[str, Any]]) -> str:
         """
@@ -68,6 +69,14 @@ class TodoManager:
             raise ValueError("Only one task can be in_progress at a time")
 
         self.items = validated_items
+        
+        if self.on_update:
+            try:
+                self.on_update(self.items)
+            except Exception as e:
+                # Don't let UI callback failure break the tool execution
+                print(f"TodoManager update callback failed: {e}")
+                
         return self.render()
 
     def render(self) -> str:

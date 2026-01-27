@@ -32,6 +32,32 @@ Screen {
     color: #aaa;
 }
 
+#message_todo_container {
+    background: #111;
+    border-left: solid #00ff00; /* Green accent */
+    margin: 1 0;
+    padding: 1;
+    height: auto;
+}
+
+.message-todo-header {
+    background: #222;
+    color: #fff;
+    padding: 0 1;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#message_todo_markdown {
+    color: #ddd;
+    background: transparent;
+    padding: 0 1;
+}
+
+#workspace-list {
+    height: 1fr; /* Takes remaining space */
+}
+
 ListView > ListItem.--highlight {
     background: #222;
     color: #fff;

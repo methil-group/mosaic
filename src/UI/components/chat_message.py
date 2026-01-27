@@ -26,6 +26,11 @@ class ChatMessage(Vertical):
         
         # Actions section (only for assistant usually, but safe to have)
         if self.role != "user":
+            # Todo List Section (Hidden by default)
+            with Vertical(id="message_todo_container", classes="hidden"):
+                yield Label("TASKS", classes="message-todo-header")
+                yield Markdown("", id="message_todo_markdown")
+
             # Start collapsed
             with Collapsible(title="Actions made", id="actions_view"):
                 with Vertical(id="actions_container"):
@@ -38,6 +43,19 @@ class ChatMessage(Vertical):
         self.text_content = new_text
         self.query_one("#md_view", Markdown).update(self.text_content)
         # Force layout recalculation so the container grows
+        self.refresh(layout=True)
+    
+    def update_todos(self, content: str):
+        """Update the todo list display in this message."""
+        container = self.query_one("#message_todo_container", Vertical)
+        md_view = self.query_one("#message_todo_markdown", Markdown)
+        
+        if not content.strip():
+            container.add_class("hidden")
+        else:
+            container.remove_class("hidden")
+            md_view.update(content)
+        
         self.refresh(layout=True)
 
     def add_action(self, log_text: str):

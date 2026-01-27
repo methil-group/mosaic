@@ -101,6 +101,45 @@ class AgentTUI(App):
         self.query_one("#model-indicator", Label).update(f"Model: {self.agent.llm.model_id}")
         self.query_one("#workspace-status", Label).update(f"Workspace: Current Project")
 
+        # Wire up TodoManager updates
+        def update_todos_ui(items):
+            # Render items to markdown
+            if not items:
+                content = "" # Empty content hides the view in ChatMessage
+            else:
+                lines = []
+                for item in items:
+                    icon = "- [ ]"
+                    if item.status == "completed":
+                        icon = "- [x]"
+                    elif item.status == "in_progress":
+                        icon = "- [>]" # Custom icon, Markdown might treat as list
+                    
+                    # Use standard markdown checklist syntax where possible, or rich text
+                    # Since we are using a Markdown widget, let's use standard markdown
+                    # But we want styling. 
+                    # The Markdown widget in Textual supports Github flavored markdown.
+                    
+                    if item.status == "completed":
+                        line = f"- [x] ~~{item.content}~~"
+                    elif item.status == "in_progress":
+                        # Bold for emphasis
+                        line = f"- [ ] **{item.content}**"
+                        if item.active_form:
+                            line += f"\n    *↳ {item.active_form}*"
+                    else:
+                        line = f"- [ ] {item.content}"
+                        
+                    lines.append(line)
+                content = "\n".join(lines)
+            
+            # Post to main thread
+            # We need to target the CURRENT assistant message if it exists
+            if hasattr(self, 'assistant_msg') and self.assistant_msg:
+                 self.call_from_thread(self.assistant_msg.update_todos, content)
+
+        self.agent.todo_manager.on_update = update_todos_ui
+
     def action_toggle_verbose(self) -> None:
         self.log_container.toggle_class("visible")
         
