@@ -111,6 +111,14 @@ class AbstractLLM(ABC):
 
             for chunk in self._generate_stream(messages):
                 full_response += chunk
+                
+                # Emergency filter for stubborn model hallucination
+                # The model sometimes outputs raw function calls like contents.manage_todos(...)
+                # We want to hide this from the user stream.
+                if "manage_todos" in chunk and ("{" in chunk or "(" in chunk):
+                    # Suppress from visual stream
+                    continue
+                    
                 if chunk:
                     # VERBOSE LOGGING FOR DEBUGGING
                     llm_logger.log(f"Stream Chunk Received: {chunk[:50]}{'...' if len(chunk) > 50 else ''}")
@@ -130,7 +138,9 @@ class AbstractLLM(ABC):
                     ui_logger.log(f"[AbstractLLM] JSON error detected: {error_message}. Retrying...")
                     messages.append({"role": "assistant", "content": full_response})
                     messages.append({"role": "user", "content": f"System Error: The tool call JSON was invalid. {error_message}. Please correct the JSON and try again."})
-                    yield f"\n[System Error: Invalid JSON detected. Retrying...]\n"
+                    messages.append({"role": "user", "content": f"System Error: The tool call JSON was invalid. {error_message}. Please correct the JSON and try again."})
+                    # Yield as a thought so it goes to logs/actions panel but not main chat
+                    yield f"<thought>System Warning: Internal JSON repair triggered: {error_message}</thought>\n"
                     continue
                 else:
                     ui_logger.log("[AbstractLLM] No tool calls found. Ending cycle.")
