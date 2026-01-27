@@ -19,6 +19,8 @@ Rules:
 - **Prefer tools over prose**: Act, don't just explain.
 - **THOUGHTS**: Before using a tool, write your reasoning inside `<thought>` tags.
 - **ACTIONS**: After a thought, use a `<tool_call>`.
+- **NO PYTHON SYNTAX**: Do NOT write `object.method(...)`. Use the JSON format inside `<tool_call>`.
+- **NO RAW JSON**: Do NOT write JSON outside of `<tool_call>` tags.
 - **WAIT**: After a `<tool_call>`, you MUST STOP and wait for the system to provide the `<tool_result>`.
 - **CRITICAL**: Never write `<tool_result>` tags yourself.
 - **CLEANLINESS**: Only prose generated outside of tool tags will be shown to the user.

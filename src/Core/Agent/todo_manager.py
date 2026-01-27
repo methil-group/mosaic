@@ -110,7 +110,10 @@ class TodoManager:
                             "properties": {
                                 "content": {"type": "string"},
                                 "status": {"type": "string", "enum": ["pending", "in_progress", "completed"]},
-                                "activeForm": {"type": "string"}
+                                "activeForm": {
+                                    "type": "string",
+                                    "description": "The PRESENT TENSE form of what's happening (e.g. 'Adding unit tests...'). Required when status is 'in_progress' elsen provide an empty string."
+                                }
                             },
                             "required": ["content", "status"]
                         },
