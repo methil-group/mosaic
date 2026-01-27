@@ -1,23 +1,19 @@
+import api/server
 import dot_env
-import ffi/utils
-import gleam/io
-import llm/llm
+import gleam/erlang/process
+import gleam/int
+import mosaic_logger
 
 pub fn main() {
   dot_env.load_default()
 
-  io.println("--- Streaming Chat (via llm abstraction) ---")
+  let port = 3710
 
-  let result =
-    llm.llm_stream_chat(
-      model: "deepseek/deepseek-v3.2",
-      prompt: "Tell me a short joke about robots.",
-      system_prompt: "You are a funny assistant.",
-      on_delta: fn(delta) { io.print(delta) },
-    )
+  mosaic_logger.info(
+    "mosaic",
+    "Starting mosaic server on http://localhost:" <> int.to_string(port),
+  )
+  let _ = server.start(port)
 
-  case result {
-    Ok(_) -> io.println("\n--- Stream Finished ---")
-    Error(e) -> io.println("\nError: " <> utils.string_inspect(e))
-  }
+  process.sleep_forever()
 }
