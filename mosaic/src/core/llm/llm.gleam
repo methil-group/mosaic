@@ -1,24 +1,15 @@
 import dot_env/env
 import gleam/option.{Some}
-import mosaic_open_ai.{type OpenAIError, ChatRequest, Message}
+import mosaic_open_ai.{type OpenAIError, ChatRequest}
 
 pub fn llm_stream_chat(
   model model: String,
-  prompt prompt: String,
-  system_prompt system_prompt: String,
+  messages messages: List(mosaic_open_ai.Message),
   on_delta on_delta: fn(String) -> Nil,
 ) -> Result(Nil, OpenAIError) {
   let api_key = get_api_key()
 
-  let req =
-    ChatRequest(
-      model: model,
-      messages: [
-        Message(role: "system", content: system_prompt),
-        Message(role: "user", content: prompt),
-      ],
-      stream: Some(True),
-    )
+  let req = ChatRequest(model: model, messages: messages, stream: Some(True))
 
   mosaic_open_ai.chat_stream(
     api_key: api_key,
@@ -30,20 +21,11 @@ pub fn llm_stream_chat(
 
 pub fn llm_chat(
   model model: String,
-  prompt prompt: String,
-  system_prompt system_prompt: String,
+  messages messages: List(mosaic_open_ai.Message),
 ) -> Result(String, OpenAIError) {
   let api_key = get_api_key()
 
-  let req =
-    ChatRequest(
-      model: model,
-      messages: [
-        Message(role: "system", content: system_prompt),
-        Message(role: "user", content: prompt),
-      ],
-      stream: Some(False),
-    )
+  let req = ChatRequest(model: model, messages: messages, stream: Some(False))
 
   case
     mosaic_open_ai.chat(

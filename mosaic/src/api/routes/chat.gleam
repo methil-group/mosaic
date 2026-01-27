@@ -5,6 +5,7 @@ import gleam/dynamic/decode
 import gleam/http/response
 import gleam/json
 import mosaic_logger
+import mosaic_open_ai
 
 pub type ChatRequest {
   ChatRequest(prompt: String)
@@ -25,11 +26,13 @@ pub fn handle(req: ewe.Request) -> ewe.Response {
             Ok(chat_req) -> {
               mosaic_logger.debug("api/chat", "Prompt: " <> chat_req.prompt)
               let result =
-                llm.llm_chat(
-                  model: "deepseek/deepseek-v3.2",
-                  prompt: chat_req.prompt,
-                  system_prompt: "You are a helpful assistant.",
-                )
+                llm.llm_chat(model: "deepseek/deepseek-v3.2", messages: [
+                  mosaic_open_ai.Message(
+                    role: "system",
+                    content: "You are a helpful assistant.",
+                  ),
+                  mosaic_open_ai.Message(role: "user", content: chat_req.prompt),
+                ])
 
               case result {
                 Ok(content) -> {
