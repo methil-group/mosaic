@@ -12,7 +12,7 @@ Screen {
 }
 
 #sidebar {
-    width: 30;
+    width: 24;
     height: 1fr;
     background: #111;
     border-right: solid #333;
@@ -93,7 +93,7 @@ ListView > ListItem.--highlight {
 #chat-scroll {
     height: 1fr;
     background: #0f0f0f;
-    padding: 1;
+    padding: 0;
 }
 
 #log-container {
@@ -133,7 +133,7 @@ ListView > ListItem.--highlight {
 Input {
     background: #222;
     border: solid #333;
-    margin: 1;
+    margin: 0;
     color: #eee;
 }
 

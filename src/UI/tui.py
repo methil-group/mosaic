@@ -21,6 +21,7 @@ from src.UI.components.chat_message import ChatMessage
 from src.UI.components.workspace_sidebar import WorkspaceItem
 from src.UI.components.config_screen import ConfigScreen
 from src.UI.components.add_workspace_modal import AddWorkspaceModal
+from src.UI.components.suggestion_panel import SuggestionPanel
 
 class AgentTUI(App):
     """Modern TUI for the Agent with Workspace Sidebar."""
@@ -64,6 +65,8 @@ class AgentTUI(App):
                     yield Label("", id="model-indicator")
                 
                 yield ScrollableContainer(id="chat-scroll")
+                # Suggestion panel sits here, floating logic handled by CSS 'layer: overlay'
+                yield SuggestionPanel()
                 # Input starts disabled until a workspace is selected
                 yield Input(placeholder="Select a workspace to start chatting...", id="user-input", disabled=True)
             
@@ -223,6 +226,12 @@ class AgentTUI(App):
                 self.notify(f"Error accessing path: {str(e)}", severity="error")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
+        # If suggestion panel is visible and has selection, treat enter as "select"
+        # But `on_key` usually handles this. If we get here, it might mean the user hit enter
+        # without selecting or the key event propagated.
+        # Let's verify if we need to block this if autocomplete was active.
+        # For now, let's assume `on_key` handles the "select" case and stops propagation.
+        
         prompt = event.value.strip()
         if not prompt:
             return
@@ -244,6 +253,127 @@ class AgentTUI(App):
         # Start the non-blocking agent run
         asyncio.create_task(self.run_agent_loop(prompt, assistant_msg))
 
+    def on_key(self, event: events.Key) -> None:
+        """Intercept keys for autocomplete navigation."""
+        suggestion_panel = self.query_one(SuggestionPanel)
+        
+        if suggestion_panel.has_class("visible"):
+            if event.key == "up":
+                suggestion_panel.move_selection(-1)
+                event.stop()
+                event.prevent_default()
+            elif event.key == "down":
+                suggestion_panel.move_selection(1)
+                event.stop()
+                event.prevent_default()
+            elif event.key == "enter" or event.key == "tab":
+                selected = suggestion_panel.get_selected()
+                if selected:
+                    self._complete_suggestion(selected)
+                    suggestion_panel.hide()
+                    event.stop()
+                    event.prevent_default()
+            elif event.key == "escape":
+                suggestion_panel.hide()
+                event.stop()
+                event.prevent_default()
+
+    def _complete_suggestion(self, suggestion: str):
+        """Insert the selected file path into the input."""
+        current_value = self.input.value
+        cursor_pos = self.input.cursor_position
+        
+        # Find the start of the word being typed
+        # We assume it starts at the last '@' before cursor
+        text_before_cursor = current_value[:cursor_pos]
+        at_index = text_before_cursor.rfind("@")
+        
+        if at_index != -1:
+            # Replace from @ to cursor with suggestion
+            new_text = current_value[:at_index] + f"@{suggestion} " + current_value[cursor_pos:]
+            self.input.value = new_text
+            # Move cursor to end of inserted text
+            self.input.cursor_position = at_index + len(suggestion) + 2
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Handle input changes to trigger autocomplete."""
+        suggestion_panel = self.query_one(SuggestionPanel)
+        
+        # Logic to check if we are typing a file path
+        # Simple heuristic: last word starts with @
+        value = event.value
+        cursor = self.input.cursor_position
+        
+        # Identify word at cursor
+        text_before = value[:cursor]
+        if not text_before:
+            suggestion_panel.hide()
+            return
+
+        words = text_before.split()
+        if not words:
+            suggestion_panel.hide()
+            return
+            
+        current_word = words[-1]
+        
+        # If the word actually *starts* with @ and the cursor is right after it
+        # We need to be careful with spacing. split() removes spaces.
+        # Let's check the raw string.
+        last_at = text_before.rfind("@")
+        
+        if last_at != -1:
+            # Check if there are spaces between @ and cursor (allow spaces in filenames? usually no for simple autocomplete)
+            # For now, strict no-space for trigger
+            search_query = text_before[last_at+1:]
+            
+            # Sanity check: if there's a space, we stop suggesting
+            if " " in search_query:
+                suggestion_panel.hide()
+                return
+                
+            # Perform search
+            matches = self._scan_files(search_query)
+            suggestion_panel.update_suggestions(matches)
+        else:
+            suggestion_panel.hide()
+
+    def _scan_files(self, query: str) -> List[str]:
+        """Scan current directory for matching files."""
+        matches = []
+        try:
+            cwd = os.getcwd()
+            # Walk limit depth to avoid freezing on massive repos
+            max_depth = 3
+            
+            for root, dirs, files in os.walk(cwd):
+                # Calculate depth
+                depth = root[len(cwd):].count(os.sep)
+                if depth > max_depth:
+                    continue
+                    
+                # Ignore hidden dirs
+                dirs[:] = [d for d in dirs if not d.startswith(".") and d != "__pycache__"]
+                
+                rel_root = os.path.relpath(root, cwd)
+                if rel_root == ".":
+                    rel_root = ""
+                
+                for file in files:
+                    if file.startswith("."): # Ignore dotfiles
+                        continue
+                        
+                    full_rel_path = os.path.join(rel_root, file) if rel_root else file
+                    
+                    if query.lower() in full_rel_path.lower():
+                        matches.append(full_rel_path)
+                        
+                    if len(matches) > 20: # Limit results
+                        return matches
+        except Exception:
+            pass
+        return matches
+
     async def run_agent_loop(self, prompt: str, assistant_msg: ChatMessage):
         self.assistant_msg = assistant_msg 
         ui_logger.log(f"[TUI] run_agent_loop entry with prompt: {prompt[:50]}...")
@@ -258,11 +388,21 @@ class AgentTUI(App):
         add_btn.disabled = True
 
         # 2. Callbacks
+        # Optimization: Buffer tokens to reduce UI redraws
+        token_buffer = []
+        
+        def flush_tokens():
+            if token_buffer:
+                text_chunk = "".join(token_buffer)
+                token_buffer.clear()
+                assistant_msg.text_content += text_chunk
+                assistant_msg.update_text(assistant_msg.text_content)
+                self.chat_scroll.scroll_end()
+
         def on_token(text: str):
-            # Already on main thread via run_async await
-            assistant_msg.text_content += text
-            assistant_msg.update_text(assistant_msg.text_content)
-            self.chat_scroll.scroll_end()
+            token_buffer.append(text)
+            if len(token_buffer) >= 5:  # Update every 5 tokens
+                flush_tokens()
 
         def on_tool_start(tag: str):
             # Already on main thread
@@ -335,6 +475,9 @@ class AgentTUI(App):
             self.log_scroll.mount(Static(f"[red]CRITICAL ERROR: {str(outer_e)}[/]"))
             
         finally:
+            # Ensure any remaining tokens are shown
+            flush_tokens()
+            
             ui_logger.log("[TUI] run_agent_loop finally block")
             self.log_scroll.mount(Static("[yellow]Agent cycle finished.[/]"))
             self.log_scroll.scroll_end()
