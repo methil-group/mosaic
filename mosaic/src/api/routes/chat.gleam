@@ -1,9 +1,9 @@
+import core/llm/llm
 import ewe
 import gleam/bit_array
 import gleam/dynamic/decode
 import gleam/http/response
 import gleam/json
-import llm/llm
 import mosaic_logger
 
 pub type ChatRequest {
