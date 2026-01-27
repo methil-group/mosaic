@@ -40,7 +40,16 @@ Format EVERY tool call exactly like this:
 }}
 </tool_call>
 
-Strictly adhere to the JSON structure above. Do not use [TOOL_CALLS] or any other format.
+Strictly adhere to the JSON structure above. Alternatively, you may use XML format:
+
+<tool_call>
+<name>tool_name</name>
+<parameters>
+<arg1>value1</arg1>
+</parameters>
+</tool_call>
+
+Do not use [TOOL_CALLS] or any other format.
 
 {examples_section}
 

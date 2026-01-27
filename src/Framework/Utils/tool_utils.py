@@ -30,15 +30,67 @@ class ToolUtils:
             ui_logger.log(f"[ToolUtils] Found {len(matches)} <tool_call> matches")
         
         for match in matches:
-            try:
-                tool_data = json.loads(match.strip())
-                if 'name' in tool_data:
-                    tool_calls.append(tool_data)
-            except json.JSONDecodeError as e:
-                error_msg = f"JSON error in <tool_call>: {e}"
-                ui_logger.log(f"[ToolUtils] {error_msg}\nMatch: {repr(match)}")
-                errors.append(f"{error_msg} in content: {match[:200]}...")
-                continue
+            content = match.strip()
+            # Try JSON first
+            if content.startswith('{'):
+                try:
+                    tool_data = json.loads(content)
+                    if 'name' in tool_data:
+                        tool_calls.append(tool_data)
+                except json.JSONDecodeError as e:
+                    error_msg = f"JSON error in <tool_call>: {e}"
+                    ui_logger.log(f"[ToolUtils] {error_msg}\nMatch: {repr(match)}")
+                    errors.append(f"{error_msg} in content: {match[:200]}...")
+                    continue
+            # Try XML
+            else:
+                try:
+                    # Wrap in root to handle fragment if needed, 
+                    # but tool_pattern already extracts inner content. 
+                    # If content is:
+                    # <name>foo</name>
+                    # <parameters>...</parameters>
+                    # We can wrap it in a root tag to parse easily
+                    
+                    # Alternatively, the regex above removed the outer <tool_call>.
+                    # So we have the children.
+                    # It's safer to re-wrap in a dummy root or parse carefully.
+                    
+                    import xml.etree.ElementTree as ET
+                    # Wrap in <root> to ensure single root element
+                    xml_content = f"<root>{content}</root>"
+                    root = ET.fromstring(xml_content)
+                    
+                    name_elem = root.find('name')
+                    if name_elem is not None:
+                        tool_name = name_elem.text.strip()
+                        params = {}
+                        params_elem = root.find('parameters')
+                        if params_elem is not None:
+                            for child in params_elem:
+                                # Start with simple text content
+                                val = child.text
+                                if val:
+                                    val = val.strip()
+                                    # Try to interpret as JSON if it looks like it?
+                                    # The user prompt had a JSON list in a param.
+                                    if (val.startswith('[') and val.endswith(']')) or \
+                                       (val.startswith('{') and val.endswith('}')):
+                                       try:
+                                           val = json.loads(val)
+                                       except:
+                                           pass
+                                params[child.tag] = val
+                            
+                        tool_calls.append({
+                            "name": tool_name,
+                            "parameters": params
+                        })
+                except Exception as e:
+                    error_msg = f"XML parsing error in <tool_call>: {e}"
+                    ui_logger.log(f"[ToolUtils] {error_msg}\nMatch: {repr(match)}")
+                    errors.append(f"{error_msg}"[:100])
+                    continue
         
         # Support for [TOOL_CALLS] format (observed deviation)
         if not tool_calls:
