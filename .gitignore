@@ -51,3 +51,4 @@ htmlcov/
 *.log
 models
 logs
+__0.0.1_python*

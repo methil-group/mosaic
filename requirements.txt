@@ -1,6 +1,0 @@
-mlx
-mlx-lm
-openai
-torch
-textual
-python-dotenv
