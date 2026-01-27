@@ -2,19 +2,33 @@ import asyncio
 from src.Core.Utils.stream_processor import StreamProcessor
 from src.Framework.Utils.logger import llm_logger
 from src.Framework.LLM.abstract_llm import AbstractLLM
-from src.Core.Tools.tools import TOOLS
 from typing import List, Dict, Any, Optional
+from src.Framework.Tools.tool import Tool
+from src.Core.Agent.todo_manager import TodoManager
+from src.Core.Tools.tools import TOOLS as STATIC_TOOLS
 
 class Agent:
     def __init__(self, llm: AbstractLLM, verbose: bool = False):
         self.llm = llm
         self.verbose = verbose
+        self.todo_manager = TodoManager()
+
+    def _get_tools(self) -> List[Tool]:
+        """Combine static tools with dynamic agent tools."""
+        return STATIC_TOOLS + [self.todo_manager.get_tool()]
+
+    def _inject_context(self, prompt: str) -> str:
+        """Inject todo list context into the prompt."""
+        todo_context = self.todo_manager.render()
+        return f"Current Todo List:\n{todo_context}\n\nUser Request: {prompt}"
 
     def chat(self, prompt: str, history: Optional[List[Dict[str, str]]] = None, log_callback: callable = print) -> str:
-        return self.llm.chat(prompt, history=history, tools=TOOLS, verbose=self.verbose, log_callback=log_callback)
+        full_prompt = self._inject_context(prompt)
+        return self.llm.chat(full_prompt, history=history, tools=self._get_tools(), verbose=self.verbose, log_callback=log_callback)
 
     def chat_stream(self, prompt: str, history: Optional[List[Dict[str, str]]] = None, log_callback: callable = print):
-        return self.llm.chat_stream(prompt, history=history, tools=TOOLS, verbose=self.verbose, log_callback=log_callback)
+        full_prompt = self._inject_context(prompt)
+        return self.llm.chat_stream(full_prompt, history=history, tools=self._get_tools(), verbose=self.verbose, log_callback=log_callback)
 
     def run(self, prompt: str):
         response = self.chat(prompt)
