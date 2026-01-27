@@ -80,14 +80,14 @@ class AgentTUI(App):
     def on_mount(self) -> None:
         # Initialize our Agent
         try:
-            # Default to OpenRouter Mistral
+            # Default to OpenRouter DeepSeek
             llm_class = LLMRegistry.get_class("openrouter")
-            llm = llm_class("mistralai/devstral-2512")
+            llm = llm_class("deepseek/deepseek-v3.2")
             self.agent = Agent(llm, verbose=True)
         except Exception as e:
             # Import here to avoid circular or early import issues if needed
             from src.Core.LLM.openrouter_llm import OpenRouterLLM
-            llm = OpenRouterLLM("mistralai/devstral-2512")
+            llm = OpenRouterLLM("deepseek/deepseek-v3.2")
             self.agent = Agent(llm, verbose=True)
             self.notify(f"Initialization Warn: {str(e)} - Using fallback", severity="warning")
             

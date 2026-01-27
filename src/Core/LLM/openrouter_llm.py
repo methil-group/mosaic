@@ -6,12 +6,12 @@ from src.Framework.LLM.abstract_llm import AbstractLLM
 
 class OpenRouterLLM(AbstractLLM):
     MODELS = [
+        ("DeepSeek V3.2", "deepseek/deepseek-v3.2"),
         ("Mistral Devstral", "mistralai/devstral-2512"),
-        ("GPT-4o", "openai/gpt-4o"),
-        ("GPT-4o Mini", "openai/gpt-4o-mini"),
-        ("Claude 3.5 Sonnet", "anthropic/claude-3.5-sonnet"),
-        ("Llama 3.1 405B", "meta-llama/llama-3.1-405b"),
-        ("Gemini Pro 1.5", "google/gemini-pro-1.5"),
+        ("GLM 4.7", "z-ai/glm-4.7"),
+        ("GLM 4.7 Flash", "z-ai/glm-4.7-flash"),
+        ("GPT-5.2 Codex", "openai/gpt-5.2-codex"),
+        ("Minimax M2.1", "minimax/minimax-m2.1"),
         ("Custom...", "custom"),
     ]
 
