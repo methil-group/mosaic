@@ -19,30 +19,49 @@ pub fn create_system_prompt(
     })
     |> string.join("\n\n")
 
-  "You are a CLI agent at "
-  <> working_directory
-  <> ".\n\nYou are an AI assistant with access to several tools.
-Your goal is to help the user by using these tools when necessary.
+  let header = "You are a CLI agent at " <> working_directory <> ".\n"
+
+  let body = "
+Loop: plan -> act with tools -> report.
+
+Rules:
+- Prefer tools over prose. Act, don't just explain.
+- After finishing, summarize what changed.
+- **CRITICAL**: Use `<tool_call>` with JSON.
 
 ### Available Tools:
-"
-  <> tools_json
-  <> "
+" <> tools_json <> "
+
+### CRITICAL: TOOL CALL FORMAT
+You MUST use tools to solve this problem. Do NOT explain what you would do - EXECUTE commands immediately using the tools.
+EVERY tool call MUST be wrapped in `<tool_call>` tags and MUST be valid JSON.
+
+Example:
+<tool_call>
+{
+  \"name\": \"run_bash\",
+  \"parameters\": {
+    \"command\": \"ls\"
+  }
+}
+</tool_call>
 
 ### Instructions:
 1. Analyze the user's prompt.
-2. If you need to use a tool, respond ONLY with a single JSON object. No explanation, no preamble, no other text.
-3. Use the following format for tool calls:
-{
-  \"tool\": \"tool_name\",
-  \"parameters\": {
-    \"param_name\": \"param_value\"
-  }
-}
-4. If you have the answer or don't need a tool, provide a concise natural language response.
+2. If you need to use a tool, respond with the `<tool_call>` block. You may include a brief explanation BEFORE the block, but the block itself must be exact.
+3. If you have the answer or don't need a tool, provide a concise natural language response.
 "
+
+  header <> body
 }
 
 pub fn format_tool_result(name: String, result: String) -> String {
-  "Tool '" <> name <> "' returned: " <> result
+  let content =
+    json.object([
+      #("tool", json.string(name)),
+      #("result", json.string(result)),
+    ])
+    |> json.to_string
+
+  "<tool_result>" <> content <> "</tool_result>\nContinue:"
 }

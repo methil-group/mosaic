@@ -26,7 +26,7 @@ loop(RequestId, Callback) ->
             ok;
         {http, {RequestId, {error, Reason}}} ->
             exit({error, Reason})
-    after 60000 ->
+    after 300000 ->
         exit({error, timeout})
     end.
 

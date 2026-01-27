@@ -43,9 +43,20 @@ fn reasoning_loop(
 
     // Tool calling
     StepResult(content, Some(tool_call)) -> {
-      mosaic_logger.info("agent", "Step required tool: " <> tool_call.name)
+      mosaic_logger.info(
+        "agent",
+        "Step required tool: "
+          <> tool_call.name
+          <> " with parameters: "
+          <> tool_call.parameters,
+      )
       let result =
         tool.execute_tool(tool_call.name, tool_call.parameters, tools)
+
+      mosaic_logger.info(
+        "agent",
+        "Tool '" <> tool_call.name <> "' returned: " <> result,
+      )
 
       let assistant_msg = Message(role: "assistant", content: content)
       let tool_result_msg =
@@ -68,6 +79,8 @@ type StepResult {
 }
 
 fn run_step(messages: List(Message), model_id: String) -> StepResult {
+  log_full_prompt(messages)
+
   let reply_subject = process.new_subject()
   let manager_subject = process.new_subject()
 
@@ -90,12 +103,24 @@ fn run_step(messages: List(Message), model_id: String) -> StepResult {
   process.receive_forever(from: reply_subject)
 }
 
+fn log_full_prompt(messages: List(Message)) {
+  mosaic_logger.info("agent", "--- FULL PROMPT SENT TO AI ---")
+  list.each(messages, fn(m) {
+    let content = case string.length(m.content) > 1000 {
+      True -> string.slice(m.content, 0, 1000) <> "..."
+      False -> m.content
+    }
+    mosaic_logger.info("agent", "Role: " <> m.role <> " | Content: " <> content)
+  })
+  mosaic_logger.info("agent", "------------------------------")
+}
+
 fn stream_manager(
   subject: process.Subject(String),
   accumulated: String,
   reply_to: process.Subject(StepResult),
 ) {
-  case process.receive(subject, 15_000) {
+  case process.receive(subject, 60_000) {
     Ok("END_OF_STREAM") -> {
       process.send(reply_to, StepResult(accumulated, None))
     }

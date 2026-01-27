@@ -10,7 +10,10 @@ pub fn run_agent_test() {
   dot_env.load_default()
 
   let prompt = "what is the purpose of this project"
-  mosaic_logger.info("agent_test", "Running agent with prompt: " <> prompt)
+  mosaic_logger.info(
+    "agent_test",
+    "Running agent on workspace : " <> get_cwd() <> " with prompt: " <> prompt,
+  )
 
   let answer = agent.run_agent(prompt, get_cwd(), "deepseek/deepseek-v3.2")
 
