@@ -9,7 +9,8 @@ stream_request(URL, Headers, Body, Callback) ->
     Options = [{stream, self}, {sync, false}],
     case httpc:request(post, Request, HttpOptions, Options) of
         {ok, RequestId} ->
-            loop(RequestId, Callback);
+            loop(RequestId, Callback),
+            {ok, nil};
         {error, Reason} ->
             {error, Reason}
     end.
@@ -24,9 +25,9 @@ loop(RequestId, Callback) ->
         {http, {RequestId, stream_end, _Headers}} ->
             ok;
         {http, {RequestId, {error, Reason}}} ->
-            {error, Reason}
+            exit({error, Reason})
     after 60000 ->
-        {error, timeout}
+        exit({error, timeout})
     end.
 
 string_inspect(Val) ->

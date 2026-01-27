@@ -1,7 +1,7 @@
 import dot_env
 import dot_env/env
 import gleam/io
-import gleam/option.{None, Some}
+import gleam/option.{Some}
 import mosaic_open_ai.{ChatRequest, Message}
 
 pub fn main() {
