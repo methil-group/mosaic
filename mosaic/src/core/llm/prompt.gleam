@@ -22,34 +22,24 @@ pub fn create_system_prompt(
   let header = "You are a CLI agent at " <> working_directory <> ".\n"
 
   let body = "
-Loop: plan -> act with tools -> report.
+You are an autonomous agent specialized in file manipulation and command execution.
 
 Rules:
-- Prefer tools over prose. Act, don't just explain.
-- After finishing, summarize what changed.
-- **CRITICAL**: Use `<tool_call>` with JSON.
-
-### Available Tools:
-" <> tools_json <> "
-
-### CRITICAL: TOOL CALL FORMAT
-You MUST use tools to solve this problem. Do NOT explain what you would do - EXECUTE commands immediately using the tools.
-EVERY tool call MUST be wrapped in `<tool_call>` tags and MUST be valid JSON.
-
-Example:
+1. **CHAIN TOOLS**: You can call multiple tools in sequence. Do NOT stop after one tool if the task is not complete.
+2. **ACT IMMEDIATEY**: Do not explain what you are going to do. Just output the `<tool_call>` JSON.
+3. **NO CHATTER**: If you need to perform an action, do NOT output natural language. Only output the tool call.
+4. **FORMAT**:
 <tool_call>
 {
-  \"name\": \"run_bash\",
-  \"parameters\": {
-    \"command\": \"ls\"
-  }
+  \"name\": \"tool_name\",
+  \"parameters\": { ... }
 }
 </tool_call>
 
-### Instructions:
-1. Analyze the user's prompt.
-2. If you need to use a tool, respond with the `<tool_call>` block. You may include a brief explanation BEFORE the block, but the block itself must be exact.
-3. If you have the answer or don't need a tool, provide a concise natural language response.
+5. **FINAL ANSWER**: Only when the user's request is FULLY satisfied, output a concise natural language summary.
+
+### Available Tools:
+" <> tools_json <> "
 "
 
   header <> body
@@ -63,5 +53,7 @@ pub fn format_tool_result(name: String, result: String) -> String {
     ])
     |> json.to_string
 
-  "<tool_result>" <> content <> "</tool_result>\nContinue:"
+  "<tool_result>"
+  <> content
+  <> "</tool_result>\nTo continue, output the next <tool_call>. If the task is finished, provide your final answer."
 }

@@ -124,12 +124,12 @@ fn run_step(
   process.spawn(fn() {
     let subject = process.new_subject()
     process.send(manager_subject, subject)
-    stream_manager(subject, "", reply_subject, on_event)
+    stream_manager(subject, "", reply_subject)
   })
 
   let manager = process.receive_forever(from: manager_subject)
 
-  let _ =
+  let result =
     llm.llm_stream_chat(
       model: model_id,
       messages: messages,
@@ -138,6 +138,16 @@ fn run_step(
         process.send(manager, delta)
       },
     )
+
+  case result {
+    Error(_) -> {
+      process.send(
+        manager,
+        "\n\n[Error: Failed to get response from AI provider. This might be a rate limit or configuration issue.]",
+      )
+    }
+    _ -> Nil
+  }
 
   process.send(manager, "END_OF_STREAM")
   process.receive_forever(from: reply_subject)
@@ -159,7 +169,6 @@ fn stream_manager(
   subject: process.Subject(String),
   accumulated: String,
   reply_to: process.Subject(StepResult),
-  on_event: fn(AgentEvent) -> Nil,
 ) {
   case process.receive(subject, 300_000) {
     Ok("END_OF_STREAM") -> {
@@ -170,7 +179,7 @@ fn stream_manager(
       case detect_tools.detect_tool_call(next_text) {
         Some(tool_call) ->
           process.send(reply_to, StepResult(next_text, Some(tool_call)))
-        None -> stream_manager(subject, next_text, reply_to, on_event)
+        None -> stream_manager(subject, next_text, reply_to)
       }
     }
     Error(_) -> {

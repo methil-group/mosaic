@@ -12,11 +12,11 @@
 body {
   margin: 0;
   padding: 0;
-  background: #0a0a0c;
+  background: #000000;
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -24,7 +24,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
 </style>

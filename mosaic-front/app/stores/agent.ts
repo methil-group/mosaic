@@ -13,36 +13,69 @@ export interface Message {
   isStreaming?: boolean
 }
 
-export interface State {
+export interface InstanceState {
+  id: string
+  name: string
   messages: Message[]
   isProcessing: boolean
   currentWorkspace: string
   currentModel: string
+}
+
+export interface State {
+  instances: Record<string, InstanceState>
+  instanceIds: string[]
   availableModels: { id: string, name: string }[]
   backendUrl: string
 }
 
 export const useAgentStore = defineStore('agent', {
   state: (): State => ({
-    messages: [],
-    isProcessing: false,
-    currentWorkspace: '/Users/ethew/Documents/Github/methil-vibe/mosaic',
-    currentModel: 'deepseek/deepseek-chat',
+    instances: {
+      'default': {
+        id: 'default',
+        name: 'DEFAULT',
+        messages: [],
+        isProcessing: false,
+        currentWorkspace: '/Users/ethew/Documents/Github/methil-vibe/mosaic',
+        currentModel: 'deepseek/deepseek-v3.2',
+      }
+    },
+    instanceIds: ['default'],
     availableModels: [
-      { id: 'deepseek/deepseek-chat', name: 'DeepSeek Chat v3' },
-      { id: 'deepseek/deepseek-reasoner', name: 'DeepSeek Reasoner (R1)' },
-      { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
-      { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' },
-      { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' }
+      { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
+      { id: 'minimax/minimax-01', name: 'MiniMax-01 (Latest)' },
+      { id: 'bigmodel/glm-4-9b-chat', name: 'GLM-4-7' }
     ],
     backendUrl: 'http://localhost:3710'
   }),
   actions: {
-    async sendMessage(prompt: string) {
-      if (this.isProcessing) return
+    createInstance(workspace?: string) {
+      const id = Math.random().toString(36).substring(7)
+      this.instances[id] = {
+        id,
+        name: id.toUpperCase(),
+        messages: [],
+        isProcessing: false,
+        currentWorkspace: workspace || '/Users/ethew/Documents/Github/methil-vibe/mosaic',
+        currentModel: 'deepseek/deepseek-v3.2',
+      }
+      this.instanceIds.push(id)
+      return id
+    },
+
+    removeInstance(id: string) {
+      if (this.instanceIds.length <= 1) return
+      delete this.instances[id]
+      this.instanceIds = this.instanceIds.filter(i => i !== id)
+    },
+
+    async sendMessage(instanceId: string, prompt: string) {
+      const instance = this.instances[instanceId]
+      if (!instance || instance.isProcessing) return
       
-      this.isProcessing = true
-      this.messages.push({ role: 'user', content: prompt })
+      instance.isProcessing = true
+      instance.messages.push({ role: 'user', content: prompt })
       
       const assistantMessage: Message = { 
         role: 'assistant', 
@@ -50,7 +83,7 @@ export const useAgentStore = defineStore('agent', {
         events: [], 
         isStreaming: true 
       }
-      this.messages.push(assistantMessage)
+      instance.messages.push(assistantMessage)
       
       try {
         const response = await fetch(`${this.backendUrl}/agent`, {
@@ -58,8 +91,8 @@ export const useAgentStore = defineStore('agent', {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             user_prompt: prompt,
-            workspace: this.currentWorkspace,
-            model_id: this.currentModel
+            workspace: instance.currentWorkspace,
+            model_id: instance.currentModel
           })
         })
 
@@ -82,7 +115,7 @@ export const useAgentStore = defineStore('agent', {
             if (line.startsWith('data: ')) {
               try {
                 const event = JSON.parse(line.slice(6)) as AgentEvent
-                this.handleEvent(event)
+                this.handleEvent(instanceId, event)
               } catch (e: any) {
                 console.error('Failed to parse SSE event', e)
               }
@@ -93,13 +126,16 @@ export const useAgentStore = defineStore('agent', {
         console.error('Agent error:', error)
         assistantMessage.content += `\n\n[Error: ${error}]`
       } finally {
-        this.isProcessing = false
+        instance.isProcessing = false
         assistantMessage.isStreaming = false
       }
     },
 
-    handleEvent(event: AgentEvent) {
-      const lastMessage = this.messages[this.messages.length - 1]
+    handleEvent(instanceId: string, event: AgentEvent) {
+      const instance = this.instances[instanceId]
+      if (!instance) return
+      
+      const lastMessage = instance.messages[instance.messages.length - 1]
       if (lastMessage && lastMessage.role === 'assistant') {
         if (!lastMessage.events) lastMessage.events = []
         lastMessage.events.push(event)
@@ -112,8 +148,10 @@ export const useAgentStore = defineStore('agent', {
       }
     },
 
-    clearMemory() {
-      this.messages = []
+    clearMemory(instanceId: string) {
+      if (this.instances[instanceId]) {
+        this.instances[instanceId].messages = []
+      }
     }
   }
 })

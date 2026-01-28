@@ -17,7 +17,8 @@ pub fn detect_tool_call(input: String) -> option.Option(FoundTool) {
 
   // We check if the response looks like a JSON block or code snippet.
   case json_utils.extract_json(text) {
-    Some(json_part) -> {
+    Some(raw_part) -> {
+      let json_part = extract_outermost_json(raw_part)
       case
         string.starts_with(json_part, "{") && string.ends_with(json_part, "}")
       {
@@ -49,6 +50,29 @@ pub fn detect_tool_call(input: String) -> option.Option(FoundTool) {
       }
     }
     None -> None
+  }
+}
+
+fn extract_outermost_json(input: String) -> String {
+  let trimmed = string.trim(input)
+  case string.split_once(trimmed, "{") {
+    Ok(#(_, rest)) -> {
+      let start_stripped = "{" <> rest
+      let segments = string.split(start_stripped, "}")
+      case list.length(segments) {
+        0 -> start_stripped
+        1 -> start_stripped
+        _ -> {
+          segments
+          |> list.reverse
+          |> list.drop(1)
+          |> list.reverse
+          |> string.join("}")
+          |> string.append("}")
+        }
+      }
+    }
+    Error(_) -> trimmed
   }
 }
 
