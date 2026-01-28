@@ -166,9 +166,11 @@ const selectModel = (modelId: string) => {
                         </div>
                         <span class="text-[9px] font-bold text-white uppercase tracking-widest">MOSAIC</span>
                         <Loader2 v-if="msg.isStreaming" class="w-2.5 h-2.5 text-white animate-spin opacity-50" />
-                        
-                        <span v-if="msg.model" class="ml-auto text-[8px] font-mono text-white/30 uppercase tracking-wider">
-                            {{ store.availableModels.find(m => m.id === msg.model)?.name || msg.model.split('/').pop() }}
+
+                        <span v-if="msg.model"
+                            class="ml-auto text-[8px] font-mono text-white/30 uppercase tracking-wider">
+                            {{store.availableModels.find(m => m.id === msg.model)?.name || msg.model.split('/').pop()
+                            }}
                         </span>
                     </div>
 
@@ -196,7 +198,7 @@ const selectModel = (modelId: string) => {
                                             'tool_finished' ? `> ${event.name}` : '> Protocol finished' }}
                                     </p>
                                     <div v-if="event.type === 'tool_finished' && event.result"
-                                        class="mt-2 p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32">
+                                        class="mt-2 p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32 whitespace-pre-wrap">
                                         {{ event.result }}
                                     </div>
                                 </div>
