@@ -8,7 +8,7 @@ pub type Tool {
     name: String,
     description: String,
     parameters: String,
-    function: fn(String) -> String,
+    function: fn(String, String) -> String,
   )
 }
 
@@ -44,12 +44,13 @@ pub fn get_tools() -> List(Tool) {
 pub fn execute_tool(
   name: String,
   parameters: String,
+  workspace: String,
   tools: List(Tool),
 ) -> String {
   case list.find(tools, fn(t) { t.name == name }) {
     Ok(t) -> {
       mosaic_logger.info("agent", "Executing: " <> t.name)
-      t.function(parameters)
+      t.function(parameters, workspace)
     }
     Error(_) -> "Error: Tool '" <> name <> "' not found."
   }

@@ -50,7 +50,13 @@ pub fn stream_agent(
     )
   let user_message = Message(role: "user", content: user_prompt)
 
-  reasoning_loop([system_message, user_message], tools, model_id, on_event)
+  reasoning_loop(
+    [system_message, user_message],
+    tools,
+    model_id,
+    workspace,
+    on_event,
+  )
   Ok(Nil)
 }
 
@@ -58,6 +64,7 @@ fn reasoning_loop(
   messages: List(Message),
   tools: List(tool.Tool),
   model_id: String,
+  workspace: String,
   on_event: fn(AgentEvent) -> Nil,
 ) -> Nil {
   case run_step(messages, model_id, on_event) {
@@ -82,7 +89,12 @@ fn reasoning_loop(
       )
       on_event(ToolStarted(tool_call.name, tool_call.parameters))
       let result =
-        tool.execute_tool(tool_call.name, tool_call.parameters, tools)
+        tool.execute_tool(
+          tool_call.name,
+          tool_call.parameters,
+          workspace,
+          tools,
+        )
 
       mosaic_logger.info(
         "agent",
@@ -101,6 +113,7 @@ fn reasoning_loop(
         list.append(messages, [assistant_msg, tool_result_msg]),
         tools,
         model_id,
+        workspace,
         on_event,
       )
     }

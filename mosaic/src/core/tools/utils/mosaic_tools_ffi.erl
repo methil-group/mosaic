@@ -1,9 +1,11 @@
 -module(mosaic_tools_ffi).
--export([run_bash/1, read_file/1, write_file/2]).
+-export([run_bash/2, read_file/1, write_file/2]).
 
-run_bash(Command) ->
+run_bash(Command, Workspace) ->
     CmdStr = binary_to_list(Command),
-    Output = os:cmd(CmdStr),
+    WorkStr = binary_to_list(Workspace),
+    FullCmd = "cd " ++ WorkStr ++ " && " ++ CmdStr,
+    Output = os:cmd(FullCmd),
     list_to_binary(Output).
 
 read_file(Path) ->
