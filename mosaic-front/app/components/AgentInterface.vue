@@ -1,19 +1,33 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAgentStore } from '~/stores/agent'
-import { Sparkles, Plus, LayoutGrid, Sidebar as SidebarIcon, Settings, Menu, X, Bot, ChevronRight, ChevronLeft } from 'lucide-vue-next'
+import { Sparkles, Plus, LayoutGrid, Sidebar as SidebarIcon, Settings, Menu, X, Bot, ChevronRight, ChevronLeft, Eye, EyeOff } from 'lucide-vue-next'
 import AgentInstance from './AgentInstance.vue'
 
 const store = useAgentStore()
 const isSidebarExpanded = ref(false)
+const hoveredAgentId = ref<string | null>(null)
 
 const addAgent = () => {
   store.createInstance()
 }
 
+
 const toggleSidebar = () => {
   isSidebarExpanded.value = !isSidebarExpanded.value
 }
+
+const toggleVisibility = (id: string) => {
+  if (store.instances[id]) {
+    store.instances[id].isVisible = !store.instances[id].isVisible
+  }
+}
+
+const visibleInstances = computed(() => {
+  return store.instanceIds.filter(id => store.instances[id]?.isVisible)
+})
+
+
 </script>
 
 <template>
@@ -23,7 +37,7 @@ const toggleSidebar = () => {
       class="h-full border-r border-white/10 bg-black/50 backdrop-blur-2xl transition-all duration-300 ease-in-out z-[100] flex flex-col shrink-0 relative group"
       :class="isSidebarExpanded ? 'w-64' : 'w-16'">
       <!-- Expand/Collapse Button (Top) -->
-      <div class="p-4 flex items-center justify-center border-b border-white/5 h-16 shrink-0 overflow-hidden">
+      <div class="p-4 flex items-center justify-start border-b border-white/5 h-16 shrink-0 overflow-hidden">
         <button @click="toggleSidebar"
           class="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all flex items-center justify-center min-w-[32px]">
           <Menu v-if="!isSidebarExpanded" class="w-4 h-4 text-white/40 group-hover:text-white" />
@@ -45,12 +59,52 @@ const toggleSidebar = () => {
             class="px-2 text-[9px] font-bold text-white/20 uppercase tracking-[0.2em] mb-4 animate-in fade-in duration-300">
             Agents</h3>
           <div class="space-y-1.5">
-            <div v-for="id in store.instanceIds" :key="id" v-tooltip="!isSidebarExpanded ? id : null"
-              class="flex items-center gap-3 px-3 py-2.5 rounded-md bg-white/5 border border-white/5 text-xs font-medium text-white/40 hover:text-white hover:bg-white/10 transition-all cursor-pointer overflow-hidden group/item">
-              <Bot class="w-4 h-4 shrink-0 transition-transform group-hover/item:scale-110" />
-              <span v-if="isSidebarExpanded"
-                class="truncate uppercase text-[9px] tracking-widest font-bold animate-in slide-in-from-left-2 duration-300">{{
-                  store.instances[id]?.name || id }}</span>
+            <div v-for="id in store.instanceIds" :key="id" @mouseenter="hoveredAgentId = id"
+              @mouseleave="hoveredAgentId = null"
+              class="relative flex items-center gap-3 px-3 py-2.5 rounded-md bg-white/5 border border-white/5 text-xs font-medium text-white/40 hover:text-white hover:bg-white/10 transition-all cursor-pointer overflow-visible group/item justify-between">
+
+              <div class="flex items-center gap-3 min-w-0">
+                <Bot class="w-4 h-4 shrink-0 transition-transform group-hover/item:scale-110"
+                  :class="{ 'opacity-50': !store.instances[id]?.isVisible }" />
+                <span v-if="isSidebarExpanded"
+                  class="truncate uppercase text-[9px] tracking-widest font-bold animate-in slide-in-from-left-2 duration-300"
+                  :class="{ 'opacity-50 text-white/20': !store.instances[id]?.isVisible }">{{
+                    store.instances[id]?.name || id }}</span>
+              </div>
+              <button v-if="isSidebarExpanded" @click.stop="toggleVisibility(id)"
+                class="text-white/20 hover:text-white transition-colors">
+                <Eye v-if="store.instances[id]?.isVisible" class="w-3 h-3" />
+                <EyeOff v-else class="w-3 h-3" />
+              </button>
+
+              <!-- Tooltip Popup -->
+              <div v-if="hoveredAgentId === id"
+                class="absolute left-full top-0 ml-4 w-64 bg-white text-black p-4 rounded-lg shadow-2xl z-[999] animate-in fade-in slide-in-from-left-2 duration-200 border border-white/20 flex flex-col gap-3">
+
+                <!-- Arrow (Optional, can ship without first) -->
+
+                <!-- Header -->
+                <div class="flex flex-col border-b border-black/10 pb-2">
+                  <span class="text-[10px] uppercase tracking-widest text-black/40 font-bold">Agent</span>
+                  <span class="text-base font-black uppercase tracking-wider">{{ store.instances[id]?.name }}</span>
+                </div>
+
+                <!-- Info -->
+                <div class="space-y-2">
+                  <div class="flex flex-col">
+                    <span class="text-[9px] uppercase tracking-widest text-black/40 font-bold mb-0.5">Workspace</span>
+                    <span class="text-[10px] font-mono text-black/70 break-all leading-tight">{{
+                      store.instances[id]?.currentWorkspace }}</span>
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="text-[9px] uppercase tracking-widest text-black/40 font-bold mb-0.5">Model</span>
+                    <div
+                      class="self-start px-2 py-1 rounded bg-black text-white text-[10px] font-bold uppercase tracking-wider">
+                      {{ store.instances[id]?.currentModel }}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <button @click="addAgent" v-tooltip="!isSidebarExpanded ? 'Deploy Agent' : null"
@@ -95,13 +149,13 @@ const toggleSidebar = () => {
     <!-- Main Workspace -->
     <main class="flex-1 flex flex-col min-w-0 bg-black overflow-hidden relative">
       <div
-        class="flex-1 p-2 grid gap-2 transition-all duration-500 overflow-auto bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] [background-size:24px_24px]"
+        class="flex-1 p-2 grid gap-2 overflow-auto bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] [background-size:24px_24px]"
         :style="{
-          gridTemplateColumns: store.instanceIds.length > 1 ? 'repeat(2, 1fr)' : '1fr'
+          gridTemplateColumns: 'repeat(2, 1fr)'
         }">
-        <div v-for="(id, index) in store.instanceIds" :key="id"
-          class="min-h-0 min-w-0 animate-in zoom-in-95 fade-in duration-500 transition-all" :class="{
-            'col-span-2': store.instanceIds.length % 2 !== 0 && index === store.instanceIds.length - 1 && store.instanceIds.length > 1
+        <div v-for="(id, index) in visibleInstances" :key="id"
+          class="min-h-0 min-w-0 rounded-md overflow-hidden relative" :class="{
+            'col-span-2': visibleInstances.length === 1 || (visibleInstances.length % 2 !== 0 && index === visibleInstances.length - 1)
           }">
           <AgentInstance :instance-id="id" />
         </div>

@@ -11,6 +11,7 @@ export interface Message {
   content: string
   events?: AgentEvent[]
   isStreaming?: boolean
+  model?: string
 }
 
 export interface InstanceState {
@@ -20,6 +21,8 @@ export interface InstanceState {
   isProcessing: boolean
   currentWorkspace: string
   currentModel: string
+  isVisible: boolean
+  colSpan: number
 }
 
 export interface State {
@@ -28,6 +31,12 @@ export interface State {
   availableModels: { id: string, name: string }[]
   backendUrl: string
 }
+
+const AGENT_NAMES = [
+  'ORION', 'ATLAS', 'NOVA', 'CYPHER', 'ZENITH', 'OMEGA', 'PRIME', 'VECTOR', 
+  'NEBULA', 'PULSAR', 'QUASAR', 'HELIX', 'FLUX', 'APEX', 'VORTEX', 'NEXUS',
+  'TITAN', 'CRONUS', 'AETHER', 'QUANTUM', 'ECHO', 'MIRAGE', 'PHANTOM', 'SPECTRE'
+]
 
 export const useAgentStore = defineStore('agent', {
   state: (): State => ({
@@ -39,33 +48,35 @@ export const useAgentStore = defineStore('agent', {
         isProcessing: false,
         currentWorkspace: '/Users/ethew/Documents/Github/methil-vibe/mosaic',
         currentModel: 'deepseek/deepseek-v3.2',
+        isVisible: true,
+        colSpan: 1,
       }
     },
     instanceIds: ['default'],
     availableModels: [
       { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
-      { id: 'minimax/minimax-01', name: 'MiniMax-01 (Latest)' },
-      { id: 'bigmodel/glm-4-9b-chat', name: 'GLM-4-7' }
     ],
     backendUrl: 'http://localhost:3710'
   }),
   actions: {
     createInstance(workspace?: string) {
       const id = Math.random().toString(36).substring(7)
+      const randomName = AGENT_NAMES[Math.floor(Math.random() * AGENT_NAMES.length)] || id.toUpperCase()
       this.instances[id] = {
         id,
-        name: id.toUpperCase(),
+        name: randomName,
         messages: [],
         isProcessing: false,
         currentWorkspace: workspace || '/Users/ethew/Documents/Github/methil-vibe/mosaic',
         currentModel: 'deepseek/deepseek-v3.2',
+        isVisible: true,
+        colSpan: 1,
       }
       this.instanceIds.push(id)
       return id
     },
 
     removeInstance(id: string) {
-      if (this.instanceIds.length <= 1) return
       delete this.instances[id]
       this.instanceIds = this.instanceIds.filter(i => i !== id)
     },
@@ -81,7 +92,8 @@ export const useAgentStore = defineStore('agent', {
         role: 'assistant', 
         content: '', 
         events: [], 
-        isStreaming: true 
+        isStreaming: true,
+        model: instance.currentModel
       }
       instance.messages.push(assistantMessage)
       

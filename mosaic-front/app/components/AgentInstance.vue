@@ -69,6 +69,7 @@ const selectModel = (modelId: string) => {
     }
     isModelMenuOpen.value = false
 }
+
 </script>
 
 <template>
@@ -95,6 +96,7 @@ const selectModel = (modelId: string) => {
             </div>
 
             <div class="flex items-center gap-3">
+
                 <!-- Model Selection Dropdown -->
                 <div class="relative">
                     <button @click="isModelMenuOpen = !isModelMenuOpen"
@@ -157,13 +159,17 @@ const selectModel = (modelId: string) => {
 
                 <!-- Assistant Message -->
                 <template v-else>
-                    <div class="flex items-center gap-1.5 mb-2 px-1">
+                    <div class="flex items-center gap-1.5 mb-2 px-1 w-full box-border">
                         <div
                             class="w-5 h-5 rounded bg-white/10 flex items-center justify-center border border-white/10">
                             <Bot class="w-2.5 h-2.5 text-white" />
                         </div>
                         <span class="text-[9px] font-bold text-white uppercase tracking-widest">MOSAIC</span>
                         <Loader2 v-if="msg.isStreaming" class="w-2.5 h-2.5 text-white animate-spin opacity-50" />
+                        
+                        <span v-if="msg.model" class="ml-auto text-[8px] font-mono text-white/30 uppercase tracking-wider">
+                            {{ store.availableModels.find(m => m.id === msg.model)?.name || msg.model.split('/').pop() }}
+                        </span>
                     </div>
 
                     <div class="w-full space-y-3">
@@ -221,6 +227,7 @@ const selectModel = (modelId: string) => {
                 </button>
             </div>
         </footer>
+
     </div>
 </template>
 
