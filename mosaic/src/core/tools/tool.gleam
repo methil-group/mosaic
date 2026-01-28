@@ -1,3 +1,4 @@
+import core/agent/todos
 import core/tools/utils/bash_utils
 import core/tools/utils/file_utils
 import gleam/list
@@ -37,6 +38,12 @@ pub fn get_tools() -> List(Tool) {
       function: file_utils.replace_content,
       description: "Replace occurrences of old text with new text in a file.",
       parameters: "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Path to the file to modify.\"},\"old_text\":{\"type\":\"string\",\"description\":\"The text to be replaced.\"},\"new_text\":{\"type\":\"string\",\"description\":\"The text to replace with.\"}},\"required\":[\"path\",\"old_text\",\"new_text\"]}",
+    ),
+    Tool(
+      name: "manage_todos",
+      function: fn(params, _workspace) { todos.handle_tool_call(params) },
+      description: "Manage a list of todo items. Use this to track progress on multi-step tasks.",
+      parameters: "{\"type\":\"object\",\"properties\":{\"todos\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"task\":{\"type\":\"string\",\"description\":\"Description of the task.\"},\"status\":{\"type\":\"string\",\"enum\":[\"pending\",\"in_progress\",\"completed\"],\"description\":\"Status of the task.\"},\"context\":{\"type\":\"string\",\"description\":\"Active form context (required for in_progress tasks, empty otherwise).\"}},\"required\":[\"task\",\"status\",\"context\"]}}},\"required\":[\"todos\"]}",
     ),
   ]
 }

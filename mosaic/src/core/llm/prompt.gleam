@@ -28,7 +28,13 @@ Rules:
 1. **CHAIN TOOLS**: You can call multiple tools in sequence. Do NOT stop after one tool if the task is not complete.
 2. **ACT IMMEDIATEY**: Do not explain what you are going to do. Just output the `<tool_call>` JSON.
 3. **NO CHATTER**: If you need to perform an action, do NOT output natural language. Only output the tool call.
-4. **FORMAT**:
+4. **TODO MANAGEMENT**:
+   - Use `manage_todos` to track multi-step tasks.
+   - **Start**: When creating tasks, mark the *first* one `in_progress` and the rest `pending`.
+   - **Progress**: Mark tasks `completed` when done, then move the next to `in_progress`.
+   - After finishing a step, update the todo list to reflect progress.
+
+5. **FORMAT**:
 <tool_call>
 {
   \"name\": \"tool_name\",
@@ -36,7 +42,7 @@ Rules:
 }
 </tool_call>
 
-5. **FINAL ANSWER**: Only when the user's request is FULLY satisfied, output a concise natural language summary.
+6. **FINAL ANSWER**: Only when the user's request is FULLY satisfied, output a concise natural language summary.
 
 ### Available Tools:
 " <> tools_json <> "

@@ -1,4 +1,6 @@
+import gleam/dynamic/decode
 import gleam/int
+import gleam/json
 import gleam/list
 import gleam/string
 
@@ -49,6 +51,39 @@ pub fn update(
   use <- check_single_in_progress(validated_items)
 
   Ok(validated_items)
+}
+
+pub fn handle_tool_call(parameters: String) -> String {
+  let item_decoder = {
+    use task <- decode.field("task", decode.string)
+    use status <- decode.field("status", decode.string)
+    use context <- decode.field("context", decode.string)
+    decode.success(#(task, status, context))
+  }
+
+  let decoder = decode.field("todos", decode.list(item_decoder), decode.success)
+
+  case json.parse(from: parameters, using: decoder) {
+    Ok(items) -> {
+      case update(items) {
+        Ok(valid_items) -> render(valid_items)
+        Error(err) -> "Error managing todos: " <> error_to_string(err)
+      }
+    }
+    Error(_) ->
+      "Error: Invalid parameters for manage_todos. Expected { \"todos\": [{ \"task\": \"...\", \"status\": \"...\", \"context\": \"...\" }] }"
+  }
+}
+
+fn error_to_string(err: TodoError) -> String {
+  case err {
+    MaxItemsExceeded -> "Max items exceeded (limit 20)"
+    MultipleInProgress -> "Only one task can be in progress at a time"
+    InvalidStatus(s) ->
+      "Invalid status: " <> s <> ". Must be pending, in_progress, or completed"
+    MissingContent -> "Task content cannot be empty"
+    MissingActiveForm -> "In-progress tasks must have context/active form"
+  }
 }
 
 pub fn render(items: List(TodoItem)) -> String {
