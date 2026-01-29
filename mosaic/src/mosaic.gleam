@@ -1,4 +1,5 @@
 import api/server
+import core/utils/port_utils
 import dot_env
 import gleam/erlang/process
 import gleam/int
@@ -9,11 +10,17 @@ pub fn main() {
 
   let port = 3710
 
-  mosaic_logger.info(
-    "mosaic",
-    "Starting mosaic server on http://localhost:" <> int.to_string(port),
-  )
-  let _ = server.start(port)
-
-  process.sleep_forever()
+  case port_utils.check_port(port) {
+    True -> {
+      mosaic_logger.info(
+        "mosaic",
+        "Starting mosaic server on http://localhost:" <> int.to_string(port),
+      )
+      let _ = server.start(port)
+      process.sleep_forever()
+    }
+    False -> {
+      port_utils.print_port_busy_message(port)
+    }
+  }
 }

@@ -1,5 +1,3 @@
-import core/tools/utils/file_utils
-import gleam/string
 import gleeunit/should
 
 // Mocking the do_read_file and do_write_file is hard because they are FFI.

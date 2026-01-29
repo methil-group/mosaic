@@ -1,5 +1,5 @@
 -module(mosaic_tools_ffi).
--export([run_bash/2, read_file/1, write_file/2]).
+-export([run_bash/2, read_file/1, write_file/2, is_port_available/1]).
 
 run_bash(Command, Workspace) ->
     CmdStr = binary_to_list(Command),
@@ -24,4 +24,13 @@ write_file(Path, Content) ->
         {error, Reason} ->
             ErrorMsg = io_lib:format("Error writing file ~s: ~p", [PathStr, Reason]),
             list_to_binary(ErrorMsg)
+    end.
+
+is_port_available(Port) ->
+    case gen_tcp:listen(Port, [{active, false}]) of
+        {ok, Socket} ->
+            gen_tcp:close(Socket),
+            true;
+        {error, _} ->
+            false
     end.
