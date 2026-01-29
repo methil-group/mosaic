@@ -55,6 +55,7 @@ export const useAgentStore = defineStore('agent', {
     instanceIds: ['default'],
     availableModels: [
       { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
+      { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
     ],
     backendUrl: 'http://localhost:3710'
   }),
@@ -163,6 +164,28 @@ export const useAgentStore = defineStore('agent', {
     clearMemory(instanceId: string) {
       if (this.instances[instanceId]) {
         this.instances[instanceId].messages = []
+      }
+    },
+    
+    async listDirectories(path: string): Promise<string[]> {
+      try {
+        const response = await fetch(`${this.backendUrl}/ls`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path })
+        })
+        if (!response.ok) return []
+        const data = await response.json()
+        return data.directories || []
+      } catch (e) {
+        console.error('Failed to list directories', e)
+        return []
+      }
+    },
+
+    updateInstanceModel(instanceId: string, modelId: string) {
+      if (this.instances[instanceId]) {
+        this.instances[instanceId].currentModel = modelId
       }
     }
   }
