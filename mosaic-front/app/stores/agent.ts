@@ -25,11 +25,23 @@ export interface InstanceState {
   colSpan: number
 }
 
+export interface Model {
+  id: string
+  name: string
+}
+
+export interface Provider {
+  id: string
+  name: string
+  models: Model[]
+}
+
 export interface State {
   instances: Record<string, InstanceState>
   instanceIds: string[]
-  availableModels: { id: string, name: string }[]
-  availableProviders: string[]
+  availableProviders: Provider[]
+  defaultProviderId: string
+  defaultModelId: string
   backendUrl: string
 }
 
@@ -54,13 +66,18 @@ export const useAgentStore = defineStore('agent', {
       }
     },
     instanceIds: ['default'],
-    availableModels: [
-      { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
-      { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
-    ],
-    availableProviders: ['OpenRouter'],
+    availableProviders: [],
+    defaultProviderId: 'openrouter',
+    defaultModelId: 'deepseek/deepseek-v3.2',
     backendUrl: 'http://localhost:3710'
   }),
+  getters: {
+    availableModels: (state): Model[] => {
+      return state.availableProviders.flatMap(p => p.models)
+    },
+    // Models for the current default or selected provider could be useful, 
+    // but flattening all for the basic list is fine for now.
+  },
   actions: {
     createInstance(workspace?: string) {
       const id = Math.random().toString(36).substring(7)
@@ -71,7 +88,7 @@ export const useAgentStore = defineStore('agent', {
         messages: [],
         isProcessing: false,
         currentWorkspace: workspace || '/Users/ethew/Documents/Github/methil-vibe/mosaic',
-        currentModel: 'deepseek/deepseek-v3.2',
+        currentModel: this.defaultModelId,
         isVisible: true,
         colSpan: 1,
       }
@@ -196,10 +213,24 @@ export const useAgentStore = defineStore('agent', {
         const response = await fetch(`${this.backendUrl}/providers`)
         if (!response.ok) return
         const data = await response.json()
-        this.availableProviders = data.providers || ['OpenRouter']
+        this.availableProviders = data.providers || []
+        
+        // Set defaults if not set and we have data
+        if (this.availableProviders.length > 0 && this.defaultProviderId === 'openrouter') {
+             // Keep hardcoded default OR pick first? 
+             // Let's stick to the initialized default for now, or update if invalid.
+        }
       } catch (e) {
         console.error('Failed to fetch providers', e)
-        this.availableProviders = ['OpenRouter']
+        // Fallback
+        this.availableProviders = [{
+            id: 'openrouter',
+            name: 'OpenRouter',
+            models: [
+                { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
+                { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
+            ]
+        }]
       }
     }
   }

@@ -194,6 +194,19 @@ const selectModel = (modelId: string) => {
     isModelMenuOpen.value = false
 }
 
+// Auto-resize textarea
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
+
+const adjustHeight = async () => {
+    if (!textareaRef.value) return
+    textareaRef.value.style.height = 'auto'
+    textareaRef.value.style.height = textareaRef.value.scrollHeight + 'px'
+}
+
+watch(prompt, () => {
+    nextTick(adjustHeight)
+})
+
 </script>
 
 <template>
@@ -313,13 +326,20 @@ const selectModel = (modelId: string) => {
                                         </div>
                                     </div>
 
+                                </div>
+
+                                <!-- Right Column: Provider -->
+                                <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar-mini bg-white/[0.01]">
+                                    <h3 class="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">
+                                        Inference Configuration</h3>
+
                                     <!-- Model Selection -->
                                     <div class="space-y-2">
                                         <label
                                             class="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Logic
                                             Model</label>
                                         <div
-                                            class="grid grid-cols-1 gap-1.5 overflow-y-auto pr-2 custom-scrollbar-mini">
+                                            class="grid grid-cols-1 gap-1.5 overflow-y-auto pr-2 custom-scrollbar-mini max-h-48">
                                             <button v-for="model in store.availableModels" :key="model.id"
                                                 @click="selectModel(model.id)"
                                                 class="flex flex-col items-start px-4 py-3 rounded-xl border transition-all text-left group"
@@ -331,23 +351,19 @@ const selectModel = (modelId: string) => {
                                                 </div>
                                                 <span
                                                     class="text-[9px] font-mono opacity-40 uppercase tracking-widest">{{
-                                                    model.id }}</span>
+                                                        model.id }}</span>
                                             </button>
                                         </div>
                                     </div>
-                                </div>
 
-                                <!-- Right Column: Provider -->
-                                <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar-mini bg-white/[0.01]">
-                                    <h3 class="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">
-                                        Inference Provider</h3>
-
+                                    <!-- Provider Selection -->
                                     <div class="space-y-2">
                                         <label
-                                            class="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Active
+                                            class="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Inference
                                             Provider</label>
+
                                         <div class="grid grid-cols-1 gap-2">
-                                            <button v-for="provider in store.availableProviders" :key="provider"
+                                            <button v-for="provider in store.availableProviders" :key="provider.id"
                                                 class="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left bg-white border-white text-black">
                                                 <div
                                                     class="w-8 h-8 rounded-full bg-black flex items-center justify-center">
@@ -356,7 +372,7 @@ const selectModel = (modelId: string) => {
                                                 <div class="flex-1">
                                                     <div class="flex items-center justify-between">
                                                         <span class="text-xs font-black uppercase tracking-tight">{{
-                                                            provider }}</span>
+                                                            provider.name }}</span>
                                                         <Check class="w-3 h-3" />
                                                     </div>
                                                     <span
@@ -500,20 +516,27 @@ const selectModel = (modelId: string) => {
         <!-- Footer Input -->
         <footer class="p-6 bg-gradient-to-t from-black via-black/80 to-transparent border-t border-white/5 shrink-0">
             <div class="relative group max-w-4xl mx-auto w-full">
-                <textarea v-model="prompt" @keydown.enter.prevent="handleSend" @focus="isInputFocused = true"
-                    @blur="isInputFocused = false" placeholder="Communicate with agent..."
-                    class="w-full bg-white/5 border border-white/10 focus:border-white focus:bg-white/10 focus:ring-4 focus:ring-white/5 rounded-xl text-white placeholder-white/10 py-4 px-5 pr-12 resize-none h-16 max-h-48 font-bold text-sm transition-all shadow-2xl"
+                <!-- Glowing effect container -->
+                <div
+                    class="absolute -inset-0.5 bg-gradient-to-r from-white/10 to-white/5 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition duration-1000 group-hover:opacity-50">
+                </div>
+
+                <textarea ref="textareaRef" v-model="prompt" @keydown.enter.prevent="handleSend"
+                    @focus="isInputFocused = true" @blur="isInputFocused = false" @input="adjustHeight"
+                    placeholder="Ask anything..."
+                    class="relative w-full bg-[#0a0a0a] border border-white/10 placeholder-white/20 text-white rounded-xl py-[18px] pl-5 pr-14 resize-none h-[56px] min-h-[56px] max-h-48 font-medium text-sm transition-all focus:outline-none focus:border-white/20 shadow-inner overflow-hidden"
+                    :class="{ 'overflow-y-auto': textareaRef && textareaRef.scrollHeight > 192 }"
                     :disabled="instance.isProcessing"></textarea>
 
                 <button @click="handleSend" :disabled="!prompt.trim() || instance.isProcessing"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-white text-black hover:bg-white/90 disabled:bg-white/5 disabled:text-white/10 flex items-center justify-center transition-all shadow-xl active:scale-90 border border-white/20">
+                    class="absolute right-3 bottom-2.5 w-9 h-9 rounded-lg bg-white text-black hover:bg-white/90 disabled:bg-white/5 disabled:text-white/10 flex items-center justify-center transition-all shadow-lg active:scale-95 border border-white/20 z-10">
                     <Loader2 v-if="instance.isProcessing" class="w-4 h-4 animate-spin" />
                     <Send v-else class="w-4 h-4" />
                 </button>
 
                 <div v-if="!prompt.trim() && !instance.isProcessing"
-                    class="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-white/5 border border-white/10 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span class="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">Awaiting Input</span>
+                    class="absolute -top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                    <span class="text-[9px] font-bold uppercase tracking-[0.2em] text-white/20">Ready</span>
                 </div>
             </div>
         </footer>
