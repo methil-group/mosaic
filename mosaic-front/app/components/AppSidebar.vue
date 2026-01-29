@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAgentStore } from '~/stores/agent'
+import { useRoute } from 'vue-router'
 import { Sparkles, Plus, LayoutGrid, Menu, X, Bot, Eye, EyeOff, Settings } from 'lucide-vue-next'
 
 const store = useAgentStore()
+const route = useRoute()
 const isSidebarExpanded = ref(false)
 const hoveredAgentId = ref<string | null>(null)
+
+const isGridView = computed(() => route.path === '/')
 
 const addAgent = () => {
     store.createInstance()
@@ -43,9 +47,10 @@ const toggleVisibility = (id: string) => {
         </div>
 
         <!-- Navigation Icons/Labels -->
-        <nav class="flex-1 overflow-y-auto py-6 space-y-8 scroll-none">
+        <nav class="flex-1 overflow-y-auto py-6 scroll-none flex flex-col">
             <!-- Agents Section -->
-            <div class="px-3">
+            <div class="transition-all duration-500 ease-in-out px-3 overflow-hidden origin-top"
+                :class="isGridView ? 'max-h-[500px] opacity-100 mb-8' : 'max-h-0 opacity-0 mb-0 pointer-events-none'">
                 <h3 v-if="isSidebarExpanded"
                     class="px-2 text-[9px] font-bold text-white/20 uppercase tracking-[0.2em] mb-4 animate-in fade-in duration-300">
                     Agents</h3>
