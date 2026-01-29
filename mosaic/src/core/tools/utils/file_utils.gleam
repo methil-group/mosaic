@@ -1,5 +1,6 @@
 import gleam/dynamic/decode
 import gleam/json
+import gleam/list
 import gleam/string
 
 pub fn read_file(parameters: String, workspace: String) -> String {
@@ -43,6 +44,39 @@ pub fn replace_content(parameters: String, workspace: String) -> String {
       }
     }
     Error(_) -> "Error: Invalid parameters for replace_content"
+  }
+}
+
+pub fn insert_line(parameters: String, workspace: String) -> String {
+  let decoder = {
+    use path <- decode.field("path", decode.string)
+    use line <- decode.field("line", decode.int)
+    use content <- decode.field("content", decode.string)
+    decode.success(#(path, line, content))
+  }
+  case json.parse(from: parameters, using: decoder) {
+    Ok(#(path, line, content_to_insert)) -> {
+      let resolved = resolve_path(path, workspace)
+      let file_content = do_read_file(resolved)
+      let lines = string.split(file_content, on: "\n")
+      let count = list.length(lines)
+
+      case line > 0 && line <= count + 1 {
+        True -> {
+          let #(before, after) = list.split(lines, at: line - 1)
+          let new_lines = list.flatten([before, [content_to_insert], after])
+          let new_content = string.join(new_lines, with: "\n")
+          do_write_file(resolved, new_content)
+        }
+        False ->
+          "Error: Invalid line number "
+          <> string.inspect(line)
+          <> ". File has "
+          <> string.inspect(count)
+          <> " lines."
+      }
+    }
+    Error(_) -> "Error: Invalid parameters for insert_line"
   }
 }
 

@@ -6,7 +6,7 @@ import mosaic_logger
 @external(erlang, "agent_test_ffi", "get_cwd")
 fn get_cwd() -> String
 
-pub fn run_agent_integration() {
+pub fn run_agent_test() {
   dot_env.load_default()
 
   let prompt = "what is the purpose of this project"

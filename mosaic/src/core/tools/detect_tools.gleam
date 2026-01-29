@@ -2,6 +2,7 @@ import gleam/dict
 import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 
 pub type FoundTool {
@@ -9,41 +10,48 @@ pub type FoundTool {
 }
 
 pub fn detect_tool_call(input: String) -> Option(FoundTool) {
-  let text = string.trim(input)
+  let nodes = parse_xml_nodes(input)
 
-  // Strict XML detection
-  case string.contains(text, "<tool_call>") {
-    True -> {
-      let content = extract_xml_tag(text, "tool_call")
-      let name = extract_xml_tag(content, "name") |> string.trim
-      let params_with_tags = extract_xml_tag(content, "parameters")
+  // Find <tool_call> node
+  let tool_node =
+    list.find_map(nodes, fn(n) {
+      case n {
+        ElementNode("tool_call", children) -> Ok(children)
+        _ -> Error(Nil)
+      }
+    })
 
-      // Parse the parameters XML structure into a JSON object
-      let params_json = parse_xml_to_json(params_with_tags)
+  case tool_node {
+    Ok(children) -> {
+      // Find <name>
+      let name_opt =
+        list.find_map(children, fn(n) {
+          case n {
+            ElementNode("name", content) -> Ok(get_text_content(content))
+            _ -> Error(Nil)
+          }
+        })
 
-      Some(FoundTool(name, json.to_string(params_json)))
-    }
-    False -> None
-  }
-}
+      // Find <parameters>
+      let params_opt =
+        list.find_map(children, fn(n) {
+          case n {
+            ElementNode("parameters", content) -> Ok(content)
+            _ -> Error(Nil)
+          }
+        })
 
-fn extract_xml_tag(input: String, tag: String) -> String {
-  case string.split(input, "<" <> tag <> ">") {
-    [_, rest] -> {
-      case string.split(rest, "</" <> tag <> ">") {
-        [content, _] -> string.trim(content)
-        _ -> ""
+      case name_opt {
+        Ok(name) if name != "" -> {
+          let params_nodes = result.unwrap(params_opt, [])
+          let params_json = json.object(nodes_to_json_props(params_nodes))
+          Some(FoundTool(name, json.to_string(params_json)))
+        }
+        _ -> None
       }
     }
-    _ -> ""
+    Error(_) -> None
   }
-}
-
-// Parses XML content strings into a JSON structure
-// Handles nested tags and repeated keys (converted to arrays)
-fn parse_xml_to_json(input: String) -> json.Json {
-  let nodes = parse_xml_nodes(input)
-  json.object(nodes_to_json_props(nodes))
 }
 
 type XmlNode {
@@ -87,9 +95,32 @@ fn nodes_to_json_props(nodes: List(XmlNode)) -> List(#(String, json.Json)) {
 
         case list.length(values) {
           1 -> {
-            // Single value, just return it
             let assert Ok(val) = list.first(values)
-            Ok(#(tag, val))
+            // If the element has children, check if they are all the same tag
+            case list.first(group) {
+              Ok(ElementNode(_, children)) -> {
+                let child_tags =
+                  list.filter_map(children, fn(c) {
+                    case c {
+                      ElementNode(t, _) -> Ok(t)
+                      _ -> Error(Nil)
+                    }
+                  })
+                let unique_tags = list.unique(child_tags)
+                case unique_tags {
+                  [inner_tag] if inner_tag != "" -> {
+                    // All children are the same tag.
+                    // Instead of {"todos": {"todo": [...]}}, return {"todos": [...]}
+                    case nodes_to_json_props(children) {
+                      [#(_, inner_val)] -> Ok(#(tag, inner_val))
+                      _ -> Ok(#(tag, val))
+                    }
+                  }
+                  _ -> Ok(#(tag, val))
+                }
+              }
+              _ -> Ok(#(tag, val))
+            }
           }
           _ -> {
             // Multiple values for same tag -> Array

@@ -54,10 +54,6 @@ pub fn complex_nested_xml_test() {
 }
 
 pub fn nested_with_wrapper_test() {
-  // Testing if the model wraps list items in <item>
-  // My parser groups by tag. If <todos> has <item> children:
-  // {"todos": {"item": [...]}}
-  // We want to verify what it produces.
   let input =
     "
 <tool_call>
@@ -78,5 +74,32 @@ pub fn nested_with_wrapper_test() {
   |> should.equal(detect_tools.FoundTool(
     name: "test_tool",
     parameters: "{\"items\":[{\"val\":\"A\"},{\"val\":\"B\"}]}",
+  ))
+}
+
+pub fn wrapped_list_test() {
+  let input =
+    "
+<tool_call>
+<name>manage_todos</name>
+<parameters>
+<todos>
+  <todo>
+    <task>A</task>
+  </todo>
+  <todo>
+    <task>B</task>
+  </todo>
+</todos>
+</parameters>
+</tool_call>
+"
+  // Should produce {"todos": [{"task": "A"}, {"task": "B"}]}
+  input
+  |> detect_tools.detect_tool_call
+  |> should.be_some
+  |> should.equal(detect_tools.FoundTool(
+    name: "manage_todos",
+    parameters: "{\"todos\":[{\"task\":\"A\"},{\"task\":\"B\"}]}",
   ))
 }

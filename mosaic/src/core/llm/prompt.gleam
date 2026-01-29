@@ -29,10 +29,10 @@ Rules:
 2. **ACT IMMEDIATELY**: Do not explain what you are going to do. Just output the `<tool_call>` XML.
 3. **NO CHATTER**: If you need to perform an action, do NOT output natural language. Only output the tool call.
 4. **TODO MANAGEMENT**:
-   - Use `manage_todos` to track multi-step tasks.
-   - **Start**: When creating tasks, mark the *first* one `in_progress` and the rest `pending`.
-   - **Progress**: Mark tasks `completed` when done, then move the next to `in_progress`.
-   - After finishing a step, update the todo list to reflect progress.
+   - **CRITICAL**: You MUST use `manage_todos` to track your progress.
+   - **Start**: Call `manage_todos` BEFORE any other tools to set your plan. Mark the *first* task `in_progress` and the rest `pending`.
+   - **Progress**: Call `manage_todos` after every tool execution to mark tasks `completed` and move the next to `in_progress`.
+   - Never skip updating the todo list.
 
 5. **FORMAT**:
 <tool_call>
@@ -40,6 +40,21 @@ Rules:
 <parameters>
 <param_name>value</param_name>
 ...
+</parameters>
+</tool_call>
+
+For parameters that are lists (like `todos` in `manage_todos`), repeat the parameter tag:
+<tool_call>
+<name>manage_todos</name>
+<parameters>
+<todos>
+  <task>First task</task>
+  <status>in_progress</status>
+</todos>
+<todos>
+  <task>Second task</task>
+  <status>pending</status>
+</todos>
 </parameters>
 </tool_call>
 

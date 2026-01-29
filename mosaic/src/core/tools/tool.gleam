@@ -40,6 +40,12 @@ pub fn get_tools() -> List(Tool) {
       parameters: "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Path to the file to modify.\"},\"old_text\":{\"type\":\"string\",\"description\":\"The text to be replaced.\"},\"new_text\":{\"type\":\"string\",\"description\":\"The text to replace with.\"}},\"required\":[\"path\",\"old_text\",\"new_text\"]}",
     ),
     Tool(
+      name: "insert_line",
+      function: file_utils.insert_line,
+      description: "Insert a single line of text at a specific line number (1-indexed).",
+      parameters: "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Path to the file to modify.\"},\"line\":{\"type\":\"integer\",\"description\":\"The line number (1-indexed) where content will be inserted.\"},\"content\":{\"type\":\"string\",\"description\":\"The text to insert.\"}},\"required\":[\"path\",\"line\",\"content\"]}",
+    ),
+    Tool(
       name: "manage_todos",
       function: fn(params, _workspace) { todos.handle_tool_call(params) },
       description: "Manage a list of todo items. Use this to track progress on multi-step tasks.",
