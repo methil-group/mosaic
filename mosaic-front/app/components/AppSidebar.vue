@@ -42,7 +42,7 @@ const toggleVisibility = (id: string) => {
                 <div class="w-6 h-6 rounded bg-white flex items-center justify-center shrink-0">
                     <Sparkles class="w-3.5 h-3.5 text-black" />
                 </div>
-                <h1 class="text-[10px] font-black tracking-[0.2em] text-white truncate">MOSAIC_OS</h1>
+                <h1 class="text-[10px] font-black tracking-[0.2em] text-white truncate">MOSAIC</h1>
             </div>
         </div>
 

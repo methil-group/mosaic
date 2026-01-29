@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                               MOSAIC_OS                                   ║
-# ║             Modular OS for AI Interaction & Code Ecosystem                ║
+# ║                                 Mosaic                                    ║
+# ║           Modular Platform for AI Interaction & Code Ecosystem            ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
 
 VERSION="1.1.0"
@@ -33,7 +33,7 @@ ARROW="➜"
 DOTS="... "
 
 show_help() {
-    echo -e "${BOLD}${PURPLE}MOSAIC_OS${NC} v$VERSION"
+    echo -e "${BOLD}${PURPLE}Mosaic${NC} v$VERSION"
     echo ""
     echo -e "${BOLD}USAGE:${NC}"
     echo "  mosaic [options]"
@@ -57,7 +57,7 @@ fi
 
 clear
 echo -e "${PURPLE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${PURPLE}${BOLD}   Initializing MOSAIC_OS Ecosystem${NC}"
+echo -e "${PURPLE}${BOLD}   Initializing Mosaic Ecosystem${NC}"
 echo -e "${PURPLE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
@@ -96,7 +96,7 @@ FRONTEND_PID=$!
 echo -e "${GREEN}${CHECKMARK} ONLINE${NC}"
 
 echo ""
-echo -e "${PURPLE}${BOLD}✨ MOSAIC_OS IS NOW BROADCASTING${NC}"
+echo -e "${PURPLE}${BOLD}✨ MOSAIC IS NOW BROADCASTING${NC}"
 echo -e "${GRAY}───────────────────────────────────────────────────────────────────────────${NC}"
 echo -e "  ${BOLD}${CYAN}${ARROW} BACKEND:  ${NC}${UNDERLINE}http://localhost:$BACKEND_PORT${NC}"
 echo -e "  ${BOLD}${CYAN}${ARROW} FRONTEND: ${NC}${UNDERLINE}http://localhost:$FRONTEND_PORT${NC}"
