@@ -1,6 +1,7 @@
 import api/routes/agent_route
 import api/routes/chat
 import api/routes/ls
+import api/routes/providers
 import ewe
 import gleam/http
 import gleam/http/response
@@ -22,6 +23,7 @@ fn handle_request(req: ewe.Request) -> ewe.Response {
         "/chat" -> chat.handle(req)
         "/agent" -> agent_route.handle(req)
         "/ls" -> ls.handle(req)
+        "/providers" -> providers.handle(req)
         _ -> {
           response.new(404)
           |> response.set_body(ewe.TextData("Not Found"))

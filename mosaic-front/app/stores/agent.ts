@@ -29,6 +29,7 @@ export interface State {
   instances: Record<string, InstanceState>
   instanceIds: string[]
   availableModels: { id: string, name: string }[]
+  availableProviders: string[]
   backendUrl: string
 }
 
@@ -57,6 +58,7 @@ export const useAgentStore = defineStore('agent', {
       { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
       { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
     ],
+    availableProviders: ['OpenRouter'],
     backendUrl: 'http://localhost:3710'
   }),
   actions: {
@@ -186,6 +188,18 @@ export const useAgentStore = defineStore('agent', {
     updateInstanceModel(instanceId: string, modelId: string) {
       if (this.instances[instanceId]) {
         this.instances[instanceId].currentModel = modelId
+      }
+    },
+
+    async fetchProviders() {
+       try {
+        const response = await fetch(`${this.backendUrl}/providers`)
+        if (!response.ok) return
+        const data = await response.json()
+        this.availableProviders = data.providers || ['OpenRouter']
+      } catch (e) {
+        console.error('Failed to fetch providers', e)
+        this.availableProviders = ['OpenRouter']
       }
     }
   }
