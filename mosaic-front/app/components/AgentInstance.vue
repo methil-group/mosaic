@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { useAgentStore } from '~/stores/agent'
-import { Send, Bot, User, Terminal, Loader2, Sparkles, Folder, Cpu, ChevronDown, Trash2 } from 'lucide-vue-next'
+import { Send, Bot, User, Terminal, Loader2, Sparkles, Folder, Cpu, ChevronDown, Trash2, Copy, Check } from 'lucide-vue-next'
+import TodoDisplay from './TodoDisplay.vue'
 import MarkdownIt from 'markdown-it'
 
 const md = new MarkdownIt({
@@ -22,6 +23,8 @@ const prompt = ref('')
 const scrollContainer = ref<HTMLElement | null>(null)
 const isModelMenuOpen = ref(false)
 const expandedActions = ref<Record<number, boolean>>({})
+const copiedIdx = ref<number | null>(null)
+const isInputFocused = ref(false)
 
 const toggleActions = (idx: number) => {
     expandedActions.value[idx] = !expandedActions.value[idx]
@@ -46,6 +49,29 @@ const handleSend = async () => {
     const currentPrompt = prompt.value
     prompt.value = ''
     await store.sendMessage(props.instanceId, currentPrompt)
+}
+
+const copyToClipboard = async (text: string, idx: number) => {
+    // Clean content for copying (strip tool tags)
+    const cleaned = text
+        .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+        .replace(/<tool_result>[\s\S]*?<\/tool_result>/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+    await navigator.clipboard.writeText(cleaned);
+    copiedIdx.value = idx;
+    setTimeout(() => {
+        if (copiedIdx.value === idx) copiedIdx.value = null;
+    }, 2000);
+}
+
+const getLatestTodo = (msg: any) => {
+    if (!msg.events) return null;
+    const todoEvents = msg.events
+        .filter((e: any) => e.type === 'tool_finished' && e.name === 'manage_todos' && e.result)
+        .reverse();
+    return todoEvents[0]?.result || null;
 }
 
 const scrollToBottom = async () => {
@@ -152,8 +178,13 @@ const selectModel = (modelId: string) => {
                         </div>
                     </div>
                     <div
-                        class="max-w-[90%] px-4 py-2.5 rounded-lg bg-white text-black leading-relaxed font-bold text-xs">
+                        class="max-w-[90%] px-4 py-3 rounded-2xl bg-white text-black leading-relaxed font-bold text-xs relative group/msg">
                         {{ msg.content }}
+                        <button @click="copyToClipboard(msg.content, idx)"
+                            class="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 rounded bg-white/5 border border-white/10 opacity-0 group-hover/msg:opacity-100 transition-all hover:bg-white/10 active:scale-95">
+                            <Check v-if="copiedIdx === idx" class="w-3 h-3 text-green-400" />
+                            <Copy v-else class="w-3 h-3 text-white/40" />
+                        </button>
                     </div>
                 </template>
 
@@ -175,6 +206,9 @@ const selectModel = (modelId: string) => {
                     </div>
 
                     <div class="w-full space-y-3">
+                        <!-- Top-level Todo (Latest Plan) -->
+                        <TodoDisplay v-if="getLatestTodo(msg)" :result="getLatestTodo(msg)" />
+
                         <!-- Collapsible Actions -->
                         <div v-if="msg.events && msg.events.length > 0" class="space-y-1.5">
                             <button @click="toggleActions(idx)"
@@ -201,9 +235,14 @@ const selectModel = (modelId: string) => {
                                         class="mt-2 p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32 whitespace-pre-wrap">
                                         {{ event.parameters }}
                                     </div>
-                                    <div v-if="event.type === 'tool_finished' && event.result"
-                                        class="mt-2 p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32 whitespace-pre-wrap">
-                                        {{ event.result }}
+                                    <div v-if="event.type === 'tool_finished' && event.result" class="mt-2">
+                                        <TodoDisplay
+                                            v-if="event.name === 'manage_todos' && event.result !== getLatestTodo(msg)"
+                                            :result="event.result" />
+                                        <div v-else-if="event.name !== 'manage_todos'"
+                                            class="p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32 whitespace-pre-wrap">
+                                            {{ event.result }}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -211,8 +250,22 @@ const selectModel = (modelId: string) => {
 
                         <!-- Response Text -->
                         <div v-if="formatContent(msg.content)"
-                            class="px-4 py-3.5 rounded-lg bg-white/5 border border-white/10 text-white leading-relaxed font-medium text-[13px] prose prose-invert prose-sm max-w-none"
+                            class="relative group/msg px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white leading-relaxed font-medium text-[13px] prose prose-invert prose-sm max-w-none shadow-2xl"
                             v-html="formatContent(msg.content)">
+                        </div>
+
+                        <!-- Message Actions -->
+                        <div v-if="formatContent(msg.content)" class="flex justify-end pr-1">
+                            <button @click="copyToClipboard(msg.content, idx)"
+                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/5 opacity-40 hover:opacity-100 transition-all active:scale-95 group/copy">
+                                <Check v-if="copiedIdx === idx" class="w-2.5 h-2.5 text-green-400" />
+                                <template v-else>
+                                    <Copy class="w-2.5 h-2.5 text-white/40 group-hover/copy:text-white" />
+                                    <span
+                                        class="text-[8px] font-black uppercase tracking-widest text-white/20 group-hover/copy:text-white">Copy
+                                        Answer</span>
+                                </template>
+                            </button>
                         </div>
                     </div>
                 </template>
@@ -220,17 +273,23 @@ const selectModel = (modelId: string) => {
         </main>
 
         <!-- Footer Input -->
-        <footer class="p-4 bg-white/[0.02] border-t border-white/5 shrink-0">
-            <div class="relative group">
-                <textarea v-model="prompt" @keydown.enter.prevent="handleSend" placeholder="Command..."
-                    class="w-full bg-white/5 border border-white/10 focus:border-white focus:bg-white/10 focus:ring-0 rounded-md text-white placeholder-white/10 py-2.5 px-3 resize-none h-12 max-h-32 font-medium text-xs transition-all"
+        <footer class="p-6 bg-gradient-to-t from-black via-black/80 to-transparent border-t border-white/5 shrink-0">
+            <div class="relative group max-w-4xl mx-auto w-full">
+                <textarea v-model="prompt" @keydown.enter.prevent="handleSend" @focus="isInputFocused = true"
+                    @blur="isInputFocused = false" placeholder="Communicate with agent..."
+                    class="w-full bg-white/5 border border-white/10 focus:border-white focus:bg-white/10 focus:ring-4 focus:ring-white/5 rounded-xl text-white placeholder-white/10 py-4 px-5 pr-12 resize-none h-16 max-h-48 font-bold text-sm transition-all shadow-2xl"
                     :disabled="instance.isProcessing"></textarea>
 
                 <button @click="handleSend" :disabled="!prompt.trim() || instance.isProcessing"
-                    class="absolute right-2 bottom-2 w-7 h-7 rounded bg-white text-black hover:bg-white/90 disabled:bg-white/5 disabled:text-white/10 flex items-center justify-center transition-all shadow-xl active:scale-95">
-                    <Loader2 v-if="instance.isProcessing" class="w-3.5 h-3.5 animate-spin" />
-                    <Send v-else class="w-3.5 h-3.5" />
+                    class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-white text-black hover:bg-white/90 disabled:bg-white/5 disabled:text-white/10 flex items-center justify-center transition-all shadow-xl active:scale-90 border border-white/20">
+                    <Loader2 v-if="instance.isProcessing" class="w-4 h-4 animate-spin" />
+                    <Send v-else class="w-4 h-4" />
                 </button>
+
+                <div v-if="!prompt.trim() && !instance.isProcessing"
+                    class="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-white/5 border border-white/10 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span class="text-[8px] font-black uppercase tracking-[0.2em] text-white/20">Awaiting Input</span>
+                </div>
             </div>
         </footer>
 

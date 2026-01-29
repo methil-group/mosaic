@@ -64,12 +64,17 @@ pub fn handle_tool_call(parameters: String) -> String {
     decode.success(#(task, status, context))
   }
 
-  let decoder = decode.field("todos", decode.list(item_decoder), decode.success)
+  let decoder = {
+    use todos <- decode.field("todos", decode.list(item_decoder))
+    use conclusion <- decode.optional_field("conclusion", "", decode.string)
+    decode.success(#(todos, conclusion))
+  }
 
   case json.parse(from: parameters, using: decoder) {
-    Ok(items) -> {
+    Ok(data) -> {
+      let #(items, conclusion) = data
       case update(items) {
-        Ok(valid_items) -> render(valid_items)
+        Ok(valid_items) -> render(valid_items, conclusion)
         Error(err) -> "Error managing todos: " <> error_to_string(err)
       }
     }
@@ -95,8 +100,8 @@ fn error_to_string(err: TodoError) -> String {
   }
 }
 
-pub fn render(items: List(TodoItem)) -> String {
-  case items {
+pub fn render(items: List(TodoItem), conclusion: String) -> String {
+  let base_render = case items {
     [] -> "No todos."
     _ -> {
       let lines = list.map(items, render_item)
@@ -112,6 +117,11 @@ pub fn render(items: List(TodoItem)) -> String {
 
       string.join(lines, "\n") <> summary
     }
+  }
+
+  case conclusion {
+    "" -> base_render
+    _ -> base_render <> "\n---CONCLUSION---\n" <> conclusion
   }
 }
 

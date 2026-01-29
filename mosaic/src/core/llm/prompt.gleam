@@ -32,6 +32,7 @@ Rules:
    - **CRITICAL**: You MUST use `manage_todos` to track your progress.
    - **Start**: Call `manage_todos` BEFORE any other tools to set your plan. Mark the *first* task `in_progress` and the rest `pending`.
    - **Progress**: Call `manage_todos` after every tool execution to mark tasks `completed` and move the next to `in_progress`.
+   - **Conclusion**: When a task is fully completed or needs a final summary, use the `conclusion` field to provide a brief report for the user.
    - Never skip updating the todo list.
 
 5. **FORMAT**:

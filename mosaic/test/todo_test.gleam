@@ -25,12 +25,26 @@ pub fn valid_update_test() {
   ])
 
   // Verify rendering
-  todo_manager.render(items)
+  todo_manager.render(items, "")
   |> should.equal(
     "[x] Task 1\n"
     <> "[>] Task 2 <- Working on it\n"
     <> "[ ] Task 3\n"
     <> "\n(1/3 completed)",
+  )
+}
+
+// 1b. Test Update & Rendering with Conclusion
+pub fn valid_update_with_conclusion_test() {
+  let input = [#("Task 1", "completed", "")]
+  let assert Ok(items) = todo_manager.update(input)
+
+  todo_manager.render(items, "Everything went well!")
+  |> should.equal(
+    "[x] Task 1\n"
+    <> "\n(1/1 completed)"
+    <> "\n---CONCLUSION---\n"
+    <> "Everything went well!",
   )
 }
 
