@@ -1,8 +1,15 @@
 <template>
-    <div class="h-screen overflow-hidden bg-black text-white">
-        <slot />
+    <div class="flex h-screen bg-black text-white">
+        <AppSidebar />
+        <main class="flex-1 overflow-hidden relative">
+            <slot />
+        </main>
     </div>
 </template>
+
+<script setup lang="ts">
+import AppSidebar from '~/components/AppSidebar.vue'
+</script>
 
 <style>
 @import "tailwindcss/base";
