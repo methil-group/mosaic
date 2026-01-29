@@ -197,6 +197,10 @@ const selectModel = (modelId: string) => {
                                         {{ event.type === 'tool_started' ? `> ${event.name}` : event.type ===
                                             'tool_finished' ? `> ${event.name}` : '> Protocol finished' }}
                                     </p>
+                                    <div v-if="event.type === 'tool_started' && event.parameters"
+                                        class="mt-2 p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32 whitespace-pre-wrap">
+                                        {{ event.parameters }}
+                                    </div>
                                     <div v-if="event.type === 'tool_finished' && event.result"
                                         class="mt-2 p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32 whitespace-pre-wrap">
                                         {{ event.result }}

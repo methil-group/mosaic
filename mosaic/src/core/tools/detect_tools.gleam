@@ -1,97 +1,33 @@
-import core/utils/json_utils
 import gleam/dict
-import gleam/dynamic/decode
 import gleam/json
 import gleam/list
-import gleam/option.{None, Some}
-import gleam/pair
-import gleam/result
+import gleam/option.{type Option, None, Some}
 import gleam/string
 
 pub type FoundTool {
   FoundTool(name: String, parameters: String)
 }
 
-pub fn detect_tool_call(input: String) -> option.Option(FoundTool) {
+pub fn detect_tool_call(input: String) -> Option(FoundTool) {
   let text = string.trim(input)
 
-  // We check if the response looks like a JSON block or code snippet.
-  case json_utils.extract_json(text) {
-    Some(raw_part) -> {
-      let json_part = extract_outermost_json(raw_part)
-      case
-        string.starts_with(json_part, "{") && string.ends_with(json_part, "}")
-      {
-        True -> {
-          let decoder = {
-            use name <- decode.field("name", decode.string)
-            use params <- decode.field(
-              "parameters",
-              decode.dict(decode.string, decode.dynamic),
-            )
-
-            let params_json =
-              json.object(
-                params
-                |> dict.to_list
-                |> list.map(fn(pair) {
-                  #(pair.0, json_utils.dynamic_to_json(pair.1))
-                }),
-              )
-            decode.success(FoundTool(name, json.to_string(params_json)))
-          }
-
-          case json.parse(from: json_part, using: decoder) {
-            Ok(found) -> Some(found)
-            Error(_) -> try_parse_xml(json_part)
-          }
-        }
-        False -> try_parse_xml(json_part)
-      }
-    }
-    None -> None
-  }
-}
-
-fn extract_outermost_json(input: String) -> String {
-  let trimmed = string.trim(input)
-  case string.split_once(trimmed, "{") {
-    Ok(#(_, rest)) -> {
-      let start_stripped = "{" <> rest
-      let segments = string.split(start_stripped, "}")
-      case list.length(segments) {
-        0 -> start_stripped
-        1 -> start_stripped
-        _ -> {
-          segments
-          |> list.reverse
-          |> list.drop(1)
-          |> list.reverse
-          |> string.join("}")
-          |> string.append("}")
-        }
-      }
-    }
-    Error(_) -> trimmed
-  }
-}
-
-fn try_parse_xml(input: String) -> option.Option(FoundTool) {
-  // Simple XML-like parser for <name>...</name> and <parameters>...</parameters>
-  case string.contains(input, "<name>") && string.contains(input, "</name>") {
+  // Strict XML detection
+  case string.contains(text, "<tool_call>") {
     True -> {
-      let name = extract_tag(input, "name")
-      let params_content = extract_tag(input, "parameters")
+      let content = extract_xml_tag(text, "tool_call")
+      let name = extract_xml_tag(content, "name") |> string.trim
+      let params_with_tags = extract_xml_tag(content, "parameters")
 
-      // For parameters, we'll try to extract KV pairs like <key>value</key>
-      let params = parse_xml_params(params_content)
-      Some(FoundTool(name, json.to_string(json.object(params))))
+      // Parse the parameters XML structure into a JSON object
+      let params_json = parse_xml_to_json(params_with_tags)
+
+      Some(FoundTool(name, json.to_string(params_json)))
     }
     False -> None
   }
 }
 
-fn extract_tag(input: String, tag: String) -> String {
+fn extract_xml_tag(input: String, tag: String) -> String {
   case string.split(input, "<" <> tag <> ">") {
     [_, rest] -> {
       case string.split(rest, "</" <> tag <> ">") {
@@ -103,35 +39,160 @@ fn extract_tag(input: String, tag: String) -> String {
   }
 }
 
-fn parse_xml_params(input: String) -> List(#(String, json.Json)) {
-  // We look for any <TAG>CONTENT</TAG> occurrences.
-  // Instead of splitting globally, we find the first tag, its value, and continue.
-  do_parse_xml_params(input, [])
+// Parses XML content strings into a JSON structure
+// Handles nested tags and repeated keys (converted to arrays)
+fn parse_xml_to_json(input: String) -> json.Json {
+  let nodes = parse_xml_nodes(input)
+  json.object(nodes_to_json_props(nodes))
 }
 
-fn do_parse_xml_params(
-  input: String,
-  acc: List(#(String, json.Json)),
-) -> List(#(String, json.Json)) {
-  case string.contains(input, "<") && string.contains(input, ">") {
-    True -> {
-      let rest =
-        string.split_once(input, "<") |> result.unwrap(#("", "")) |> pair.second
-      case string.split_once(rest, ">") {
-        Ok(#(tag, rest)) -> {
-          let closing_tag = "</" <> tag <> ">"
-          case string.split_once(rest, closing_tag) {
-            Ok(#(content, rest)) -> {
-              let new_acc =
-                list.append(acc, [#(tag, json.string(string.trim(content)))])
-              do_parse_xml_params(rest, new_acc)
+type XmlNode {
+  TextNode(String)
+  ElementNode(tag: String, children: List(XmlNode))
+}
+
+fn nodes_to_json_props(nodes: List(XmlNode)) -> List(#(String, json.Json)) {
+  // Group by tag to detect arrays
+  let grouped =
+    list.group(nodes, fn(node) {
+      case node {
+        ElementNode(tag, _) -> tag
+        TextNode(_) -> ""
+        // Should not happen at property level
+      }
+    })
+
+  // Convert groups to JSON properties
+  dict.to_list(grouped)
+  |> list.filter_map(fn(pair) {
+    let #(tag, group) = pair
+    case tag {
+      "" -> Error(Nil)
+      // Ignore loose text at top level
+      _ -> {
+        // Reverse group because list.group reverses the order
+        let values =
+          list.map(list.reverse(group), fn(node) {
+            case node {
+              ElementNode(_, children) -> {
+                // Check if children are only text
+                case is_text_only(children) {
+                  True -> json.string(get_text_content(children))
+                  False -> json.object(nodes_to_json_props(children))
+                }
+              }
+              TextNode(content) -> json.string(content)
             }
-            Error(_) -> acc
+          })
+
+        case list.length(values) {
+          1 -> {
+            // Single value, just return it
+            let assert Ok(val) = list.first(values)
+            Ok(#(tag, val))
+          }
+          _ -> {
+            // Multiple values for same tag -> Array
+            Ok(#(tag, json.preprocessed_array(values)))
           }
         }
-        Error(_) -> acc
       }
     }
-    False -> acc
+  })
+}
+
+fn is_text_only(nodes: List(XmlNode)) -> Bool {
+  list.all(nodes, fn(n) {
+    case n {
+      TextNode(_) -> True
+      ElementNode(_, _) -> False
+    }
+  })
+}
+
+fn get_text_content(nodes: List(XmlNode)) -> String {
+  list.map(nodes, fn(n) {
+    case n {
+      TextNode(s) -> s
+      ElementNode(_, _) -> ""
+    }
+  })
+  |> string.join("")
+  |> string.trim
+}
+
+// Naive XML parser
+fn parse_xml_nodes(input: String) -> List(XmlNode) {
+  do_parse_xml(input, [])
+}
+
+fn do_parse_xml(input: String, acc: List(XmlNode)) -> List(XmlNode) {
+  let trimmed = string.trim(input)
+
+  case string.is_empty(trimmed) {
+    True -> list.reverse(acc)
+    False -> {
+      case string.starts_with(trimmed, "<") {
+        True -> {
+          // It's a tag
+          case string.split_once(trimmed, ">") {
+            Ok(#(open_tag_content, rest_after_open)) -> {
+              let tag_name = drop_first_char(open_count_tag(open_tag_content))
+              let close_tag = "</" <> tag_name <> ">"
+
+              case string.split_once(rest_after_open, close_tag) {
+                Ok(#(inner_content, rest_after_close)) -> {
+                  let children = parse_xml_nodes(inner_content)
+                  let final_children = case list.is_empty(children) {
+                    True -> {
+                      case string.is_empty(string.trim(inner_content)) {
+                        True -> []
+                        False -> [TextNode(inner_content)]
+                      }
+                    }
+                    False -> children
+                  }
+
+                  let node = ElementNode(tag_name, final_children)
+                  do_parse_xml(rest_after_close, [node, ..acc])
+                }
+                Error(_) -> {
+                  // Malformed or self-closing (not supported), skip 1 char
+                  do_parse_xml(drop_first_char(trimmed), acc)
+                }
+              }
+            }
+            Error(_) -> do_parse_xml(drop_first_char(trimmed), acc)
+          }
+        }
+        False -> {
+          // It's text until next <
+          case string.split_once(trimmed, "<") {
+            Ok(#(text, rest)) -> {
+              let node = TextNode(text)
+              do_parse_xml("<" <> rest, [node, ..acc])
+            }
+            Error(_) -> {
+              // All text
+              [TextNode(trimmed), ..acc] |> list.reverse
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+fn open_count_tag(s: String) -> String {
+  case string.split_once(s, " ") {
+    Ok(#(tag, _)) -> tag
+    Error(_) -> s
+  }
+}
+
+fn drop_first_char(s: String) -> String {
+  case string.pop_grapheme(s) {
+    Ok(#(_, rest)) -> rest
+    Error(_) -> ""
   }
 }

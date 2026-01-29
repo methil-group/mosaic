@@ -7,10 +7,7 @@ import gleam/string
 
 // Extracts JSON from potential markdown blocks (```json ... ```) or <tool_call> tags
 pub fn extract_json(input: String) -> Option(String) {
-  case
-    string.contains(input, "<tool_call>")
-    && string.contains(input, "</tool_call>")
-  {
+  case string.contains(input, "<tool_call>") {
     True -> {
       input
       |> string.split("<tool_call>")

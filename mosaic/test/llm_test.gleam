@@ -5,7 +5,7 @@ import gleeunit/should
 import mosaic_logger
 import mosaic_open_ai
 
-pub fn llm_chat_test() {
+pub fn llm_chat_integration() {
   dot_env.load_default()
 
   // We use the model specified by the user

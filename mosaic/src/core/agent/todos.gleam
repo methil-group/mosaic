@@ -3,6 +3,7 @@ import gleam/int
 import gleam/json
 import gleam/list
 import gleam/string
+import mosaic_logger
 
 pub type TodoStatus {
   Pending
@@ -54,6 +55,8 @@ pub fn update(
 }
 
 pub fn handle_tool_call(parameters: String) -> String {
+  mosaic_logger.info("agent", "manage_todos called with: " <> parameters)
+
   let item_decoder = {
     use task <- decode.field("task", decode.string)
     use status <- decode.field("status", decode.string)
@@ -70,8 +73,14 @@ pub fn handle_tool_call(parameters: String) -> String {
         Error(err) -> "Error managing todos: " <> error_to_string(err)
       }
     }
-    Error(_) ->
-      "Error: Invalid parameters for manage_todos. Expected { \"todos\": [{ \"task\": \"...\", \"status\": \"...\", \"context\": \"...\" }] }"
+    Error(err) -> {
+      mosaic_logger.error(
+        "agent",
+        "manage_todos decode error: " <> string.inspect(err),
+      )
+      "Error: Invalid parameters for manage_todos. Details: "
+      <> string.inspect(err)
+    }
   }
 }
 
