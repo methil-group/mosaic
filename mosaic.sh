@@ -41,8 +41,9 @@ show_help() {
     echo -e "${BOLD}OPTIONS:${NC}"
     echo "  --help, -h     Show this help message"
     echo "  --version, -v  Show version information"
+    echo "  --build, -b    Build/Rebuild the Frontend for production"
     echo ""
-    echo -e "Launched without options, this starts the full ecosystem."
+    echo -e "Launched without options, this starts the full ecosystem in production mode."
 }
 
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
@@ -55,11 +56,27 @@ if [[ "$1" == "--version" || "$1" == "-v" ]]; then
     exit 0
 fi
 
+if [[ "$1" == "--build" || "$1" == "-b" ]]; then
+    echo -e "${CYAN}${BOLD}🏗 Building Frontend for Production...${NC}"
+    cd "$FRONTEND_DIR" || exit 1
+    npm run build
+    echo -e "${GREEN}${BOLD}✅ Build Complete!${NC}"
+    exit 0
+fi
+
 clear
 echo -e "${PURPLE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${PURPLE}${BOLD}   Initializing Mosaic Ecosystem${NC}"
+echo -e "${PURPLE}${BOLD}   Initializing Mosaic Ecosystem (PRODUCTION)${NC}"
 echo -e "${PURPLE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
+
+# Ensure build exists
+if [ ! -d "$FRONTEND_DIR/.output" ]; then
+    echo -e "${YELLOW}⚠️  Production build not found. Generating now...${NC}"
+    cd "$FRONTEND_DIR" || exit 1
+    npm run build
+    echo ""
+fi
 
 cleanup() {
     echo ""
@@ -88,10 +105,11 @@ gleam run > /dev/null 2>&1 &
 BACKEND_PID=$!
 echo -e "${GREEN}${CHECKMARK} ONLINE${NC}"
 
-# Start Frontend
+# Start Frontend (Production Preview)
 echo -en "${CYAN}${BOLD}[2/2]${NC} Launching Frontend Hub${DOTS}"
 cd "$FRONTEND_DIR" || { echo -e "${RED}❌ Error: Frontend path mismatch.${NC}"; exit 1; }
-PORT=$FRONTEND_PORT npm run dev -- --port $FRONTEND_PORT > /dev/null 2>&1 &
+# Use preview for production serving
+PORT=$FRONTEND_PORT npm run preview -- --port $FRONTEND_PORT > /dev/null 2>&1 &
 FRONTEND_PID=$!
 echo -e "${GREEN}${CHECKMARK} ONLINE${NC}"
 
