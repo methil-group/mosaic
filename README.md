@@ -56,7 +56,7 @@ If you prefer to run the services individually:
 
 ### Backend
 ```bash
-cd mosaic
+cd mosaic-back
 gleam run
 ```
 

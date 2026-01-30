@@ -9,7 +9,7 @@ VERSION="1.1.0"
 
 # Paths
 ROOT_DIR="/Users/ethew/Documents/Github/methil-vibe"
-BACKEND_DIR="$ROOT_DIR/mosaic"
+BACKEND_DIR="$ROOT_DIR/mosaic-back"
 FRONTEND_DIR="$ROOT_DIR/mosaic-front"
 
 # UI Constants
