@@ -14,6 +14,7 @@ pub type AgentEvent {
   ToolStarted(name: String, parameters: String)
   ToolFinished(name: String, result: String)
   FinalAnswer(String)
+  AgentError(String)
 }
 
 pub fn run_agent(
@@ -98,26 +99,38 @@ fn reasoning_loop(
           tools,
         )
 
-      mosaic_logger.info(
-        "agent",
-        "Tool '" <> tool_call.name <> "' returned: " <> result,
-      )
-      on_event(ToolFinished(tool_call.name, result))
+      case result {
+        Ok(res) -> {
+          mosaic_logger.info(
+            "agent",
+            "Tool '" <> tool_call.name <> "' returned: " <> res,
+          )
+          on_event(ToolFinished(tool_call.name, res))
 
-      let assistant_msg = Message(role: "assistant", content: content)
-      let tool_result_msg =
-        Message(
-          role: "user",
-          content: prompt.format_tool_result(tool_call.name, result),
-        )
+          let assistant_msg = Message(role: "assistant", content: content)
+          let tool_result_msg =
+            Message(
+              role: "user",
+              content: prompt.format_tool_result(tool_call.name, res),
+            )
 
-      reasoning_loop(
-        list.append(messages, [assistant_msg, tool_result_msg]),
-        tools,
-        model_id,
-        workspace,
-        on_event,
-      )
+          reasoning_loop(
+            list.append(messages, [assistant_msg, tool_result_msg]),
+            tools,
+            model_id,
+            workspace,
+            on_event,
+          )
+        }
+        Error(err) -> {
+          mosaic_logger.error(
+            "agent",
+            "Tool '" <> tool_call.name <> "' failed: " <> err,
+          )
+          on_event(AgentError(err))
+          Nil
+        }
+      }
     }
   }
 }

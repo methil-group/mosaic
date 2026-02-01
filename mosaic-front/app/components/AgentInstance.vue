@@ -136,12 +136,20 @@ const toggleActions = (idx: number) => {
 const formatContent = (content: string) => {
     if (!content) return '';
 
-    // Remove tool tags but ensure a newline is left behind to prevent merging lines
-    // and breaking markdown structural elements (like headers)
-    const cleaned = content
-        .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '\n')
-        .replace(/<tool_result>[\s\S]*?<\/tool_result>/g, '\n')
-        .replace(/\n{3,}/g, '\n\n') // Collapse 3+ newlines into 2
+    // If we're streaming or the tool isn't finished yet, we want to see the tags
+    // Escaping < and > prevents MarkdownIt/HTML from swallowing them as tags
+    let processed = content
+        .replace(/<([^>]+)>/g, '&lt;$1&gt;');
+
+    // For FINISHED tools, we might still want to hide them if the UI shows them elsewhere
+    // but the user specifically asked to see the 'balise' (tags), so let's keep them but make them look distinct
+    // Actually, the current UI uses events to show actions. 
+    // Let's just make sure they don't break the layout.
+
+    const cleaned = processed
+        .replace(/&lt;tool_call&gt;[\s\S]*?&lt;\/tool_call&gt;/g, '\n')
+        .replace(/&lt;tool_result&gt;[\s\S]*?&lt;\/tool_result&gt;/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
         .trim();
 
     return md.render(cleaned);
@@ -294,13 +302,13 @@ watch(prompt, () => {
                                             Path</label>
                                         <div class="relative">
                                             <div
-                                                class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:ring-4 focus-within:ring-white/5 focus-within:border-white/20 transition-all">
-                                                <Folder class="w-4 h-4 text-white/20" />
+                                                class="flex items-center gap-3 bg-white/5 border border-white/20 rounded-xl px-4 py-4 focus-within:ring-8 focus-within:ring-white/5 focus-within:border-white/40 transition-all bg-gradient-to-br from-white/[0.02] to-transparent">
+                                                <Folder class="w-5 h-5 text-white/40" />
                                                 <input v-model="instance.currentWorkspace"
                                                     @focus="isInputFocused = true; fetchWorkspaceSuggestions()"
                                                     @blur="closeWorkspaceMenu" @keydown.tab="handleTab"
                                                     @keydown.enter="handleEnter"
-                                                    class="flex-1 bg-transparent border-none p-0 text-sm font-mono text-white outline-none"
+                                                    class="flex-1 bg-transparent border-none p-0 text-base font-mono text-white outline-none placeholder:text-white/10"
                                                     placeholder="/path/to/workspace" />
                                             </div>
 

@@ -1,12 +1,12 @@
 -module(mosaic_tools_ffi).
--export([run_bash/2, read_file/1, write_file/2, is_port_available/1, list_directories/1]).
+-export([run_bash/2, read_file/1, write_file/2, is_port_available/1, list_directories/1, safe_execute/3]).
 
 run_bash(Command, Workspace) ->
     CmdStr = binary_to_list(Command),
     WorkStr = binary_to_list(Workspace),
     FullCmd = "cd " ++ WorkStr ++ " && " ++ CmdStr,
     Output = os:cmd(FullCmd),
-    list_to_binary(Output).
+    unicode:characters_to_binary(Output).
 
 read_file(Path) ->
     PathStr = binary_to_list(Path),
@@ -46,4 +46,13 @@ list_directories(Path) ->
             [list_to_binary(D) || D <- Dirs];
         {error, _} ->
             []
+    end.
+
+safe_execute(Function, Parameters, Workspace) ->
+    try
+        {ok, Function(Parameters, Workspace)}
+    catch
+        Error:Reason:Stacktrace ->
+            Msg = io_lib:format("Crash: ~p:~p~nStacktrace: ~p", [Error, Reason, Stacktrace]),
+            {error, list_to_binary(Msg)}
     end.

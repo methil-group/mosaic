@@ -6,6 +6,7 @@ export type AgentEvent =
   | { type: 'tool_started', name: string, parameters: string }
   | { type: 'tool_finished', name: string, result: string }
   | { type: 'final_answer', data: string }
+  | { type: 'error', message: string }
 
 export interface Message {
   role: 'user' | 'assistant'
@@ -179,6 +180,8 @@ export const useAgentStore = defineStore('agent', {
           lastMessage.content += event.data
         } else if (event.type === 'final_answer') {
           lastMessage.content = event.data
+        } else if (event.type === 'error') {
+          lastMessage.content += `\n\n[Error: ${event.message}]`
         }
       }
     },

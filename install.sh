@@ -11,24 +11,42 @@ MIN_GLEAM_VERSION="1.0.0"
 MIN_NPM_VERSION="8.0.0"
 
 # ANSI Color Codes
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-RED='\033[0;31m'
-YELLOW='\033[0;33m'
-NC='\033[0m'
-BOLD='\033[1m'
-GRAY='\033[0;90m'
-
-echo -e "${CYAN}${BOLD}📦 Initializing Mosaic Installation Sequence...${NC}"
-echo -e "${GRAY}───────────────────────────────────────────────────${NC}"
+GREEN=$(printf '\033[0;32m')
+CYAN=$(printf '\033[0;36m')
+RED=$(printf '\033[0;31m')
+YELLOW=$(printf '\033[0;33m')
+NC=$(printf '\033[0m')
+BOLD=$(printf '\033[1m')
+GRAY=$(printf '\033[0;90m')
 
 # Function to extract numeric version parts for comparison
 version_to_int() {
     echo "$1" | awk -F. '{ printf("%d%03d%03d", $1,$2,$3); }'
 }
 
+# Typewriter effect function (word by word)
+wordwrite() {
+    local text="$1"
+    local delay="${2:-0.1}"
+    # Split text into words while preserving special chars
+    read -ra words <<< "$text"
+    for word in "${words[@]}"; do
+        printf "%s " "$word"
+        sleep "$delay"
+    done
+    printf "\n"
+}
+
+printf "${CYAN}${BOLD}"
+wordwrite "📦 Initializing Mosaic Installation Sequence..." 0.1
+printf "${NC}${GRAY}───────────────────────────────────────────────────${NC}\n"
+sleep 0.5
+
 # 1. Requirement Checks
-echo -e "${BOLD}🔍 Validating System Requirements:${NC}"
+printf "${BOLD}"
+wordwrite "🔍 Validating System Requirements:" 0.05
+printf "${NC}"
+sleep 0.3
 
 # Detect OS
 OS_TYPE=$(uname -s)
@@ -72,6 +90,7 @@ else
 fi
 
 echo -e "${GRAY}───────────────────────────────────────────────────${NC}"
+sleep 0.5
 
 # 2. Ensure the source script exists
 if [ ! -f "$SRC_SCRIPT" ]; then
@@ -80,17 +99,33 @@ if [ ! -f "$SRC_SCRIPT" ]; then
 fi
 
 # 3. Make the source script executable
-echo -e "${CYAN}🔧 Applying launch permissions...${NC}"
+printf "${CYAN}"
+wordwrite "🔧 Applying launch permissions..." 0.05
+printf "${NC}"
 chmod +x "$SRC_SCRIPT"
+sleep 0.4
 
-# 4. Create symlink in /usr/local/bin
-echo -e "${CYAN}🔗 Registering global command...${NC}"
-echo -e "${YELLOW}${BOLD}Note:${NC} Administrative privileges required for /usr/local/bin"
+# 4. Check for existing installation
+if [ -L "$DEST_COMMAND" ] || [ -f "$DEST_COMMAND" ]; then
+    CURRENT_VER=$(mosaic --version 2>/dev/null | awk '{print $NF}')
+    if [ -n "$CURRENT_VER" ]; then
+        echo -e "${YELLOW}ℹ️  Existing version ($CURRENT_VER) detected.${NC} Updating to latest..."
+    else
+        echo -e "${YELLOW}ℹ️  Existing configuration detected.${NC} Overwriting system paths..."
+    fi
+fi
+
+# 5. Create symlink in /usr/local/bin
+printf "${CYAN}"
+wordwrite "🔗 Registering global command..." 0.05
+printf "${NC}${YELLOW}${BOLD}Note:${NC} Administrative privileges required for /usr/local/bin\n"
+sleep 0.2
 
 if sudo ln -sf "$SRC_SCRIPT" "$DEST_COMMAND"; then
     echo -e ""
-    echo -e "${GREEN}${BOLD}✨ INSTALLATION COMPLETE${NC}"
-    echo -e "   You can now launch the platform by typing: ${BOLD}mosaic${NC}"
+    printf "${GREEN}${BOLD}"
+    wordwrite "✨ INSTALLATION COMPLETE" 0.1
+    printf "${NC}   You can now launch the platform by typing: ${BOLD}mosaic${NC}\n"
 else
     echo -e ""
     echo -e "${RED}❌ Installation Failed${NC}"

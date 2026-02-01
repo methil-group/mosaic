@@ -117,7 +117,7 @@ const toggleVisibility = (id: string) => {
             <div class="px-3">
                 <h3 v-if="isSidebarExpanded"
                     class="px-2 text-[9px] font-bold text-white/20 uppercase tracking-[0.2em] mb-4 animate-in fade-in duration-300">
-                    Control</h3>
+                    Application</h3>
                 <div class="space-y-1.5">
                     <NuxtLink to="/" v-tooltip="!isSidebarExpanded ? 'Workspace' : null"
                         class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-white/30 hover:text-white hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
@@ -126,23 +126,26 @@ const toggleVisibility = (id: string) => {
                         <span v-if="isSidebarExpanded"
                             class="animate-in slide-in-from-left-2 duration-300 truncate">Grid</span>
                     </NuxtLink>
-                    <NuxtLink to="/settings" v-tooltip="!isSidebarExpanded ? 'Settings' : null"
-                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-white/30 hover:text-white hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
-                        active-class="bg-white/10 text-white">
-                        <Settings class="w-4 h-4 shrink-0" />
-                        <span v-if="isSidebarExpanded"
-                            class="animate-in slide-in-from-left-2 duration-300 truncate">Settings</span>
-                    </NuxtLink>
-                    <NuxtLink to="/profile" v-tooltip="!isSidebarExpanded ? 'Profile' : null"
-                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-white/30 hover:text-white hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
-                        active-class="bg-white/10 text-white">
-                        <User class="w-4 h-4 shrink-0" />
-                        <span v-if="isSidebarExpanded"
-                            class="animate-in slide-in-from-left-2 duration-300 truncate">Profile</span>
-                    </NuxtLink>
                 </div>
             </div>
         </nav>
+
+        <!-- Lower Section: Controls -->
+        <div class="px-3 pb-4 space-y-1.5">
+            <div class="h-px bg-white/5 mx-2 mb-4"></div>
+            <NuxtLink to="/settings" v-tooltip="!isSidebarExpanded ? 'Settings' : null"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-white/30 hover:text-white hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
+                active-class="bg-white/10 text-white">
+                <Settings class="w-4 h-4 shrink-0" />
+                <span v-if="isSidebarExpanded" class="animate-in slide-in-from-left-2 duration-300 truncate">Settings</span>
+            </NuxtLink>
+            <NuxtLink to="/profile" v-tooltip="!isSidebarExpanded ? 'Profile' : null"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-white/30 hover:text-white hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
+                active-class="bg-white/10 text-white">
+                <User class="w-4 h-4 shrink-0" />
+                <span v-if="isSidebarExpanded" class="animate-in slide-in-from-left-2 duration-300 truncate">Profile</span>
+            </NuxtLink>
+        </div>
 
         <!-- Footer/Info -->
         <footer class="p-4 border-t border-white/5 flex flex-col items-center overflow-hidden">

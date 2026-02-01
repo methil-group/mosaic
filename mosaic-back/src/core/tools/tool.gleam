@@ -54,17 +54,24 @@ pub fn get_tools() -> List(Tool) {
   ]
 }
 
+@external(erlang, "mosaic_tools_ffi", "safe_execute")
+fn safe_execute(
+  fun: fn(String, String) -> String,
+  params: String,
+  workspace: String,
+) -> Result(String, String)
+
 pub fn execute_tool(
   name: String,
   parameters: String,
   workspace: String,
   tools: List(Tool),
-) -> String {
+) -> Result(String, String) {
   case list.find(tools, fn(t) { t.name == name }) {
     Ok(t) -> {
       mosaic_logger.info("agent", "Executing: " <> t.name)
-      t.function(parameters, workspace)
+      safe_execute(t.function, parameters, workspace)
     }
-    Error(_) -> "Error: Tool '" <> name <> "' not found."
+    Error(_) -> Error("Error: Tool '" <> name <> "' not found.")
   }
 }

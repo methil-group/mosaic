@@ -94,6 +94,11 @@ fn handle_agent_event(
         #("type", json.string("final_answer")),
         #("data", json.string(a)),
       ])
+    agent.AgentError(e) ->
+      json.object([
+        #("type", json.string("error")),
+        #("message", json.string(e)),
+      ])
   }
 
   let sse_event = ewe.event(json.to_string(event_json))
@@ -101,6 +106,7 @@ fn handle_agent_event(
 
   case event {
     agent.FinalAnswer(_) -> ewe.sse_stop()
+    agent.AgentError(_) -> ewe.sse_stop()
     _ -> ewe.sse_continue(state)
   }
 }
