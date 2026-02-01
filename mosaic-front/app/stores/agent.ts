@@ -134,54 +134,27 @@ export const useAgentStore = defineStore('agent', {
 
       try {
         const userStore = useUserStore()
-        const controller = new AbortController()
-        instance.abortController = controller
+        
+        // Use Electron IPC for streaming
+        if ((window as any).api) {
+          const removeListener = (window as any).api.onAgentEvent((event: any) => {
+            this.handleEvent(instanceId, event)
+          })
 
-        const response = await fetch(`${this.backendUrl}/agent`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          await (window as any).api.streamAgent({
             user_prompt: prompt,
             workspace: instance.currentWorkspace,
             model_id: instance.currentModel,
             user_name: userStore.userName || 'User'
-          }),
-          signal: controller.signal
-        })
+          })
 
-        if (!response.ok) throw new Error('Failed to connect to agent')
-        if (!response.body) throw new Error('No response body')
-
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-          buffer = lines.pop() || ''
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const event = JSON.parse(line.slice(6)) as AgentEvent
-                this.handleEvent(instanceId, event)
-              } catch (e: any) {
-                console.error('Failed to parse SSE event', e)
-              }
-            }
-          }
+          removeListener()
+        } else {
+          throw new Error('Electron API not available')
         }
       } catch (error: any) {
-        if (error.name === 'AbortError') {
-          assistantMessage.content += '\n\n[Interaction stopped by user]'
-        } else {
-          console.error('Agent error:', error)
-          assistantMessage.content += `\n\n[Error: ${error}]`
-        }
+        console.error('Agent error:', error)
+        assistantMessage.content += `\n\n[Error: ${error.message || error}]`
       } finally {
         instance.isProcessing = false
         assistantMessage.isStreaming = false
@@ -230,14 +203,11 @@ export const useAgentStore = defineStore('agent', {
 
     async listDirectories(path: string): Promise<string[]> {
       try {
-        const response = await fetch(`${this.backendUrl}/ls`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path })
-        })
-        if (!response.ok) return []
-        const data = await response.json()
-        return data.directories || []
+        if ((window as any).api) {
+          const data = await (window as any).api.listDirectories(path)
+          return data.directories || []
+        }
+        return []
       } catch (e) {
         console.error('Failed to list directories', e)
         return []
@@ -248,16 +218,13 @@ export const useAgentStore = defineStore('agent', {
       if (this.filesCache[path]) return this.filesCache[path]
       
       try {
-        const response = await fetch(`${this.backendUrl}/files`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path })
-        })
-        if (!response.ok) return []
-        const data = await response.json()
-        const files = data.files || []
-        this.filesCache[path] = files
-        return files
+        if ((window as any).api) {
+          const data = await (window as any).api.fetchFiles(path)
+          const files = data.files || []
+          this.filesCache[path] = files
+          return files
+        }
+        return []
       } catch (e) {
         console.error('Failed to fetch files', e)
         return []
@@ -272,27 +239,12 @@ export const useAgentStore = defineStore('agent', {
 
     async fetchProviders() {
       try {
-        const response = await fetch(`${this.backendUrl}/providers`)
-        if (!response.ok) return
-        const data = await response.json()
-        this.availableProviders = data.providers || []
-
-        // Set defaults if not set and we have data
-        if (this.availableProviders.length > 0 && this.defaultProviderId === 'openrouter') {
-          // Keep hardcoded default OR pick first? 
-          // Let's stick to the initialized default for now, or update if invalid.
+        if ((window as any).electron) {
+          const data = await (window as any).electron.ipcRenderer.invoke('providers:get')
+          this.availableProviders = data.providers || []
         }
       } catch (e) {
         console.error('Failed to fetch providers', e)
-        // Fallback
-        this.availableProviders = [{
-          id: 'openrouter',
-          name: 'OpenRouter',
-          models: [
-            { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
-            { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
-          ]
-        }]
       }
     }
   }
