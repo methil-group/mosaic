@@ -1,15 +1,15 @@
 -module(mosaic_tools_ffi).
--export([run_bash/2, read_file/1, write_file/2, is_port_available/1, list_directories/1, list_files/1, safe_execute/3]).
+-export([run_bash/2, read_file/1, write_file/2, is_port_available/1, list_directories/1, list_files/1, safe_execute/3, expand_path/1]).
 
 run_bash(Command, Workspace) ->
     CmdStr = binary_to_list(Command),
-    WorkStr = binary_to_list(Workspace),
+    WorkStr = expand_path(binary_to_list(Workspace)),
     FullCmd = "cd " ++ WorkStr ++ " && " ++ CmdStr,
     Output = os:cmd(FullCmd),
     unicode:characters_to_binary(Output).
 
 read_file(Path) ->
-    PathStr = binary_to_list(Path),
+    PathStr = expand_path(binary_to_list(Path)),
     case file:read_file(PathStr) of
         {ok, Bin} -> Bin;
         {error, Reason} -> 
@@ -18,7 +18,7 @@ read_file(Path) ->
     end.
 
 write_file(Path, Content) ->
-    PathStr = binary_to_list(Path),
+    PathStr = expand_path(binary_to_list(Path)),
     case file:write_file(PathStr, Content) of
         ok -> <<"File written successfully">>;
         {error, Reason} ->
@@ -36,7 +36,7 @@ is_port_available(Port) ->
     end.
 
 list_directories(Path) ->
-    PathStr = binary_to_list(Path),
+    PathStr = expand_path(binary_to_list(Path)),
     case file:list_dir(PathStr) of
         {ok, Filenames} ->
             Dirs = lists:filter(fun(F) -> 
@@ -49,7 +49,7 @@ list_directories(Path) ->
     end.
 
 list_files(Path) ->
-    PathStr = binary_to_list(Path),
+    PathStr = expand_path(binary_to_list(Path)),
     Files = list_files_recursive(PathStr, ""),
     [list_to_binary(F) || F <- Files].
 
@@ -85,3 +85,11 @@ safe_execute(Function, Parameters, Workspace) ->
             Msg = io_lib:format("Crash: ~p:~p~nStacktrace: ~p", [Error, Reason, Stacktrace]),
             {error, list_to_binary(Msg)}
     end.
+
+expand_path([$~, $/ | Rest]) -> 
+    Home = os:getenv("HOME"),
+    Home ++ "/" ++ Rest;
+expand_path([$~]) -> 
+    os:getenv("HOME");
+expand_path(Path) -> 
+    Path.
