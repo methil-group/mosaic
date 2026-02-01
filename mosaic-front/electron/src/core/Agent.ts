@@ -1,30 +1,28 @@
-import { LLMProvider, Message, StreamCallbacks } from './LLMProvider';
-import { Tool, getTools, ToolParameters } from './Tool';
+import { Tool, getTools } from './Tool';
 import { PromptBuilder } from './PromptBuilder';
+import { AbstractLLM, Message } from '../Framework/LLM/AbstractLLM';
 
 export interface AgentEvent {
   type: 'token' | 'tool_started' | 'tool_finished' | 'final_answer' | 'error';
-  data?: string;
   name?: string;
   parameters?: string;
   result?: string;
+  data?: string;
   message?: string;
 }
 
 export class Agent {
   private messages: Message[] = [];
   private tools: Tool[];
-  private onEvent: (event: AgentEvent) => void;
 
   constructor(
-    private llm: LLMProvider,
+    private llm: AbstractLLM,
     private model: string,
     private workspace: string,
     private userName: string,
-    onEvent: (event: AgentEvent) => void
+    private onEvent: (event: AgentEvent) => void
   ) {
     this.tools = getTools();
-    this.onEvent = onEvent;
   }
 
   async run(userPrompt: string): Promise<void> {
@@ -33,72 +31,72 @@ export class Agent {
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
     ];
-
     await this.reasoningLoop();
+    console.log('[Agent] Run finished');
   }
 
   private async reasoningLoop(): Promise<void> {
+    console.log('[Agent] Starting reasoning loop');
     let loop = true;
-    while (loop) {
-      const stepResult = await this.runStep();
-      
-      if (stepResult.toolCall) {
-        const { name, parameters } = stepResult.toolCall;
-        this.onEvent({ type: 'tool_started', name, parameters: JSON.stringify(parameters) });
-
-        const tool = this.tools.find(t => t.name === name);
-        if (tool) {
-          try {
-            const result = await tool.execute(parameters, this.workspace);
-            this.onEvent({ type: 'tool_finished', name, result });
-
-            this.messages.push({ role: 'assistant', content: stepResult.content });
-            this.messages.push({ role: 'user', content: PromptBuilder.formatToolResult(name, result) });
-          } catch (error: any) {
-            this.onEvent({ type: 'error', message: `Tool execution failed: ${error.message}` });
+    try {
+      while (loop) {
+        const stepResult = await this.runStep();
+        if (stepResult.toolCall) {
+          const { name, parameters } = stepResult.toolCall;
+          console.log(`[Agent] Tool call: ${name}`, parameters);
+          this.onEvent({ type: 'tool_started', name, parameters: JSON.stringify(parameters) });
+          
+          const tool = this.tools.find((t) => t.name === name);
+          if (tool) {
+            try {
+              const result = await tool.execute(parameters, this.workspace);
+              this.onEvent({ type: 'tool_finished', name, result });
+              this.messages.push({ role: 'assistant', content: stepResult.content });
+              this.messages.push({ role: 'user', content: PromptBuilder.formatToolResult(name, result) });
+              console.log(`[Agent] Tool finished: ${name}`);
+            } catch (error: any) {
+              console.error(`[Agent] Tool error: ${name}`, error.message);
+              this.onEvent({ type: 'error', message: `Tool execution failed: ${error.message}` });
+              loop = false;
+            }
+          } else {
+            this.onEvent({ type: 'error', message: `Tool ${name} not found` });
             loop = false;
           }
         } else {
-          this.onEvent({ type: 'error', message: `Tool ${name} not found` });
+          console.log('[Agent] Final answer received');
+          this.onEvent({ type: 'final_answer', data: stepResult.content });
           loop = false;
         }
-      } else {
-        this.onEvent({ type: 'final_answer', data: stepResult.content });
-        loop = false;
       }
+    } catch (error: any) {
+      console.error('[Agent] Logic error in reasoning loop:', error);
+      this.onEvent({ type: 'error', message: `Fatal error: ${error.message}` });
     }
   }
 
-  private async runStep(): Promise<{ content: string; toolCall?: { name: string; parameters: ToolParameters } }> {
+  private async runStep(): Promise<{ content: string; toolCall?: { name: string; parameters: any } }> {
+    console.log('[Agent] Running step...');
     return new Promise((resolve, reject) => {
-      let fullContent = '';
-      let toolCallDetected = false;
-
+      let accumulated = "";
       this.llm.streamChat(this.model, this.messages, {
         onToken: (token) => {
-          fullContent += token;
+          accumulated += token;
           this.onEvent({ type: 'token', data: token });
-
-          // Basic tool detection while streaming
-          const toolCallMatch = fullContent.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
-          if (toolCallMatch && !toolCallDetected) {
-            toolCallDetected = true;
-            // We stop here for the loop to handle the tool execution
-          }
         },
         onError: (error) => {
           this.onEvent({ type: 'error', message: error });
           reject(new Error(error));
         },
-        onComplete: (accumulated) => {
-          const toolCall = this.parseToolCall(accumulated);
-          resolve({ content: accumulated, toolCall });
+        onComplete: (fullText) => {
+          const toolCall = this.parseToolCall(fullText);
+          resolve({ content: fullText, toolCall });
         }
       });
     });
   }
 
-  private parseToolCall(content: string): { name: string; parameters: ToolParameters } | undefined {
+  private parseToolCall(content: string): { name: string; parameters: any } | undefined {
     const match = content.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
     if (!match) return undefined;
 
@@ -107,9 +105,8 @@ export class Agent {
     const paramsMatch = xml.match(/<parameters>([\s\S]*?)<\/parameters>/);
 
     if (!nameMatch) return undefined;
-
     const name = nameMatch[1].trim();
-    const parameters: ToolParameters = {};
+    const parameters: any = {};
 
     if (paramsMatch) {
       const paramsXml = paramsMatch[1];

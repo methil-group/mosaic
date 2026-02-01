@@ -1,6 +1,6 @@
-import * as fs from 'fs/promises';
-import { join } from 'path';
-import * as os from 'os';
+import * as fs from 'node:fs/promises';
+import { join } from 'node:path';
+import * as os from 'node:os';
 
 export class FileSystemService {
   private expandPath(path: string): string {

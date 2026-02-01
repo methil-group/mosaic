@@ -1,39 +1,22 @@
 import axios from 'axios';
-import * as dotenv from 'dotenv';
-import { join } from 'path';
+import { AbstractLLM, Message, StreamCallbacks } from './AbstractLLM';
 
-dotenv.config({ path: join(process.cwd(), '.env') });
-
-export interface Message {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-export interface StreamCallbacks {
-  onToken: (token: string) => void;
-  onError: (error: string) => void;
-  onComplete: (fullText: string) => void;
-}
-
-export abstract class LLMProvider {
-  abstract streamChat(model: string, messages: Message[], callbacks: StreamCallbacks): Promise<void>;
-}
-
-export class OpenRouterProvier extends LLMProvider {
+export class OpenRouter extends AbstractLLM {
   private apiKey: string;
   private baseUrl = 'https://openrouter.ai/api/v1';
 
-  constructor() {
+  constructor(apiKey: string) {
     super();
-    this.apiKey = process.env.OPENROUTER_API_KEY || '';
+    this.apiKey = apiKey;
   }
 
   async streamChat(model: string, messages: Message[], callbacks: StreamCallbacks): Promise<void> {
     if (!this.apiKey) {
-      callbacks.onError('OpenRouter API Key not found in .env');
+      callbacks.onError('OpenRouter API Key not found');
       return;
     }
 
+    console.log(`[OpenRouter] Starting stream chat for model: ${model}`);
     try {
       const response = await axios.post(
         `${this.baseUrl}/chat/completions`,
@@ -54,12 +37,23 @@ export class OpenRouterProvier extends LLMProvider {
       );
 
       let accumulated = '';
+      let buffer = '';
+
       response.data.on('data', (chunk: Buffer) => {
-        const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
+        buffer += chunk.toString();
+        
+        let lines = buffer.split('\n');
+        // Keep the last partial line in the buffer
+        buffer = lines.pop() || '';
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+
+          if (trimmedLine.startsWith('data: ')) {
+            const data = trimmedLine.slice(6);
             if (data === '[DONE]') {
+              console.log('[OpenRouter] Stream finished [DONE]');
               callbacks.onComplete(accumulated);
               return;
             }
@@ -71,7 +65,8 @@ export class OpenRouterProvier extends LLMProvider {
                 callbacks.onToken(token);
               }
             } catch (e) {
-              // Ignore parse errors for incomplete chunks
+              // This shouldn't happen with line buffering, but keep as safety
+              console.warn('[OpenRouter] Failed to parse JSON:', data);
             }
           }
         }
@@ -83,6 +78,7 @@ export class OpenRouterProvier extends LLMProvider {
 
     } catch (error: any) {
       const errorMessage = error.response ? JSON.stringify(error.response.data) : error.message;
+      console.error('[OpenRouter] API Error:', errorMessage);
       callbacks.onError(`API Request failed: ${errorMessage}`);
     }
   }

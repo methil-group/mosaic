@@ -8,16 +8,18 @@ export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     build: {
-      rollupOptions: {
-        input: resolve(__dirname, 'electron/main.ts')
+      lib: {
+        entry: resolve(__dirname, 'electron/main.ts'),
+        fileName: 'main'
       }
     }
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
-      rollupOptions: {
-        input: resolve(__dirname, 'electron/preload.ts')
+      lib: {
+        entry: resolve(__dirname, 'electron/preload.ts'),
+        fileName: 'preload'
       }
     }
   }

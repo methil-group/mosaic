@@ -1,8 +1,8 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import * as fs from 'fs/promises';
-import { join, dirname } from 'path';
-import * as os from 'os';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+import * as fs from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import * as os from 'node:os';
 
 const execPromise = promisify(exec);
 
@@ -177,7 +177,6 @@ export class ManageTodosTool extends Tool {
     required: ['todos']
   });
 
-  // Just return the string representation for the UI to parse, similar to Gleam backend
   async execute(params: any, _workspace: string): Promise<string> {
     return JSON.stringify(params);
   }

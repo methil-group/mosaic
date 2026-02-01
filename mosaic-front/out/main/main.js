@@ -1,10 +1,11 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { join, dirname } from "path";
+import { dirname as dirname$1, join as join$1 } from "path";
 import { fileURLToPath } from "url";
-import { exec } from "child_process";
-import { promisify } from "util";
-import * as fs from "fs/promises";
-import * as os from "os";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import * as fs from "node:fs/promises";
+import { join, dirname } from "node:path";
+import * as os from "node:os";
 import axios from "axios";
 import * as dotenv from "dotenv";
 import __cjs_mod__ from "node:module";
@@ -191,7 +192,6 @@ class ManageTodosTool extends Tool {
       required: ["todos"]
     });
   }
-  // Just return the string representation for the UI to parse, similar to Gleam backend
   async execute(params, _workspace) {
     return JSON.stringify(params);
   }
@@ -248,9 +248,9 @@ class Agent {
     this.model = model;
     this.workspace = workspace;
     this.userName = userName;
+    this.onEvent = onEvent;
     this.messages = [];
     this.tools = getTools();
-    this.onEvent = onEvent;
   }
   async run(userPrompt) {
     const systemPrompt = PromptBuilder.createSystemPrompt(this.tools, this.workspace, this.userName);
@@ -259,51 +259,60 @@ class Agent {
       { role: "user", content: userPrompt }
     ];
     await this.reasoningLoop();
+    console.log("[Agent] Run finished");
   }
   async reasoningLoop() {
+    console.log("[Agent] Starting reasoning loop");
     let loop = true;
-    while (loop) {
-      const stepResult = await this.runStep();
-      if (stepResult.toolCall) {
-        const { name, parameters } = stepResult.toolCall;
-        this.onEvent({ type: "tool_started", name, parameters: JSON.stringify(parameters) });
-        const tool = this.tools.find((t) => t.name === name);
-        if (tool) {
-          try {
-            const result = await tool.execute(parameters, this.workspace);
-            this.onEvent({ type: "tool_finished", name, result });
-            this.messages.push({ role: "assistant", content: stepResult.content });
-            this.messages.push({ role: "user", content: PromptBuilder.formatToolResult(name, result) });
-          } catch (error) {
-            this.onEvent({ type: "error", message: `Tool execution failed: ${error.message}` });
+    try {
+      while (loop) {
+        const stepResult = await this.runStep();
+        if (stepResult.toolCall) {
+          const { name, parameters } = stepResult.toolCall;
+          console.log(`[Agent] Tool call: ${name}`, parameters);
+          this.onEvent({ type: "tool_started", name, parameters: JSON.stringify(parameters) });
+          const tool = this.tools.find((t) => t.name === name);
+          if (tool) {
+            try {
+              const result = await tool.execute(parameters, this.workspace);
+              this.onEvent({ type: "tool_finished", name, result });
+              this.messages.push({ role: "assistant", content: stepResult.content });
+              this.messages.push({ role: "user", content: PromptBuilder.formatToolResult(name, result) });
+              console.log(`[Agent] Tool finished: ${name}`);
+            } catch (error) {
+              console.error(`[Agent] Tool error: ${name}`, error.message);
+              this.onEvent({ type: "error", message: `Tool execution failed: ${error.message}` });
+              loop = false;
+            }
+          } else {
+            this.onEvent({ type: "error", message: `Tool ${name} not found` });
             loop = false;
           }
         } else {
-          this.onEvent({ type: "error", message: `Tool ${name} not found` });
+          console.log("[Agent] Final answer received");
+          this.onEvent({ type: "final_answer", data: stepResult.content });
           loop = false;
         }
-      } else {
-        this.onEvent({ type: "final_answer", data: stepResult.content });
-        loop = false;
       }
+    } catch (error) {
+      console.error("[Agent] Logic error in reasoning loop:", error);
+      this.onEvent({ type: "error", message: `Fatal error: ${error.message}` });
     }
   }
   async runStep() {
+    console.log("[Agent] Running step...");
     return new Promise((resolve, reject) => {
-      let fullContent = "";
       this.llm.streamChat(this.model, this.messages, {
         onToken: (token) => {
-          fullContent += token;
           this.onEvent({ type: "token", data: token });
-          fullContent.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
         },
         onError: (error) => {
           this.onEvent({ type: "error", message: error });
           reject(new Error(error));
         },
-        onComplete: (accumulated) => {
-          const toolCall = this.parseToolCall(accumulated);
-          resolve({ content: accumulated, toolCall });
+        onComplete: (fullText) => {
+          const toolCall = this.parseToolCall(fullText);
+          resolve({ content: fullText, toolCall });
         }
       });
     });
@@ -327,20 +336,20 @@ class Agent {
     return { name, parameters };
   }
 }
-dotenv.config({ path: join(process.cwd(), ".env") });
-class LLMProvider {
+class AbstractLLM {
 }
-class OpenRouterProvier extends LLMProvider {
-  constructor() {
+class OpenRouter extends AbstractLLM {
+  constructor(apiKey) {
     super();
     this.baseUrl = "https://openrouter.ai/api/v1";
-    this.apiKey = process.env.OPENROUTER_API_KEY || "";
+    this.apiKey = apiKey;
   }
   async streamChat(model, messages, callbacks) {
     if (!this.apiKey) {
-      callbacks.onError("OpenRouter API Key not found in .env");
+      callbacks.onError("OpenRouter API Key not found");
       return;
     }
+    console.log(`[OpenRouter] Starting stream chat for model: ${model}`);
     try {
       const response = await axios.post(
         `${this.baseUrl}/chat/completions`,
@@ -360,12 +369,18 @@ class OpenRouterProvier extends LLMProvider {
         }
       );
       let accumulated = "";
+      let buffer = "";
       response.data.on("data", (chunk) => {
-        const lines = chunk.toString().split("\n").filter((line) => line.trim() !== "");
+        buffer += chunk.toString();
+        let lines = buffer.split("\n");
+        buffer = lines.pop() || "";
         for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+          if (trimmedLine.startsWith("data: ")) {
+            const data = trimmedLine.slice(6);
             if (data === "[DONE]") {
+              console.log("[OpenRouter] Stream finished [DONE]");
               callbacks.onComplete(accumulated);
               return;
             }
@@ -377,6 +392,7 @@ class OpenRouterProvier extends LLMProvider {
                 callbacks.onToken(token);
               }
             } catch (e) {
+              console.warn("[OpenRouter] Failed to parse JSON:", data);
             }
           }
         }
@@ -386,6 +402,7 @@ class OpenRouterProvier extends LLMProvider {
       });
     } catch (error) {
       const errorMessage = error.response ? JSON.stringify(error.response.data) : error.message;
+      console.error("[OpenRouter] API Error:", errorMessage);
       callbacks.onError(`API Request failed: ${errorMessage}`);
     }
   }
@@ -440,17 +457,24 @@ class FileSystemService {
     }
   }
 }
-const __dirname$1 = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: join(process.cwd(), ".env") });
+const __dirname$1 = dirname$1(fileURLToPath(import.meta.url));
+dotenv.config({ path: join$1(process.cwd(), ".env") });
+dotenv.config({ path: join$1(process.cwd(), "..", ".env") });
+console.log("[Main] process.cwd():", process.cwd());
+console.log("[Main] __dirname:", __dirname$1);
+console.log("[Main] Configuration loaded. API Key present:", !!process.env.OPENROUTER_API_KEY);
+if (process.env.OPENROUTER_API_KEY) {
+  console.log("[Main] API Key prefix:", process.env.OPENROUTER_API_KEY.substring(0, 10) + "...");
+}
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     show: false,
     autoHideMenuBar: true,
-    ...process.platform === "linux" ? { icon: join(__dirname$1, "../../build/icon.png") } : {},
+    ...process.platform === "linux" ? { icon: join$1(__dirname$1, "../../build/icon.png") } : {},
     webPreferences: {
-      preload: join(__dirname$1, "../preload/index.js"),
+      preload: join$1(__dirname$1, "../preload/preload.mjs"),
       sandbox: false
     }
   });
@@ -460,7 +484,7 @@ function createWindow() {
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
-    mainWindow.loadFile(join(__dirname$1, "../renderer/index.html"));
+    mainWindow.loadFile(join$1(__dirname$1, "../renderer/index.html"));
   }
 }
 app.whenReady().then(() => {
@@ -475,7 +499,8 @@ app.on("window-all-closed", () => {
   }
 });
 const fileSystemService = new FileSystemService();
-const llmProvider = new OpenRouterProvier();
+const llmProvider = new OpenRouter(process.env.OPENROUTER_API_KEY || "");
+console.log("[Main] Services initialized");
 ipcMain.handle("ping", () => "pong");
 ipcMain.handle("fs:ls", async (_event, path) => {
   return { directories: await fileSystemService.listDirectories(path) };
@@ -484,18 +509,24 @@ ipcMain.handle("fs:files", async (_event, path) => {
   return { files: await fileSystemService.listFiles(path) };
 });
 ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id, user_name }) => {
+  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}`);
   const agent = new Agent(
     llmProvider,
     model_id,
     workspace,
     user_name,
     (agentEvent) => {
+      if (agentEvent.type !== "token") {
+        console.log(`[Main] Agent event: ${agentEvent.type}`, agentEvent.name || agentEvent.message || "");
+      }
       event.sender.send("agent:event", agentEvent);
     }
   );
   try {
     await agent.run(user_prompt);
+    console.log("[Main] Agent run completed");
   } catch (error) {
+    console.error("[Main] Agent run error:", error.message);
     event.sender.send("agent:event", { type: "error", message: error.message });
   }
 });

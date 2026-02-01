@@ -4,12 +4,20 @@ import { fileURLToPath } from 'url'
 import { is } from '@electron-toolkit/utils'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-import { Agent } from './src/core/Agent'
-import { OpenRouterProvier } from './src/core/LLMProvider'
-import { FileSystemService } from './src/core/FileSystemService'
+import { Agent } from './src/Core/Agent'
+import { OpenRouter } from './src/Framework/LLM/OpenRouter'
+import { FileSystemService } from './src/Framework/FileSystem/FileSystemService'
 import * as dotenv from 'dotenv'
 
 dotenv.config({ path: join(process.cwd(), '.env') })
+dotenv.config({ path: join(process.cwd(), '..', '.env') })
+
+console.log('[Main] process.cwd():', process.cwd())
+console.log('[Main] __dirname:', __dirname)
+console.log('[Main] Configuration loaded. API Key present:', !!process.env.OPENROUTER_API_KEY)
+if (process.env.OPENROUTER_API_KEY) {
+  console.log('[Main] API Key prefix:', process.env.OPENROUTER_API_KEY.substring(0, 10) + '...')
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -20,7 +28,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon: join(__dirname, '../../build/icon.png') } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/preload.mjs'),
       sandbox: false
     }
   })
@@ -56,7 +64,8 @@ app.on('window-all-closed', () => {
 
 // Backend Services
 const fileSystemService = new FileSystemService()
-const llmProvider = new OpenRouterProvier()
+const llmProvider = new OpenRouter(process.env.OPENROUTER_API_KEY || '')
+console.log('[Main] Services initialized')
 
 // IPC Handlers
 ipcMain.handle('ping', () => 'pong')
@@ -70,6 +79,7 @@ ipcMain.handle('fs:files', async (_event, path: string) => {
 })
 
 ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id, user_name }) => {
+  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}`)
   const agent = new Agent(
     llmProvider,
     model_id,
@@ -77,13 +87,18 @@ ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id,
     user_name,
     (agentEvent) => {
       // Send event back to the renderer window that initiated the request
+      if (agentEvent.type !== 'token') {
+        console.log(`[Main] Agent event: ${agentEvent.type}`, agentEvent.name || agentEvent.message || '')
+      }
       event.sender.send('agent:event', agentEvent)
     }
   )
 
   try {
     await agent.run(user_prompt)
+    console.log('[Main] Agent run completed')
   } catch (error: any) {
+    console.error('[Main] Agent run error:', error.message)
     event.sender.send('agent:event', { type: 'error', message: error.message })
   }
 })
