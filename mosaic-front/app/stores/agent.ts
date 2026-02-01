@@ -25,6 +25,8 @@ export interface InstanceState {
   currentModel: string
   isVisible: boolean
   colSpan: number
+  messageQueue: string[]
+  abortController: AbortController | null
 }
 
 export interface Model {
@@ -65,6 +67,8 @@ export const useAgentStore = defineStore('agent', {
         currentModel: 'deepseek/deepseek-v3.2',
         isVisible: true,
         colSpan: 1,
+        messageQueue: [],
+        abortController: null,
       }
     },
     instanceIds: ['default'],
@@ -93,6 +97,8 @@ export const useAgentStore = defineStore('agent', {
         currentModel: this.defaultModelId,
         isVisible: true,
         colSpan: 1,
+        messageQueue: [],
+        abortController: null,
       }
       this.instanceIds.push(id)
       return id
@@ -105,7 +111,12 @@ export const useAgentStore = defineStore('agent', {
 
     async sendMessage(instanceId: string, prompt: string) {
       const instance = this.instances[instanceId]
-      if (!instance || instance.isProcessing) return
+      if (!instance) return
+
+      if (instance.isProcessing) {
+        instance.messageQueue.push(prompt)
+        return
+      }
 
       instance.isProcessing = true
       instance.messages.push({ role: 'user', content: prompt })
@@ -121,6 +132,9 @@ export const useAgentStore = defineStore('agent', {
 
       try {
         const userStore = useUserStore()
+        const controller = new AbortController()
+        instance.abortController = controller
+
         const response = await fetch(`${this.backendUrl}/agent`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -129,7 +143,8 @@ export const useAgentStore = defineStore('agent', {
             workspace: instance.currentWorkspace,
             model_id: instance.currentModel,
             user_name: userStore.userName || 'User'
-          })
+          }),
+          signal: controller.signal
         })
 
         if (!response.ok) throw new Error('Failed to connect to agent')
@@ -158,12 +173,31 @@ export const useAgentStore = defineStore('agent', {
             }
           }
         }
-      } catch (error) {
-        console.error('Agent error:', error)
-        assistantMessage.content += `\n\n[Error: ${error}]`
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          assistantMessage.content += '\n\n[Interaction stopped by user]'
+        } else {
+          console.error('Agent error:', error)
+          assistantMessage.content += `\n\n[Error: ${error}]`
+        }
       } finally {
         instance.isProcessing = false
         assistantMessage.isStreaming = false
+        instance.abortController = null
+
+        // Process next in queue
+        if (instance.messageQueue.length > 0) {
+          const nextPrompt = instance.messageQueue.shift()!
+          this.sendMessage(instanceId, nextPrompt)
+        }
+      }
+    },
+
+    stopProcessing(instanceId: string) {
+      const instance = this.instances[instanceId]
+      if (instance && instance.abortController) {
+        instance.abortController.abort()
+        instance.isProcessing = false
       }
     },
 

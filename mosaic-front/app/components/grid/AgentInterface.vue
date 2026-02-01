@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAgentStore } from '~/stores/agent'
-import AgentInstance from './AgentInstance.vue'
+import AgentInstance from '../agent/AgentInstance.vue'
 
 const store = useAgentStore()
 
