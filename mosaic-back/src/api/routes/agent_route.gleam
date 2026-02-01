@@ -7,14 +7,20 @@ import gleam/json
 import mosaic_logger
 
 pub type AgentRequest {
-  AgentRequest(user_prompt: String, workspace: String, model_id: String)
+  AgentRequest(
+    user_prompt: String,
+    workspace: String,
+    model_id: String,
+    user_name: String,
+  )
 }
 
 fn agent_request_decoder() -> decode.Decoder(AgentRequest) {
   use user_prompt <- decode.field("user_prompt", decode.string)
   use workspace <- decode.field("workspace", decode.string)
   use model_id <- decode.field("model_id", decode.string)
-  decode.success(AgentRequest(user_prompt:, workspace:, model_id:))
+  use user_name <- decode.field("user_name", decode.string)
+  decode.success(AgentRequest(user_prompt:, workspace:, model_id:, user_name:))
 }
 
 pub fn handle(req: ewe.Request) -> ewe.Response {
@@ -35,6 +41,7 @@ pub fn handle(req: ewe.Request) -> ewe.Response {
                       agent_req.user_prompt,
                       agent_req.workspace,
                       agent_req.model_id,
+                      agent_req.user_name,
                       fn(event) { process.send(subject, event) },
                     )
                   })

@@ -15,7 +15,7 @@ pub fn run_agent_test() {
     "Running agent on workspace : " <> get_cwd() <> " with prompt: " <> prompt,
   )
 
-  let answer = agent.run_agent(prompt, get_cwd(), "deepseek/deepseek-v3.2")
+  let answer = agent.run_agent(prompt, get_cwd(), "deepseek/deepseek-v3.2", "Test User")
 
   mosaic_logger.info("agent_test", "Agent response: " <> answer)
 

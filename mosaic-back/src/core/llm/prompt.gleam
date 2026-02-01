@@ -6,6 +6,7 @@ import gleam/string
 pub fn create_system_prompt(
   tools: List(tool.Tool),
   working_directory: String,
+  user_name: String,
 ) -> String {
   let tools_json =
     tools
@@ -19,7 +20,12 @@ pub fn create_system_prompt(
     })
     |> string.join("\n\n")
 
-  let header = "You are a CLI agent at " <> working_directory <> ".\n"
+  let header =
+    "You are a CLI agent at "
+    <> working_directory
+    <> ". The user's name is "
+    <> user_name
+    <> ". Addresses the user by their name when appropriate.\n"
 
   let body = "
 You are an autonomous agent specialized in file manipulation and command execution.

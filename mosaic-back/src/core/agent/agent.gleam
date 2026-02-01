@@ -20,11 +20,12 @@ pub fn run_agent(
   user_prompt: String,
   workspace: String,
   model_id: String,
+  user_name: String,
 ) -> String {
   let reply_subject = process.new_subject()
   process.spawn(fn() {
     let assert Ok(_) =
-      stream_agent(user_prompt, workspace, model_id, fn(event) {
+      stream_agent(user_prompt, workspace, model_id, user_name, fn(event) {
         case event {
           FinalAnswer(answer) -> process.send(reply_subject, answer)
           _ -> Nil
@@ -39,6 +40,7 @@ pub fn stream_agent(
   user_prompt: String,
   workspace: String,
   model_id: String,
+  user_name: String,
   on_event: fn(AgentEvent) -> Nil,
 ) -> Result(Nil, Nil) {
   let tools = tool.get_tools()
@@ -46,7 +48,7 @@ pub fn stream_agent(
   let system_message =
     Message(
       role: "system",
-      content: prompt.create_system_prompt(tools, workspace),
+      content: prompt.create_system_prompt(tools, workspace, user_name),
     )
   let user_message = Message(role: "user", content: user_prompt)
 
