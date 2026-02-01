@@ -161,7 +161,8 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
 
                         <span v-if="msg.model"
                             class="ml-auto text-[8px] font-mono text-white/30 uppercase tracking-wider">
-                            {{store.availableModels.find(m => m.id === msg.model)?.name || msg.model.split('/').pop()
+                            {{store.availableModels.find((m: any) => m.id === msg.model)?.name ||
+                                msg.model.split('/').pop()
                             }}
                         </span>
                     </div>
@@ -173,7 +174,7 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
                             <button @click="toggleActions(idx)"
                                 class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-[8px] font-bold uppercase tracking-widest text-white/30">
                                 <Terminal class="w-2.5 h-2.5" />
-                                Actions ({{msg.events.filter(e => e.type !== 'token').length}})
+                                Actions ({{msg.events.filter((e: any) => e.type !== 'token').length}})
                                 <ChevronDown class="w-2.5 h-2.5 transition-transform"
                                     :class="{ 'rotate-180': expandedActions[idx] }" />
                             </button>

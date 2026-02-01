@@ -1,5 +1,5 @@
 -module(mosaic_tools_ffi).
--export([run_bash/2, read_file/1, write_file/2, is_port_available/1, list_directories/1, safe_execute/3]).
+-export([run_bash/2, read_file/1, write_file/2, is_port_available/1, list_directories/1, list_files/1, safe_execute/3]).
 
 run_bash(Command, Workspace) ->
     CmdStr = binary_to_list(Command),
@@ -46,6 +46,35 @@ list_directories(Path) ->
             [list_to_binary(D) || D <- Dirs];
         {error, _} ->
             []
+    end.
+
+list_files(Path) ->
+    PathStr = binary_to_list(Path),
+    Files = list_files_recursive(PathStr, ""),
+    [list_to_binary(F) || F <- Files].
+
+list_files_recursive(BaseDir, RelativePath) ->
+    FullDir = filename:join(BaseDir, RelativePath),
+    case file:list_dir(FullDir) of
+        {ok, Filenames} ->
+            lists:foldl(fun(F, Acc) ->
+                Full = filename:join(FullDir, F),
+                Rel = if RelativePath == "" -> F; true -> filename:join(RelativePath, F) end,
+                
+                % Ignore hidden files, node_modules, .git, and build artifacts
+                IsHidden = case F of "." ++ _ -> true; _ -> false end,
+                IsIgnored = lists:member(F, ["node_modules", ".git", "build", "dist", "_build", "deps"]),
+                
+                if IsHidden; IsIgnored -> Acc;
+                   true ->
+                     case filelib:is_dir(Full) of
+                         true -> Acc ++ list_files_recursive(BaseDir, Rel);
+                         false -> Acc ++ [Rel]
+                     end
+                end
+            end, [], Filenames);
+    {error, _} ->
+        []
     end.
 
 safe_execute(Function, Parameters, Workspace) ->

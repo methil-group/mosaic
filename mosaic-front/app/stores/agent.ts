@@ -47,6 +47,7 @@ export interface State {
   defaultProviderId: string
   defaultModelId: string
   backendUrl: string
+  filesCache: Record<string, string[]> // workspacePath -> files
 }
 
 const AGENT_NAMES = [
@@ -75,7 +76,8 @@ export const useAgentStore = defineStore('agent', {
     availableProviders: [],
     defaultProviderId: 'openrouter',
     defaultModelId: 'deepseek/deepseek-v3.2',
-    backendUrl: 'http://localhost:3710'
+    backendUrl: 'http://localhost:3710',
+    filesCache: {}
   }),
   getters: {
     availableModels: (state): Model[] => {
@@ -238,6 +240,26 @@ export const useAgentStore = defineStore('agent', {
         return data.directories || []
       } catch (e) {
         console.error('Failed to list directories', e)
+        return []
+      }
+    },
+
+    async fetchFiles(path: string): Promise<string[]> {
+      if (this.filesCache[path]) return this.filesCache[path]
+      
+      try {
+        const response = await fetch(`${this.backendUrl}/files`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path })
+        })
+        if (!response.ok) return []
+        const data = await response.json()
+        const files = data.files || []
+        this.filesCache[path] = files
+        return files
+      } catch (e) {
+        console.error('Failed to fetch files', e)
         return []
       }
     },

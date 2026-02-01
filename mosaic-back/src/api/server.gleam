@@ -1,5 +1,6 @@
 import api/routes/agent_route
 import api/routes/chat
+import api/routes/files
 import api/routes/ls
 import api/routes/providers
 import ewe
@@ -23,6 +24,7 @@ fn handle_request(req: ewe.Request) -> ewe.Response {
         "/chat" -> chat.handle(req)
         "/agent" -> agent_route.handle(req)
         "/ls" -> ls.handle(req)
+        "/files" -> files.handle(req)
         "/providers" -> providers.handle(req)
         _ -> {
           response.new(404)
