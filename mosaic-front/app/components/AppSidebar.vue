@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import { useRoute } from 'vue-router'
-import { Sparkles, Plus, LayoutGrid, Menu, X, Bot, Eye, EyeOff, Settings } from 'lucide-vue-next'
+import { Sparkles, Plus, LayoutGrid, Menu, X, Bot, Eye, EyeOff, Settings, User } from 'lucide-vue-next'
 
 const store = useAgentStore()
 const route = useRoute()
@@ -132,6 +132,13 @@ const toggleVisibility = (id: string) => {
                         <Settings class="w-4 h-4 shrink-0" />
                         <span v-if="isSidebarExpanded"
                             class="animate-in slide-in-from-left-2 duration-300 truncate">Settings</span>
+                    </NuxtLink>
+                    <NuxtLink to="/profile" v-tooltip="!isSidebarExpanded ? 'Profile' : null"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-white/30 hover:text-white hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
+                        active-class="bg-white/10 text-white">
+                        <User class="w-4 h-4 shrink-0" />
+                        <span v-if="isSidebarExpanded"
+                            class="animate-in slide-in-from-left-2 duration-300 truncate">Profile</span>
                     </NuxtLink>
                 </div>
             </div>

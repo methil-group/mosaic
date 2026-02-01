@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
+import { useUserStore } from './user'
 
-export type AgentEvent = 
+export type AgentEvent =
   | { type: 'token', data: string }
   | { type: 'tool_started', name: string, parameters: string }
   | { type: 'tool_finished', name: string, result: string }
@@ -46,7 +47,7 @@ export interface State {
 }
 
 const AGENT_NAMES = [
-  'ORION', 'ATLAS', 'NOVA', 'CYPHER', 'ZENITH', 'OMEGA', 'PRIME', 'VECTOR', 
+  'ORION', 'ATLAS', 'NOVA', 'CYPHER', 'ZENITH', 'OMEGA', 'PRIME', 'VECTOR',
   'NEBULA', 'PULSAR', 'QUASAR', 'HELIX', 'FLUX', 'APEX', 'VORTEX', 'NEXUS',
   'TITAN', 'CRONUS', 'AETHER', 'QUANTUM', 'ECHO', 'MIRAGE', 'PHANTOM', 'SPECTRE'
 ]
@@ -104,27 +105,29 @@ export const useAgentStore = defineStore('agent', {
     async sendMessage(instanceId: string, prompt: string) {
       const instance = this.instances[instanceId]
       if (!instance || instance.isProcessing) return
-      
+
       instance.isProcessing = true
       instance.messages.push({ role: 'user', content: prompt })
-      
-      const assistantMessage: Message = { 
-        role: 'assistant', 
-        content: '', 
-        events: [], 
+
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: '',
+        events: [],
         isStreaming: true,
         model: instance.currentModel
       }
       instance.messages.push(assistantMessage)
-      
+
       try {
+        const userStore = useUserStore()
         const response = await fetch(`${this.backendUrl}/agent`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             user_prompt: prompt,
             workspace: instance.currentWorkspace,
-            model_id: instance.currentModel
+            model_id: instance.currentModel,
+            user_name: userStore.userName || 'User'
           })
         })
 
@@ -166,7 +169,7 @@ export const useAgentStore = defineStore('agent', {
     handleEvent(instanceId: string, event: AgentEvent) {
       const instance = this.instances[instanceId]
       if (!instance) return
-      
+
       const lastMessage = instance.messages[instance.messages.length - 1]
       if (lastMessage && lastMessage.role === 'assistant') {
         if (!lastMessage.events) lastMessage.events = []
@@ -185,7 +188,7 @@ export const useAgentStore = defineStore('agent', {
         this.instances[instanceId].messages = []
       }
     },
-    
+
     async listDirectories(path: string): Promise<string[]> {
       try {
         const response = await fetch(`${this.backendUrl}/ls`, {
@@ -209,27 +212,27 @@ export const useAgentStore = defineStore('agent', {
     },
 
     async fetchProviders() {
-       try {
+      try {
         const response = await fetch(`${this.backendUrl}/providers`)
         if (!response.ok) return
         const data = await response.json()
         this.availableProviders = data.providers || []
-        
+
         // Set defaults if not set and we have data
         if (this.availableProviders.length > 0 && this.defaultProviderId === 'openrouter') {
-             // Keep hardcoded default OR pick first? 
-             // Let's stick to the initialized default for now, or update if invalid.
+          // Keep hardcoded default OR pick first? 
+          // Let's stick to the initialized default for now, or update if invalid.
         }
       } catch (e) {
         console.error('Failed to fetch providers', e)
         // Fallback
         this.availableProviders = [{
-            id: 'openrouter',
-            name: 'OpenRouter',
-            models: [
-                { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
-                { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
-            ]
+          id: 'openrouter',
+          name: 'OpenRouter',
+          models: [
+            { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
+            { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
+          ]
         }]
       }
     }
