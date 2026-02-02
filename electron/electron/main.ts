@@ -7,6 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 import { Agent } from './src/Core/Agent'
 import { OpenRouter } from './src/Framework/LLM/OpenRouter'
 import { FileSystemService } from './src/Framework/FileSystem/FileSystemService'
+import { WorkspaceService } from './src/Framework/Workspace/WorkspaceService'
 import * as dotenv from 'dotenv'
 
 dotenv.config({ path: join(process.cwd(), '.env') })
@@ -64,6 +65,7 @@ app.on('window-all-closed', () => {
 
 // Backend Services
 const fileSystemService = new FileSystemService()
+const workspaceService = new WorkspaceService()
 const llmProvider = new OpenRouter(process.env.OPENROUTER_API_KEY || '')
 console.log('[Main] Services initialized')
 
@@ -115,4 +117,17 @@ ipcMain.handle('providers:get', () => {
       ]
     }]
   }
+})
+
+// Workspace Handlers
+ipcMain.handle('workspaces:get', async () => {
+  return await workspaceService.getWorkspaces()
+})
+
+ipcMain.handle('workspaces:save', async (_event, workspace) => {
+  return await workspaceService.saveWorkspace(workspace)
+})
+
+ipcMain.handle('workspaces:delete', async (_event, id) => {
+  return await workspaceService.deleteWorkspace(id)
 })

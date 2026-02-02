@@ -41,6 +41,8 @@ export class Agent {
     try {
       while (loop) {
         const stepResult = await this.runStep();
+        const contentWithoutTool = stepResult.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim();
+
         if (stepResult.toolCall) {
           const { name, parameters } = stepResult.toolCall;
           console.log(`[Agent] Tool call: ${name}`, parameters);
@@ -51,7 +53,12 @@ export class Agent {
             try {
               const result = await tool.execute(parameters, this.workspace);
               this.onEvent({ type: 'tool_finished', name, result });
-              this.messages.push({ role: 'assistant', content: stepResult.content });
+              
+              // Push the thought/talk part to history without the XML
+              if (contentWithoutTool) {
+                this.messages.push({ role: 'assistant', content: contentWithoutTool });
+              }
+              // Push the tool result
               this.messages.push({ role: 'user', content: PromptBuilder.formatToolResult(name, result) });
               console.log(`[Agent] Tool finished: ${name}`);
             } catch (error: any) {
@@ -65,7 +72,7 @@ export class Agent {
           }
         } else {
           console.log('[Agent] Final answer received');
-          this.onEvent({ type: 'final_answer', data: stepResult.content });
+          this.onEvent({ type: 'final_answer', data: contentWithoutTool || stepResult.content });
           loop = false;
         }
       }
@@ -79,10 +86,24 @@ export class Agent {
     console.log('[Agent] Running step...');
     return new Promise((resolve, reject) => {
       let accumulated = "";
+      let isInsideToolCall = false;
+
       this.llm.streamChat(this.model, this.messages, {
         onToken: (token) => {
           accumulated += token;
-          this.onEvent({ type: 'token', data: token });
+          
+          // Basic state machine to avoid emitting tool call tokens to UI
+          if (accumulated.includes('<tool_call>') && !isInsideToolCall) {
+            isInsideToolCall = true;
+          }
+
+          if (!isInsideToolCall) {
+            this.onEvent({ type: 'token', data: token });
+          }
+
+          if (accumulated.includes('</tool_call>') && isInsideToolCall) {
+            isInsideToolCall = false;
+          }
         },
         onError: (error) => {
           this.onEvent({ type: 'error', message: error });

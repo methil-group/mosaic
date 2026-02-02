@@ -206,19 +206,26 @@ function getTools() {
     new ManageTodosTool()
   ];
 }
-class PromptBuilder {
-  static createSystemPrompt(tools, workspace, userName) {
-    const toolsJson = tools.map((t) => ({
+class IdentityPart {
+  constructor(userName) {
+    this.userName = userName;
+  }
+  render() {
+    return `You are MOSAIC, a highly capable AI agent operating in a terminal-like environment.
+Your goal is to assist the user, ${this.userName}, by executing tools and providing information.`;
+  }
+}
+class ToolFormatPart {
+  constructor(tools) {
+    this.tools = tools;
+  }
+  render() {
+    const toolsJson = this.tools.map((t) => ({
       name: t.name,
       description: t.description,
       parameters: JSON.parse(t.parameters)
     }));
-    return `You are MOSAIC, a highly capable AI agent operating in a terminal-like environment.
-Your goal is to assist the user, ${userName}, by executing tools and providing information.
-
-CURRENT WORKSPACE: ${workspace}
-
-AVAILABLE TOOLS:
+    return `AVAILABLE TOOLS:
 ${JSON.stringify(toolsJson, null, 2)}
 
 TOOL CALLING FORMAT:
@@ -231,10 +238,37 @@ To call a tool, use the following XML-like format:
 </tool_call>
 
 You can call only one tool at a time. After a tool call, the system will provide the result in a <tool_result> block.
-Wait for the result before proceeding.
-
-If you have a final answer, just provide it as plain text.
-`;
+Wait for the result before proceeding.`;
+  }
+}
+class ChecklistBehaviorPart {
+  render() {
+    return `MODIFIED BEHAVIOR: CHECKLISTS
+You MUST maintain a checklist of your progress using the 'manage_todos' tool.
+1. When you start a complex task, initialize the checklist.
+2. For every step you take, update the checklist status.
+3. When you are done, provide a final conclusion in the 'manage_todos' call.
+Always inform the user about the current state of the checklist.`;
+  }
+}
+class WorkspaceContextPart {
+  constructor(workspace) {
+    this.workspace = workspace;
+  }
+  render() {
+    return `CURRENT WORKSPACE: ${this.workspace}
+You have full access to this directory. Use 'run_bash' to explore or 'read_file' to understand the code.`;
+  }
+}
+class PromptBuilder {
+  static createSystemPrompt(tools, workspace, userName) {
+    const parts = [
+      new IdentityPart(userName),
+      new WorkspaceContextPart(workspace),
+      new ToolFormatPart(tools),
+      new ChecklistBehaviorPart()
+    ];
+    return parts.map((p) => p.render()).join("\n\n") + "\n\nIf you have a final answer, just provide it as plain text.";
   }
   static formatToolResult(name, result) {
     return `<tool_result name="${name}">
@@ -267,6 +301,7 @@ class Agent {
     try {
       while (loop) {
         const stepResult = await this.runStep();
+        const contentWithoutTool = stepResult.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
         if (stepResult.toolCall) {
           const { name, parameters } = stepResult.toolCall;
           console.log(`[Agent] Tool call: ${name}`, parameters);
@@ -276,7 +311,9 @@ class Agent {
             try {
               const result = await tool.execute(parameters, this.workspace);
               this.onEvent({ type: "tool_finished", name, result });
-              this.messages.push({ role: "assistant", content: stepResult.content });
+              if (contentWithoutTool) {
+                this.messages.push({ role: "assistant", content: contentWithoutTool });
+              }
               this.messages.push({ role: "user", content: PromptBuilder.formatToolResult(name, result) });
               console.log(`[Agent] Tool finished: ${name}`);
             } catch (error) {
@@ -290,7 +327,7 @@ class Agent {
           }
         } else {
           console.log("[Agent] Final answer received");
-          this.onEvent({ type: "final_answer", data: stepResult.content });
+          this.onEvent({ type: "final_answer", data: contentWithoutTool || stepResult.content });
           loop = false;
         }
       }
@@ -302,9 +339,20 @@ class Agent {
   async runStep() {
     console.log("[Agent] Running step...");
     return new Promise((resolve, reject) => {
+      let accumulated = "";
+      let isInsideToolCall = false;
       this.llm.streamChat(this.model, this.messages, {
         onToken: (token) => {
-          this.onEvent({ type: "token", data: token });
+          accumulated += token;
+          if (accumulated.includes("<tool_call>") && !isInsideToolCall) {
+            isInsideToolCall = true;
+          }
+          if (!isInsideToolCall) {
+            this.onEvent({ type: "token", data: token });
+          }
+          if (accumulated.includes("</tool_call>") && isInsideToolCall) {
+            isInsideToolCall = false;
+          }
         },
         onError: (error) => {
           this.onEvent({ type: "error", message: error });
@@ -457,6 +505,40 @@ class FileSystemService {
     }
   }
 }
+class WorkspaceService {
+  constructor() {
+    this.configPath = join(os.homedir(), ".mosaic", "workspaces.json");
+  }
+  async ensureDir() {
+    await fs.mkdir(join(os.homedir(), ".mosaic"), { recursive: true });
+  }
+  async getWorkspaces() {
+    try {
+      await this.ensureDir();
+      const content = await fs.readFile(this.configPath, "utf8");
+      return JSON.parse(content);
+    } catch (error) {
+      return [];
+    }
+  }
+  async saveWorkspace(workspace) {
+    const workspaces = await this.getWorkspaces();
+    const index = workspaces.findIndex((w) => w.id === workspace.id);
+    if (index !== -1) {
+      workspaces[index] = workspace;
+    } else {
+      workspaces.push(workspace);
+    }
+    await this.ensureDir();
+    await fs.writeFile(this.configPath, JSON.stringify(workspaces, null, 2), "utf8");
+  }
+  async deleteWorkspace(id) {
+    const workspaces = await this.getWorkspaces();
+    const filtered = workspaces.filter((w) => w.id !== id);
+    await this.ensureDir();
+    await fs.writeFile(this.configPath, JSON.stringify(filtered, null, 2), "utf8");
+  }
+}
 const __dirname$1 = dirname$1(fileURLToPath(import.meta.url));
 dotenv.config({ path: join$1(process.cwd(), ".env") });
 dotenv.config({ path: join$1(process.cwd(), "..", ".env") });
@@ -499,6 +581,7 @@ app.on("window-all-closed", () => {
   }
 });
 const fileSystemService = new FileSystemService();
+const workspaceService = new WorkspaceService();
 const llmProvider = new OpenRouter(process.env.OPENROUTER_API_KEY || "");
 console.log("[Main] Services initialized");
 ipcMain.handle("ping", () => "pong");
@@ -541,4 +624,13 @@ ipcMain.handle("providers:get", () => {
       ]
     }]
   };
+});
+ipcMain.handle("workspaces:get", async () => {
+  return await workspaceService.getWorkspaces();
+});
+ipcMain.handle("workspaces:save", async (_event, workspace) => {
+  return await workspaceService.saveWorkspace(workspace);
+});
+ipcMain.handle("workspaces:delete", async (_event, id) => {
+  return await workspaceService.deleteWorkspace(id);
 });

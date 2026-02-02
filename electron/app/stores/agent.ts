@@ -29,6 +29,14 @@ export interface InstanceState {
   abortController: AbortController | null
 }
 
+export interface Workspace {
+  id: string
+  name: string
+  path: string
+  description?: string
+  color?: string
+}
+
 export interface Model {
   id: string
   name: string
@@ -48,6 +56,9 @@ export interface State {
   defaultModelId: string
   backendUrl: string
   filesCache: Record<string, string[]> // workspacePath -> files
+  workspaces: Workspace[]
+  currentView: 'grid' | 'workspaces' | 'workspace-detail'
+  activeWorkspaceId: string | null
 }
 
 const AGENT_NAMES = [
@@ -58,26 +69,16 @@ const AGENT_NAMES = [
 
 export const useAgentStore = defineStore('agent', {
   state: (): State => ({
-    instances: {
-      'default': {
-        id: 'default',
-        name: 'DEFAULT',
-        messages: [],
-        isProcessing: false,
-        currentWorkspace: '',
-        currentModel: 'deepseek/deepseek-v3.2',
-        isVisible: true,
-        colSpan: 1,
-        messageQueue: [],
-        abortController: null,
-      }
-    },
-    instanceIds: ['default'],
+    instances: {},
+    instanceIds: [],
     availableProviders: [],
     defaultProviderId: 'openrouter',
     defaultModelId: 'deepseek/deepseek-v3.2',
     backendUrl: 'http://localhost:3710',
-    filesCache: {}
+    filesCache: {},
+    workspaces: [],
+    currentView: 'grid',
+    activeWorkspaceId: null
   }),
   getters: {
     availableModels: (state): Model[] => {
@@ -246,6 +247,44 @@ export const useAgentStore = defineStore('agent', {
       } catch (e) {
         console.error('Failed to fetch providers', e)
       }
+    },
+
+    // Workspace Actions
+    async fetchWorkspaces() {
+      try {
+        if ((window as any).api) {
+          this.workspaces = await (window as any).api.getWorkspaces()
+        }
+      } catch (e) {
+        console.error('Failed to fetch workspaces', e)
+      }
+    },
+
+    async saveWorkspace(workspace: Workspace) {
+      try {
+        if ((window as any).api) {
+          await (window as any).api.saveWorkspace(workspace)
+          await this.fetchWorkspaces()
+        }
+      } catch (e) {
+        console.error('Failed to save workspace', e)
+      }
+    },
+
+    async deleteWorkspace(id: string) {
+      try {
+        if ((window as any).api) {
+          await (window as any).api.deleteWorkspace(id)
+          await this.fetchWorkspaces()
+        }
+      } catch (e) {
+        console.error('Failed to delete workspace', e)
+      }
+    },
+
+    setView(view: 'grid' | 'workspaces' | 'workspace-detail', activeId: string | null = null) {
+      this.currentView = view
+      this.activeWorkspaceId = activeId
     }
   }
 })

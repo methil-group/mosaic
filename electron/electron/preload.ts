@@ -13,7 +13,12 @@ const api = {
     const listener = (_event: any, data: any) => callback(data)
     ipcRenderer.on('agent:event', listener)
     return () => ipcRenderer.removeListener('agent:event', listener)
-  }
+  },
+
+  // Workspace management
+  getWorkspaces: () => ipcRenderer.invoke('workspaces:get'),
+  saveWorkspace: (workspace: any) => ipcRenderer.invoke('workspaces:save', workspace),
+  deleteWorkspace: (id: string) => ipcRenderer.invoke('workspaces:delete', id)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
