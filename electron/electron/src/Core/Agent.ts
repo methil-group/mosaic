@@ -1,6 +1,6 @@
-import { Tool, getTools } from './Tool';
-import { PromptBuilder } from './PromptBuilder';
-import { AbstractLLM, Message } from '../Framework/LLM/AbstractLLM';
+import { Tool, getTools } from './Tools';
+import { PromptBuilder } from './Prompt/PromptBuilder';
+import { AbstractLLM, Message } from './Framework/AbstractLLM';
 
 export interface AgentEvent {
   type: 'token' | 'tool_started' | 'tool_finished' | 'final_answer' | 'error';

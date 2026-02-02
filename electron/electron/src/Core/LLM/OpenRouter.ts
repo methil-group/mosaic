@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AbstractLLM, Message, StreamCallbacks } from './AbstractLLM';
+import { AbstractLLM, Message, StreamCallbacks } from '../Framework/AbstractLLM';
 
 export class OpenRouter extends AbstractLLM {
   private apiKey: string;

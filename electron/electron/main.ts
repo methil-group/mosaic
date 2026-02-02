@@ -5,7 +5,7 @@ import { is } from '@electron-toolkit/utils'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 import { Agent } from './src/Core/Agent'
-import { OpenRouter } from './src/Framework/LLM/OpenRouter'
+import { OpenRouter } from './src/Core/LLM/OpenRouter'
 import { FileSystemService } from './src/Framework/FileSystem/FileSystemService'
 import { WorkspaceService } from './src/Framework/Workspace/WorkspaceService'
 import * as dotenv from 'dotenv'
