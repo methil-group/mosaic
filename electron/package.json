@@ -9,7 +9,7 @@
     "dev": "nuxt dev --port 3710",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "postinstall": "nuxt prepare && npx electron-rebuild",
     "electron:dev": "concurrently -k \"npm run dev\" \"wait-on http://localhost:3710 && cross-env ELECTRON_RENDERER_URL=http://localhost:3710 electron-vite dev\"",
     "electron:build": "npm run generate && electron-vite build",
     "electron:preview": "electron-vite preview",
@@ -27,7 +27,10 @@
       ".output/public/**/*"
     ],
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "icon": "build/icon.icns"
     }
   },
@@ -36,6 +39,7 @@
     "@pinia/nuxt": "^0.11.3",
     "@types/markdown-it": "^14.1.2",
     "axios": "^1.13.4",
+    "better-sqlite3": "^12.6.2",
     "dotenv": "^17.2.3",
     "lucide-vue-next": "^0.563.0",
     "markdown-it": "^14.1.0",
@@ -47,6 +51,8 @@
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@electron/rebuild": "^4.0.3",
+    "@types/better-sqlite3": "^7.6.13",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^40.1.0",

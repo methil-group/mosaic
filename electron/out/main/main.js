@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { dirname as dirname$1, join as join$1 } from "path";
+import path, { dirname as dirname$1, join as join$1 } from "path";
 import { fileURLToPath } from "url";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
@@ -8,6 +8,8 @@ import * as os from "node:os";
 import * as fs from "node:fs/promises";
 import axios from "axios";
 import * as dotenv from "dotenv";
+import Database from "better-sqlite3";
+import fs$1 from "fs";
 import __cjs_mod__ from "node:module";
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
@@ -21,14 +23,14 @@ const is = {
   isLinux: process.platform === "linux"
 });
 class Tool {
-  expandPath(path) {
-    if (path.startsWith("~/")) {
-      return join(os.homedir(), path.slice(2));
+  expandPath(path2) {
+    if (path2.startsWith("~/")) {
+      return join(os.homedir(), path2.slice(2));
     }
-    if (path === "~") {
+    if (path2 === "~") {
       return os.homedir();
     }
-    return path;
+    return path2;
   }
 }
 const execPromise = promisify(exec);
@@ -437,6 +439,9 @@ class OpenRouter extends AbstractLLM {
     this.baseUrl = "https://openrouter.ai/api/v1";
     this.apiKey = apiKey;
   }
+  updateApiKey(newKey) {
+    this.apiKey = newKey;
+  }
   async streamChat(model, messages, callbacks) {
     if (!this.apiKey) {
       callbacks.onError("OpenRouter API Key not found");
@@ -501,17 +506,17 @@ class OpenRouter extends AbstractLLM {
   }
 }
 class FileSystemService {
-  expandPath(path) {
-    if (path.startsWith("~/")) {
-      return join(os.homedir(), path.slice(2));
+  expandPath(path2) {
+    if (path2.startsWith("~/")) {
+      return join(os.homedir(), path2.slice(2));
     }
-    if (path === "~") {
+    if (path2 === "~") {
       return os.homedir();
     }
-    return path;
+    return path2;
   }
-  async listDirectories(path) {
-    const fullPath = this.expandPath(path);
+  async listDirectories(path2) {
+    const fullPath = this.expandPath(path2);
     try {
       const entries = await fs.readdir(fullPath, { withFileTypes: true });
       return entries.filter((e) => e.isDirectory()).map((e) => e.name);
@@ -520,8 +525,8 @@ class FileSystemService {
       return [];
     }
   }
-  async listFiles(path) {
-    const fullPath = this.expandPath(path);
+  async listFiles(path2) {
+    const fullPath = this.expandPath(path2);
     try {
       const files = [];
       await this.listFilesRecursive(fullPath, "", files);
@@ -584,6 +589,38 @@ class WorkspaceService {
     await fs.writeFile(this.configPath, JSON.stringify(filtered, null, 2), "utf8");
   }
 }
+class DatabaseService {
+  constructor() {
+    const userDataPath = app.getPath("userData");
+    const dbPath = path.join(userDataPath, "mosaic.sqlite");
+    if (!fs$1.existsSync(userDataPath)) {
+      fs$1.mkdirSync(userDataPath, { recursive: true });
+    }
+    this.db = new Database(dbPath);
+    this.init();
+  }
+  init() {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `);
+  }
+  getSetting(key) {
+    const row = this.db.prepare("SELECT value FROM settings WHERE key = ?").get(key);
+    return row ? row.value : null;
+  }
+  setSetting(key, value) {
+    this.db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run(key, value);
+  }
+  deleteSetting(key) {
+    this.db.prepare("DELETE FROM settings WHERE key = ?").run(key);
+  }
+  close() {
+    this.db.close();
+  }
+}
 const __dirname$1 = dirname$1(fileURLToPath(import.meta.url));
 dotenv.config({ path: join$1(process.cwd(), ".env") });
 dotenv.config({ path: join$1(process.cwd(), "..", ".env") });
@@ -625,16 +662,19 @@ app.on("window-all-closed", () => {
     app.quit();
   }
 });
+const databaseService = new DatabaseService();
 const fileSystemService = new FileSystemService();
 const workspaceService = new WorkspaceService();
-const llmProvider = new OpenRouter(process.env.OPENROUTER_API_KEY || "");
+const storedApiKey = databaseService.getSetting("openrouter_api_key");
+const llmProvider = new OpenRouter(storedApiKey || "");
 console.log("[Main] Services initialized");
+console.log("[Main] API Key from DB present:", !!storedApiKey);
 ipcMain.handle("ping", () => "pong");
-ipcMain.handle("fs:ls", async (_event, path) => {
-  return { directories: await fileSystemService.listDirectories(path) };
+ipcMain.handle("fs:ls", async (_event, path2) => {
+  return { directories: await fileSystemService.listDirectories(path2) };
 });
-ipcMain.handle("fs:files", async (_event, path) => {
-  return { files: await fileSystemService.listFiles(path) };
+ipcMain.handle("fs:files", async (_event, path2) => {
+  return { files: await fileSystemService.listFiles(path2) };
 });
 ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id, user_name }) => {
   console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}`);
@@ -664,6 +704,7 @@ ipcMain.handle("providers:get", () => {
       id: "openrouter",
       name: "OpenRouter",
       models: [
+        { id: "qwen/qwen3-vl-8b-thinking", name: "Qwen 3 VL 8B Thinking" },
         { id: "deepseek/deepseek-v3.2", name: "DeepSeek 3.2" },
         { id: "mistralai/devstral-2512", name: "Devstral 2512" },
         { id: "stepfun/step-3.5-flash:free", name: "Step 3.5 Flash" }
@@ -679,4 +720,15 @@ ipcMain.handle("workspaces:save", async (_event, workspace) => {
 });
 ipcMain.handle("workspaces:delete", async (_event, id) => {
   return await workspaceService.deleteWorkspace(id);
+});
+ipcMain.handle("settings:get", (_event, key) => {
+  return databaseService.getSetting(key);
+});
+ipcMain.handle("settings:set", (_event, { key, value }) => {
+  databaseService.setSetting(key, value);
+  if (key === "openrouter_api_key") {
+    llmProvider.updateApiKey(value);
+    console.log("[Main] OpenRouter API Key updated in provider");
+  }
+  return { success: true };
 });

@@ -10,6 +10,10 @@ export class OpenRouter extends AbstractLLM {
     this.apiKey = apiKey;
   }
 
+  public updateApiKey(newKey: string) {
+    this.apiKey = newKey;
+  }
+
   async streamChat(model: string, messages: Message[], callbacks: StreamCallbacks): Promise<void> {
     if (!this.apiKey) {
       callbacks.onError('OpenRouter API Key not found');

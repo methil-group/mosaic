@@ -13,6 +13,8 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: join(process.cwd(), '.env') })
 dotenv.config({ path: join(process.cwd(), '..', '.env') })
 
+import { DatabaseService } from './src/Framework/Database/DatabaseService'
+
 console.log('[Main] process.cwd():', process.cwd())
 console.log('[Main] __dirname:', __dirname)
 console.log('[Main] Configuration loaded. API Key present:', !!process.env.OPENROUTER_API_KEY)
@@ -64,10 +66,16 @@ app.on('window-all-closed', () => {
 })
 
 // Backend Services
+const databaseService = new DatabaseService()
 const fileSystemService = new FileSystemService()
 const workspaceService = new WorkspaceService()
-const llmProvider = new OpenRouter(process.env.OPENROUTER_API_KEY || '')
+
+// Initialize LLM provider with API key from database (if exists)
+const storedApiKey = databaseService.getSetting('openrouter_api_key')
+const llmProvider = new OpenRouter(storedApiKey || '')
+
 console.log('[Main] Services initialized')
+console.log('[Main] API Key from DB present:', !!storedApiKey)
 
 // IPC Handlers
 ipcMain.handle('ping', () => 'pong')
@@ -112,6 +120,7 @@ ipcMain.handle('providers:get', () => {
       id: 'openrouter',
       name: 'OpenRouter',
       models: [
+        { id: 'qwen/qwen3-vl-8b-thinking', name: 'Qwen 3 VL 8B Thinking' },
         { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
         { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
         { id: 'stepfun/step-3.5-flash:free', name: 'Step 3.5 Flash' },
@@ -131,4 +140,21 @@ ipcMain.handle('workspaces:save', async (_event, workspace) => {
 
 ipcMain.handle('workspaces:delete', async (_event, id) => {
   return await workspaceService.deleteWorkspace(id)
+})
+
+// Settings Handlers
+ipcMain.handle('settings:get', (_event, key: string) => {
+  return databaseService.getSetting(key)
+})
+
+ipcMain.handle('settings:set', (_event, { key, value }) => {
+  databaseService.setSetting(key, value)
+  
+  // If we're updating the OpenRouter API Key, we need to update the llmProvider
+  if (key === 'openrouter_api_key') {
+    llmProvider.updateApiKey(value)
+    console.log('[Main] OpenRouter API Key updated in provider')
+  }
+  
+  return { success: true }
 })

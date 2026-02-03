@@ -76,7 +76,7 @@ export const useAgentStore = defineStore('agent', {
     instanceIds: [],
     availableProviders: [],
     defaultProviderId: 'openrouter',
-    defaultModelId: 'deepseek/deepseek-v3.2',
+    defaultModelId: 'qwen/qwen3-vl-8b-thinking',
     backendUrl: 'http://localhost:3710',
     filesCache: {},
     workspaces: [],
@@ -296,6 +296,31 @@ export const useAgentStore = defineStore('agent', {
     setView(view: 'grid' | 'workspaces' | 'workspace-detail', activeId: string | null = null) {
       this.currentView = view
       this.activeWorkspaceId = activeId
+    },
+
+    async getSetting(key: string): Promise<string | null> {
+      try {
+        if ((window as any).electron) {
+          return await (window as any).electron.ipcRenderer.invoke('settings:get', key)
+        }
+        return null
+      } catch (e) {
+        console.error(`Failed to get setting: ${key}`, e)
+        return null
+      }
+    },
+
+    async setSetting(key: string, value: string): Promise<boolean> {
+      try {
+        if ((window as any).electron) {
+          await (window as any).electron.ipcRenderer.invoke('settings:set', { key, value })
+          return true
+        }
+        return false
+      } catch (e) {
+        console.error(`Failed to set setting: ${key}`, e)
+        return false
+      }
     }
   }
 })

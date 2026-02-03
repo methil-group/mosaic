@@ -73,8 +73,36 @@
                         </div>
                     </div>
                 </div>
-
             </div>
+
+            <!-- API Preferences -->
+            <div class="space-y-8">
+                <div>
+                    <h2 class="text-xs font-black uppercase tracking-widest text-white/60 mb-1">API Preferences</h2>
+                    <p class="text-[10px] uppercase tracking-wider text-white/20">Manage your external service keys</p>
+                </div>
+
+                <div class="max-w-xl space-y-4">
+                    <div class="space-y-3">
+                        <label class="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">OpenRouter API
+                            Key</label>
+                        <div class="flex gap-2">
+                            <input v-model="openRouterKey" type="password" placeholder="sk-or-v1-..."
+                                class="flex-1 bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-xs text-white placeholder:text-white/10 focus:outline-none focus:border-white/20 transition-all font-mono" />
+                            <button @click="saveApiKey" :disabled="isSavingKey"
+                                class="px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shrink-0"
+                                :class="saveStatus === 'success' ? 'bg-emerald-500 text-white' : 'bg-white text-black hover:bg-white/90 disabled:opacity-50'">
+                                <span v-if="saveStatus === 'success'">Saved</span>
+                                <span v-else-if="isSavingKey">Saving...</span>
+                                <span v-else>Save key</span>
+                            </button>
+                        </div>
+                        <p class="text-[9px] text-white/20 ml-1 italic">Your key is stored securely in your local SQLite
+                            database.</p>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </template>
@@ -82,9 +110,32 @@
 <script setup lang="ts">
 import { useAgentStore } from '~/stores/agent'
 import { Globe, Check } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 
 const store = useAgentStore()
+const openRouterKey = ref('')
+const isSavingKey = ref(false)
+const saveStatus = ref<'idle' | 'success'>('idle')
+
+onMounted(async () => {
+    const key = await store.getSetting('openrouter_api_key')
+    if (key) openRouterKey.value = key
+})
+
+const saveApiKey = async () => {
+    if (isSavingKey.value) return
+    isSavingKey.value = true
+
+    const success = await store.setSetting('openrouter_api_key', openRouterKey.value)
+    if (success) {
+        saveStatus.value = 'success'
+        setTimeout(() => {
+            saveStatus.value = 'idle'
+        }, 2000)
+    }
+
+    isSavingKey.value = false
+}
 
 const availableModelsForDefault = computed(() => {
     const provider = store.availableProviders.find(p => p.id === store.defaultProviderId)
