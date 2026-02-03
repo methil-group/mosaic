@@ -268,7 +268,14 @@ class PromptBuilder {
       new ToolFormatPart(tools),
       new ChecklistBehaviorPart()
     ];
-    return parts.map((p) => p.render()).join("\n\n") + "\n\nIf you have a final answer, just provide it as plain text.";
+    return parts.map((p) => p.render()).join("\n\n") + `
+
+## CRITICAL RULES
+
+1. **You MUST either call a tool OR provide a final answer. Never say what you're "going to do" - just DO IT.**
+2. If you need more information, call the appropriate tool immediately.
+3. Only provide a final answer when you have completed the task and gathered all necessary information.
+4. Never respond with "Now let me..." or "I will..." - if you need to do something, call the tool.`;
   }
   static formatToolResult(name, result) {
     return `<tool_result name="${name}">
@@ -326,9 +333,26 @@ class Agent {
             loop = false;
           }
         } else {
-          console.log("[Agent] Final answer received");
-          this.onEvent({ type: "final_answer", data: contentWithoutTool || stepResult.content });
-          loop = false;
+          const intentPhrases = [
+            /now (i'll|i will|let me|i'm going to)/i,
+            /let me (check|read|look|examine|explore|see)/i,
+            /i (will|shall|am going to|need to) (check|read|look|examine|explore)/i
+          ];
+          const isIntentStatement = intentPhrases.some((pattern) => pattern.test(contentWithoutTool));
+          if (isIntentStatement) {
+            console.log("[Agent] Detected intent statement without tool call, nudging...");
+            this.messages.push({ role: "assistant", content: contentWithoutTool });
+            this.messages.push({
+              role: "user",
+              content: "You said you would do something but didn't call a tool. Please call the appropriate tool now to complete the action you described."
+            });
+          } else {
+            console.log("[Agent] Final answer received");
+            console.log("[Agent] Step content:", JSON.stringify(stepResult.content));
+            console.log("[Agent] Content without tool:", JSON.stringify(contentWithoutTool));
+            this.onEvent({ type: "final_answer", data: contentWithoutTool || stepResult.content });
+            loop = false;
+          }
         }
       }
     } catch (error) {

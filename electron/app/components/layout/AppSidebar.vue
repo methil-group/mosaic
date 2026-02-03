@@ -57,6 +57,7 @@ const toggleVisibility = (id: string) => {
                 <div class="space-y-1.5">
                     <div v-for="id in store.instanceIds" :key="id" @mouseenter="hoveredAgentId = id"
                         @mouseleave="hoveredAgentId = null"
+                        @click="!store.instances[id]?.isVisible && toggleVisibility(id)"
                         class="relative flex items-center gap-3 px-3 py-2.5 rounded-md bg-white/5 border border-white/5 text-xs font-medium text-white/40 hover:text-white hover:bg-white/10 transition-all cursor-pointer overflow-visible group/item justify-between">
 
                         <div class="flex items-center gap-3 min-w-0">
@@ -81,7 +82,7 @@ const toggleVisibility = (id: string) => {
                             <div class="flex flex-col border-b border-black/10 pb-2">
                                 <span class="text-[10px] uppercase tracking-widest text-black/40 font-bold">Agent</span>
                                 <span class="text-base font-black uppercase tracking-wider">{{ store.instances[id]?.name
-                                    }}</span>
+                                }}</span>
                             </div>
 
                             <!-- Info -->
@@ -144,13 +145,15 @@ const toggleVisibility = (id: string) => {
                 class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-white/30 hover:text-white hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
                 active-class="bg-white/10 text-white">
                 <Settings class="w-4 h-4 shrink-0" />
-                <span v-if="isSidebarExpanded" class="animate-in slide-in-from-left-2 duration-300 truncate">Settings</span>
+                <span v-if="isSidebarExpanded"
+                    class="animate-in slide-in-from-left-2 duration-300 truncate">Settings</span>
             </NuxtLink>
             <NuxtLink to="/profile" v-tooltip="!isSidebarExpanded ? 'Profile' : null"
                 class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-white/30 hover:text-white hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
                 active-class="bg-white/10 text-white">
                 <User class="w-4 h-4 shrink-0" />
-                <span v-if="isSidebarExpanded" class="animate-in slide-in-from-left-2 duration-300 truncate">Profile</span>
+                <span v-if="isSidebarExpanded"
+                    class="animate-in slide-in-from-left-2 duration-300 truncate">Profile</span>
             </NuxtLink>
         </div>
 

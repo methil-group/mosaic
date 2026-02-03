@@ -71,9 +71,32 @@ export class Agent {
             loop = false;
           }
         } else {
-          console.log('[Agent] Final answer received');
-          this.onEvent({ type: 'final_answer', data: contentWithoutTool || stepResult.content });
-          loop = false;
+          // Check if this is an intent statement (LLM saying it will do something, but not doing it)
+          const intentPhrases = [
+            /now (i'll|i will|let me|i'm going to)/i,
+            /let me (check|read|look|examine|explore|see)/i,
+            /i (will|shall|am going to|need to) (check|read|look|examine|explore)/i,
+          ];
+          
+          const isIntentStatement = intentPhrases.some(pattern => pattern.test(contentWithoutTool));
+          
+          if (isIntentStatement) {
+            console.log('[Agent] Detected intent statement without tool call, nudging...');
+            // Push the intent as assistant message
+            this.messages.push({ role: 'assistant', content: contentWithoutTool });
+            // Add a nudge to actually call the tool
+            this.messages.push({ 
+              role: 'user', 
+              content: 'You said you would do something but didn\'t call a tool. Please call the appropriate tool now to complete the action you described.' 
+            });
+            // Continue the loop
+          } else {
+            console.log('[Agent] Final answer received');
+            console.log('[Agent] Step content:', JSON.stringify(stepResult.content));
+            console.log('[Agent] Content without tool:', JSON.stringify(contentWithoutTool));
+            this.onEvent({ type: 'final_answer', data: contentWithoutTool || stepResult.content });
+            loop = false;
+          }
         }
       }
     } catch (error: any) {
