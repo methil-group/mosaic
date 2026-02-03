@@ -9,6 +9,8 @@ export default defineNuxtConfig({
       meta: [
         { name: 'description', content: 'AI Agent Interface' }
       ]
-    }
+    },
+    pageTransition: { name: 'page', mode: 'out-in' },
+    layoutTransition: { name: 'layout', mode: 'out-in' }
   }
 })
