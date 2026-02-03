@@ -1,35 +1,103 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import AgentInstance from '../agent/AgentInstance.vue'
 import { LayoutGrid } from 'lucide-vue-next'
-import { useTileLayout } from '~/composables/useTileLayout'
+import { useTileLayout, type ResizeHandle } from '~/composables/useTileLayout'
 
 const store = useAgentStore()
+const gridContainer = ref<HTMLElement | null>(null)
 
 const visibleInstances = computed(() => {
   return store.instanceIds.filter(id => store.instances[id]?.isVisible)
 })
 
-const { gridStyle, getTileStyle } = useTileLayout(visibleInstances)
+const { getTileStyle, getHandleStyle, resizeHandles, updateSplitRatio } = useTileLayout(visibleInstances)
+
+// Drag state
+const isDragging = ref(false)
+const activeHandle = ref<ResizeHandle | null>(null)
+
+const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
+  isDragging.value = true
+  activeHandle.value = handle
+  event.preventDefault()
+  
+  const onMouseMove = (e: MouseEvent) => {
+    if (!activeHandle.value || !gridContainer.value) return
+    
+    const rect = gridContainer.value.getBoundingClientRect()
+    const handle = activeHandle.value
+    
+    let newRatio: number
+    if (handle.direction === 'horizontal') {
+      // Calculate relative to handle's parent split area
+      const mouseX = e.clientX - rect.left
+      const parentLeft = (handle.left - handle.width / 2) // Approximate parent left
+      newRatio = mouseX / rect.width
+    } else {
+      const mouseY = e.clientY - rect.top
+      newRatio = mouseY / rect.height
+    }
+    
+    updateSplitRatio(handle.path, newRatio)
+  }
+  
+  const onMouseUp = () => {
+    isDragging.value = false
+    activeHandle.value = null
+    document.removeEventListener('mousemove', onMouseMove)
+    document.removeEventListener('mouseup', onMouseUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+  
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+  document.body.style.cursor = handle.direction === 'horizontal' ? 'col-resize' : 'row-resize'
+  document.body.style.userSelect = 'none'
+}
 </script>
 
 <template>
-  <div class="h-full flex flex-col min-w-0 bg-black overflow-hidden relative">
+  <div class="h-full flex flex-col min-w-0 bg-black overflow-hidden">
     <div
+      ref="gridContainer"
       v-if="visibleInstances.length > 0"
-      class="flex-1 p-2 overflow-hidden bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] [background-size:24px_24px]"
-      :style="gridStyle">
+      class="flex-1 p-2 overflow-hidden bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] [background-size:24px_24px] relative">
+      
+      <!-- Tiles with absolute positioning -->
       <TransitionGroup name="tile">
         <div 
           v-for="id in visibleInstances" 
           :key="id" 
-          class="tile-item min-h-0 min-w-0 rounded-lg overflow-hidden relative border border-white/5"
+          class="tile-item rounded-lg overflow-hidden border border-white/5"
           :style="getTileStyle(id)">
-          <AgentInstance :instance-id="id" />
+          <AgentInstance :instance-id="id" class="w-full h-full" />
         </div>
       </TransitionGroup>
+      
+      <!-- Resize Handles -->
+      <div
+        v-for="handle in resizeHandles"
+        :key="handle.id"
+        class="resize-handle z-50"
+        :class="{ 
+          'resize-handle-active': isDragging && activeHandle?.id === handle.id,
+          'resize-handle-horizontal': handle.direction === 'horizontal',
+          'resize-handle-vertical': handle.direction === 'vertical'
+        }"
+        :style="getHandleStyle(handle)"
+        @mousedown="startDrag(handle, $event)"
+      >
+        <div 
+          class="resize-handle-visual"
+          :class="handle.direction === 'horizontal' ? 'w-1 h-full' : 'w-full h-1'"
+        />
+      </div>
     </div>
+    
+    <!-- Empty State -->
     <div v-else class="flex-1 flex flex-col items-center justify-center bg-black gap-6 opacity-40 select-none">
         <div class="relative">
             <div class="w-16 h-16 rounded-2xl border border-white/10 flex items-center justify-center bg-white/5 animate-pulse">
@@ -48,13 +116,9 @@ const { gridStyle, getTileStyle } = useTileLayout(visibleInstances)
 </template>
 
 <style>
-/* Tile transition animations - Hyprland style */
+/* Tile animations */
 .tile-item {
-  transition: 
-    grid-column 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    grid-row 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: left, top, width, height;
 }
 
 /* Entry animation */
@@ -80,7 +144,6 @@ const { gridStyle, getTileStyle } = useTileLayout(visibleInstances)
 
 .tile-leave-active {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  position: absolute;
 }
 
 .tile-leave-to {
@@ -88,12 +151,44 @@ const { gridStyle, getTileStyle } = useTileLayout(visibleInstances)
   transform: scale(0.85);
 }
 
-/* Move animation for remaining tiles */
-.tile-move {
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+/* Resize handles */
+.resize-handle {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Global scrollbar for the tiling manager */
+.resize-handle:hover,
+.resize-handle-active {
+  opacity: 1;
+}
+
+.resize-handle-visual {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.resize-handle:hover .resize-handle-visual {
+  background: rgba(255, 255, 255, 0.5);
+  transform: scaleX(1.5);
+}
+
+.resize-handle-horizontal:hover .resize-handle-visual {
+  transform: scaleX(2);
+}
+
+.resize-handle-vertical:hover .resize-handle-visual {
+  transform: scaleY(2);
+}
+
+.resize-handle-active .resize-handle-visual {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Global scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
 }
