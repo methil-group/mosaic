@@ -52,3 +52,5 @@ htmlcov/
 models
 logs
 __0.0.1_python*
+release
+out
