@@ -5,7 +5,7 @@ import { Bot, User, Terminal, Loader2, Sparkles, Trash2, Copy, Check, Settings, 
 import TodoDisplay from './TodoDisplay.vue'
 import AgentInput from './AgentInput.vue'
 import AgentSettingsModal from './AgentSettingsModal.vue'
-import WorkspaceSelection from './WorkspaceSelection.vue'
+import FileExplorer from './FileExplorer.vue'
 import MarkdownIt from 'markdown-it'
 
 const props = defineProps<{
@@ -102,8 +102,9 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
             </div>
 
             <div class="flex items-center gap-3">
-                <button @click="isSettingsOpen = true"
-                    class="p-1.5 rounded bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-white/40 hover:text-white">
+                <button @click="navigateTo(`/agents/${instanceId}`)"
+                    class="p-1.5 rounded bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-white/40 hover:text-white"
+                    title="Agent Settings">
                     <Settings class="w-3.5 h-3.5" />
                 </button>
 
@@ -118,29 +119,37 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
         <AgentSettingsModal v-model="isSettingsOpen" :instance-id="instanceId" />
 
         <!-- Main Content -->
-        <template v-if="!instance.currentWorkspace">
-            <WorkspaceSelection :instance-id="instanceId" />
-        </template>
+        <div v-if="!instance.currentWorkspace" class="flex-1 min-h-0 overflow-hidden">
+            <FileExplorer :instance-id="instanceId" />
+        </div>
         <template v-else>
             <!-- Chat Area -->
-            <main ref="scrollContainer" class="flex-1 overflow-y-auto px-4 py-4 space-y-5 scroll-smooth custom-scrollbar-mini">
-                <div v-if="instance.messages.length === 0" class="flex flex-col items-center justify-center py-8 opacity-30 text-center">
+            <main ref="scrollContainer"
+                class="flex-1 overflow-y-auto px-4 py-4 space-y-5 scroll-smooth custom-scrollbar-mini">
+                <div v-if="instance.messages.length === 0"
+                    class="flex flex-col items-center justify-center py-8 opacity-30 text-center">
                     <Bot class="w-6 h-6 text-white mb-3" />
-                    <p class="text-[9px] uppercase font-bold tracking-widest leading-relaxed">System Idle<br />{{ instance.currentWorkspace }}</p>
+                    <p class="text-[9px] uppercase font-bold tracking-widest leading-relaxed">System Idle<br />{{
+                        instance.currentWorkspace }}</p>
                 </div>
 
-                <div v-for="(msg, idx) in instance.messages" :key="idx" class="group animate-in fade-in slide-in-from-bottom-1 duration-300" :class="msg.role === 'user' ? 'flex flex-col items-end' : 'flex flex-col items-start'">
+                <div v-for="(msg, idx) in instance.messages" :key="idx"
+                    class="group animate-in fade-in slide-in-from-bottom-1 duration-300"
+                    :class="msg.role === 'user' ? 'flex flex-col items-end' : 'flex flex-col items-start'">
                     <!-- User Message -->
                     <template v-if="msg.role === 'user'">
                         <div class="flex items-center gap-1.5 mb-1.5 px-1">
                             <span class="text-[8px] font-bold text-white/20 uppercase tracking-widest">User</span>
-                            <div class="w-4 h-4 rounded bg-white/10 flex items-center justify-center border border-white/10">
+                            <div
+                                class="w-4 h-4 rounded bg-white/10 flex items-center justify-center border border-white/10">
                                 <User class="w-2 h-2 text-white/40" />
                             </div>
                         </div>
-                        <div class="max-w-[95%] px-3.5 py-2.5 rounded-2xl bg-white text-black leading-relaxed font-bold text-[11px] relative group/msg">
+                        <div
+                            class="max-w-[95%] px-3.5 py-2.5 rounded-2xl bg-white text-black leading-relaxed font-bold text-[11px] relative group/msg">
                             {{ msg.content }}
-                            <button @click="copyToClipboard(msg.content, idx)" class="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 rounded bg-white/5 border border-white/10 opacity-0 group-hover/msg:opacity-100 transition-all hover:bg-white/10 active:scale-95">
+                            <button @click="copyToClipboard(msg.content, idx)"
+                                class="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 rounded bg-white/5 border border-white/10 opacity-0 group-hover/msg:opacity-100 transition-all hover:bg-white/10 active:scale-95">
                                 <Check v-if="copiedIdx === idx" class="w-3 h-3 text-green-400" />
                                 <Copy v-else class="w-3 h-3 text-white/40" />
                             </button>
@@ -150,14 +159,17 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
                     <!-- Assistant Message -->
                     <template v-else>
                         <div class="flex items-center gap-1.5 mb-1.5 px-1 w-full box-border">
-                            <div class="w-4 h-4 rounded bg-white/10 flex items-center justify-center border border-white/10">
+                            <div
+                                class="w-4 h-4 rounded bg-white/10 flex items-center justify-center border border-white/10">
                                 <Bot class="w-2 h-2 text-white" />
                             </div>
                             <span class="text-[8px] font-bold text-white uppercase tracking-widest">MOSAIC</span>
                             <Loader2 v-if="msg.isStreaming" class="w-2 h-2 text-white animate-spin opacity-50" />
 
-                            <span v-if="msg.model" class="ml-auto text-[7px] font-mono text-white/30 uppercase tracking-wider">
-                                {{ store.availableModels.find((m: any) => m.id === msg.model)?.name || msg.model.split('/').pop() }}
+                            <span v-if="msg.model"
+                                class="ml-auto text-[7px] font-mono text-white/30 uppercase tracking-wider">
+                                {{store.availableModels.find((m: any) => m.id === msg.model)?.name ||
+                                    msg.model.split('/').pop()}}
                             </span>
                         </div>
 
@@ -165,26 +177,36 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
                             <TodoDisplay v-if="getLatestTodo(msg)" :result="getLatestTodo(msg)" />
 
                             <div v-if="msg.events && msg.events.length > 0" class="space-y-1.5">
-                                <button @click="toggleActions(idx)" class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-[8px] font-bold uppercase tracking-widest text-white/30">
+                                <button @click="toggleActions(idx)"
+                                    class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-[8px] font-bold uppercase tracking-widest text-white/30">
                                     <Terminal class="w-2.5 h-2.5" />
-                                    Actions ({{ msg.events.filter((e: any) => e.type !== 'token').length }})
-                                    <ChevronDown class="w-2.5 h-2.5 transition-transform" :class="{ 'rotate-180': expandedActions[idx] }" />
+                                    Actions ({{msg.events.filter((e: any) => e.type !== 'token').length}})
+                                    <ChevronDown class="w-2.5 h-2.5 transition-transform"
+                                        :class="{ 'rotate-180': expandedActions[idx] }" />
                                 </button>
 
-                                <div v-if="expandedActions[idx]" class="space-y-2 animate-in slide-in-from-top-1 duration-200">
-                                    <div v-for="(event, eIdx) in msg.events" :key="eIdx" v-show="event.type !== 'token'" class="flex flex-col px-3 py-2 rounded bg-white/[0.01] border border-white/5">
+                                <div v-if="expandedActions[idx]"
+                                    class="space-y-2 animate-in slide-in-from-top-1 duration-200">
+                                    <div v-for="(event, eIdx) in msg.events" :key="eIdx" v-show="event.type !== 'token'"
+                                        class="flex flex-col px-3 py-2 rounded bg-white/[0.01] border border-white/5">
                                         <p class="text-[8px] font-bold text-white/20 uppercase tracking-widest mb-1">
-                                            {{ event.type === 'tool_started' ? 'Call' : event.type === 'tool_finished' ? 'Success' : 'Done' }}
+                                            {{ event.type === 'tool_started' ? 'Call' : event.type === 'tool_finished' ?
+                                                'Success' : 'Done' }}
                                         </p>
                                         <p class="text-[10px] font-mono text-white/60 truncate">
-                                            {{ event.type === 'tool_started' ? `> ${event.name}` : event.type === 'tool_finished' ? `> ${event.name}` : '> Protocol finished' }}
+                                            {{ event.type === 'tool_started' ? `> ${event.name}` : event.type ===
+                                                'tool_finished' ? `> ${event.name}` : '> Protocol finished' }}
                                         </p>
-                                        <div v-if="event.type === 'tool_started' && event.parameters" class="mt-2 p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32 whitespace-pre-wrap">
+                                        <div v-if="event.type === 'tool_started' && event.parameters"
+                                            class="mt-2 p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32 whitespace-pre-wrap">
                                             {{ event.parameters }}
                                         </div>
                                         <div v-if="event.type === 'tool_finished' && event.result" class="mt-2">
-                                            <TodoDisplay v-if="event.name === 'manage_todos' && event.result !== getLatestTodo(msg)" :result="event.result" />
-                                            <div v-else-if="event.name !== 'manage_todos'" class="p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32 whitespace-pre-wrap">
+                                            <TodoDisplay
+                                                v-if="event.name === 'manage_todos' && event.result !== getLatestTodo(msg)"
+                                                :result="event.result" />
+                                            <div v-else-if="event.name !== 'manage_todos'"
+                                                class="p-2 rounded bg-black/50 border border-white/5 text-[9px] font-mono text-white/20 overflow-x-auto max-h-32 whitespace-pre-wrap">
                                                 {{ event.result }}
                                             </div>
                                         </div>
@@ -192,15 +214,20 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
                                 </div>
                             </div>
 
-                            <div v-if="formatContent(msg.content)" class="relative group/msg px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white leading-relaxed font-medium text-[12px] prose prose-invert prose-sm max-w-none shadow-2xl" v-html="formatContent(msg.content)">
+                            <div v-if="formatContent(msg.content)"
+                                class="relative group/msg px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white leading-relaxed font-medium text-[12px] prose prose-invert prose-sm max-w-none shadow-2xl"
+                                v-html="formatContent(msg.content)">
                             </div>
 
                             <div v-if="formatContent(msg.content)" class="flex justify-end pr-1">
-                                <button @click="copyToClipboard(msg.content, idx)" class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/5 opacity-40 hover:opacity-100 transition-all active:scale-95 group/copy">
+                                <button @click="copyToClipboard(msg.content, idx)"
+                                    class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/5 opacity-40 hover:opacity-100 transition-all active:scale-95 group/copy">
                                     <Check v-if="copiedIdx === idx" class="w-2.5 h-2.5 text-green-400" />
                                     <template v-else>
                                         <Copy class="w-2.5 h-2.5 text-white/40 group-hover/copy:text-white" />
-                                        <span class="text-[8px] font-black uppercase tracking-widest text-white/20 group-hover/copy:text-white">Copy Answer</span>
+                                        <span
+                                            class="text-[8px] font-black uppercase tracking-widest text-white/20 group-hover/copy:text-white">Copy
+                                            Answer</span>
                                     </template>
                                 </button>
                             </div>
