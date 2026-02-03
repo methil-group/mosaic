@@ -123,22 +123,22 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
         </template>
         <template v-else>
             <!-- Chat Area -->
-            <main ref="scrollContainer" class="flex-1 overflow-y-auto px-4 py-6 space-y-8 scroll-smooth custom-scrollbar-mini">
-                <div v-if="instance.messages.length === 0" class="flex flex-col items-center justify-center py-12 opacity-30 text-center">
-                    <Bot class="w-8 h-8 text-white mb-4" />
-                    <p class="text-[10px] uppercase font-bold tracking-widest leading-relaxed">System Idle<br />{{ instance.currentWorkspace }}</p>
+            <main ref="scrollContainer" class="flex-1 overflow-y-auto px-4 py-4 space-y-5 scroll-smooth custom-scrollbar-mini">
+                <div v-if="instance.messages.length === 0" class="flex flex-col items-center justify-center py-8 opacity-30 text-center">
+                    <Bot class="w-6 h-6 text-white mb-3" />
+                    <p class="text-[9px] uppercase font-bold tracking-widest leading-relaxed">System Idle<br />{{ instance.currentWorkspace }}</p>
                 </div>
 
-                <div v-for="(msg, idx) in instance.messages" :key="idx" class="group animate-in fade-in slide-in-from-bottom-2 duration-300" :class="msg.role === 'user' ? 'flex flex-col items-end' : 'flex flex-col items-start'">
+                <div v-for="(msg, idx) in instance.messages" :key="idx" class="group animate-in fade-in slide-in-from-bottom-1 duration-300" :class="msg.role === 'user' ? 'flex flex-col items-end' : 'flex flex-col items-start'">
                     <!-- User Message -->
                     <template v-if="msg.role === 'user'">
-                        <div class="flex items-center gap-1.5 mb-2 px-1">
-                            <span class="text-[9px] font-bold text-white/20 uppercase tracking-widest">User</span>
-                            <div class="w-5 h-5 rounded bg-white/10 flex items-center justify-center border border-white/10">
-                                <User class="w-2.5 h-2.5 text-white/40" />
+                        <div class="flex items-center gap-1.5 mb-1.5 px-1">
+                            <span class="text-[8px] font-bold text-white/20 uppercase tracking-widest">User</span>
+                            <div class="w-4 h-4 rounded bg-white/10 flex items-center justify-center border border-white/10">
+                                <User class="w-2 h-2 text-white/40" />
                             </div>
                         </div>
-                        <div class="max-w-[90%] px-4 py-3 rounded-2xl bg-white text-black leading-relaxed font-bold text-xs relative group/msg">
+                        <div class="max-w-[95%] px-3.5 py-2.5 rounded-2xl bg-white text-black leading-relaxed font-bold text-[11px] relative group/msg">
                             {{ msg.content }}
                             <button @click="copyToClipboard(msg.content, idx)" class="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 rounded bg-white/5 border border-white/10 opacity-0 group-hover/msg:opacity-100 transition-all hover:bg-white/10 active:scale-95">
                                 <Check v-if="copiedIdx === idx" class="w-3 h-3 text-green-400" />
@@ -149,14 +149,14 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
 
                     <!-- Assistant Message -->
                     <template v-else>
-                        <div class="flex items-center gap-1.5 mb-2 px-1 w-full box-border">
-                            <div class="w-5 h-5 rounded bg-white/10 flex items-center justify-center border border-white/10">
-                                <Bot class="w-2.5 h-2.5 text-white" />
+                        <div class="flex items-center gap-1.5 mb-1.5 px-1 w-full box-border">
+                            <div class="w-4 h-4 rounded bg-white/10 flex items-center justify-center border border-white/10">
+                                <Bot class="w-2 h-2 text-white" />
                             </div>
-                            <span class="text-[9px] font-bold text-white uppercase tracking-widest">MOSAIC</span>
-                            <Loader2 v-if="msg.isStreaming" class="w-2.5 h-2.5 text-white animate-spin opacity-50" />
+                            <span class="text-[8px] font-bold text-white uppercase tracking-widest">MOSAIC</span>
+                            <Loader2 v-if="msg.isStreaming" class="w-2 h-2 text-white animate-spin opacity-50" />
 
-                            <span v-if="msg.model" class="ml-auto text-[8px] font-mono text-white/30 uppercase tracking-wider">
+                            <span v-if="msg.model" class="ml-auto text-[7px] font-mono text-white/30 uppercase tracking-wider">
                                 {{ store.availableModels.find((m: any) => m.id === msg.model)?.name || msg.model.split('/').pop() }}
                             </span>
                         </div>
@@ -192,7 +192,7 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
                                 </div>
                             </div>
 
-                            <div v-if="formatContent(msg.content)" class="relative group/msg px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white leading-relaxed font-medium text-[13px] prose prose-invert prose-sm max-w-none shadow-2xl" v-html="formatContent(msg.content)">
+                            <div v-if="formatContent(msg.content)" class="relative group/msg px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white leading-relaxed font-medium text-[12px] prose prose-invert prose-sm max-w-none shadow-2xl" v-html="formatContent(msg.content)">
                             </div>
 
                             <div v-if="formatContent(msg.content)" class="flex justify-end pr-1">

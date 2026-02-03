@@ -3,9 +3,9 @@ import { dirname as dirname$1, join as join$1 } from "path";
 import { fileURLToPath } from "url";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import * as fs from "node:fs/promises";
 import { join, dirname } from "node:path";
 import * as os from "node:os";
+import * as fs from "node:fs/promises";
 import axios from "axios";
 import * as dotenv from "dotenv";
 import __cjs_mod__ from "node:module";
@@ -20,7 +20,6 @@ const is = {
   isMacOS: process.platform === "darwin",
   isLinux: process.platform === "linux"
 });
-const execPromise = promisify(exec);
 class Tool {
   expandPath(path) {
     if (path.startsWith("~/")) {
@@ -32,6 +31,7 @@ class Tool {
     return path;
   }
 }
+const execPromise = promisify(exec);
 class BashTool extends Tool {
   constructor() {
     super(...arguments);
@@ -620,7 +620,8 @@ ipcMain.handle("providers:get", () => {
       name: "OpenRouter",
       models: [
         { id: "deepseek/deepseek-v3.2", name: "DeepSeek 3.2" },
-        { id: "mistralai/devstral-2512", name: "Devstral 2512" }
+        { id: "mistralai/devstral-2512", name: "Devstral 2512" },
+        { id: "stepfun/step-3.5-flash:free", name: "Step 3.5 Flash" }
       ]
     }]
   };

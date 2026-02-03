@@ -8,6 +8,7 @@ export interface Workspace {
   path: string;
   description?: string;
   color?: string;
+  defaultModel?: string;
 }
 
 export class WorkspaceService {

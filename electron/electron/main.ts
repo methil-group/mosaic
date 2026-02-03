@@ -114,6 +114,7 @@ ipcMain.handle('providers:get', () => {
       models: [
         { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
         { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
+        { id: 'stepfun/step-3.5-flash:free', name: 'Step 3.5 Flash' },
       ]
     }]
   }

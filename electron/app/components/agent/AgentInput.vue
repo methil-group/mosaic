@@ -119,7 +119,7 @@ const handleSend = async () => {
 
 <template>
     <footer v-if="instance"
-        class="p-6 bg-gradient-to-t from-black via-black/80 to-transparent border-t border-white/5 shrink-0">
+        class="p-4 bg-gradient-to-t from-black via-black/80 to-transparent border-t border-white/5 shrink-0">
         <div class="relative group max-w-4xl mx-auto w-full">
             <!-- Queue Indicator -->
             <div v-if="instance.messageQueue.length > 0"
@@ -157,7 +157,7 @@ const handleSend = async () => {
 
             <textarea ref="textareaRef" v-model="prompt" @keydown="handleKeydown" @input="handleInput"
                 placeholder="Ask anything or use @ to mention files..."
-                class="relative w-full bg-[#0a0a0a] border border-white/10 placeholder-white/20 text-white rounded-xl py-[18px] pl-5 pr-14 resize-none h-[56px] min-h-[56px] max-h-48 font-medium text-sm transition-all focus:outline-none focus:border-white/20 shadow-inner overflow-hidden"
+                class="relative w-full bg-[#0a0a0a] border border-white/10 placeholder-white/20 text-white rounded-xl py-3 pl-5 pr-14 resize-none h-12 min-h-[48px] max-h-48 font-medium text-sm transition-all focus:outline-none focus:border-white/20 shadow-inner overflow-hidden"
                 :class="{ 'overflow-y-auto': textareaRef && textareaRef.scrollHeight > 192 }"></textarea>
 
             <!-- Action Button (Send/Stop/Queue) -->
