@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
 import { useAgentStore } from '~/stores/agent'
-import { ArrowLeft, Bot, Settings, Code, Terminal, BotIcon, Save, History, Database, Trash2 } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { ArrowLeft, Bot, Settings, Terminal, BotIcon, Save, History, Database, Trash2, Folder, FolderOpen, ChevronRight, Home, ArrowUp, RefreshCw, X } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +20,69 @@ const terminateAgent = () => {
         store.removeInstance(id)
         router.push('/agents')
     }
+}
+
+// File Explorer Modal state
+const showFileExplorer = ref(false)
+const currentPath = ref('~')
+const directories = ref<string[]>([])
+const isLoading = ref(false)
+
+const openFileExplorer = () => {
+    showFileExplorer.value = true
+    if (agent.value?.currentWorkspace) {
+        loadDirectories(agent.value.currentWorkspace)
+    } else {
+        loadDirectories('~')
+    }
+}
+
+const closeFileExplorer = () => {
+    showFileExplorer.value = false
+}
+
+const loadDirectories = async (path: string) => {
+    isLoading.value = true
+    try {
+        const result = await store.listDirectories(path)
+        directories.value = result.filter(d => !d.startsWith('.'))
+        currentPath.value = path
+    } catch (e) {
+        console.error(e)
+    } finally {
+        isLoading.value = false
+    }
+}
+
+const navigateToFolder = (folderName: string) => {
+    const newPath = currentPath.value.endsWith('/')
+        ? `${currentPath.value}${folderName}`
+        : `${currentPath.value}/${folderName}`
+    loadDirectories(newPath)
+}
+
+const navigateUp = () => {
+    const path = currentPath.value
+    if (path === '~' || path === '/') return
+    const lastSlash = path.lastIndexOf('/')
+    if (lastSlash > 0) {
+        loadDirectories(path.substring(0, lastSlash))
+    } else if (lastSlash === 0) {
+        loadDirectories('/')
+    } else {
+        loadDirectories('~')
+    }
+}
+
+const navigateHome = () => {
+    loadDirectories('~')
+}
+
+const selectFolder = () => {
+    if (agent.value) {
+        agent.value.currentWorkspace = currentPath.value
+    }
+    closeFileExplorer()
 }
 </script>
 
@@ -96,8 +159,15 @@ const terminateAgent = () => {
                                     <label
                                         class="text-[9px] font-bold text-white/20 uppercase tracking-widest ml-1">Current
                                         Workspace</label>
-                                    <input v-model="agent.currentWorkspace" type="text"
-                                        class="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-[10px] font-mono text-white focus:outline-none focus:border-white/20 focus:bg-white/10 transition-all" />
+                                    <button @click="openFileExplorer"
+                                        class="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-[10px] font-mono text-white/60 text-left hover:border-white/20 hover:bg-white/10 transition-all flex items-center gap-3 group">
+                                        <Folder
+                                            class="w-4 h-4 text-yellow-500/60 group-hover:text-yellow-500 transition-colors shrink-0" />
+                                        <span class="truncate flex-1">{{ agent.currentWorkspace || 'Click to select...'
+                                            }}</span>
+                                        <ChevronRight
+                                            class="w-3 h-3 text-white/20 group-hover:text-white/40 transition-colors shrink-0" />
+                                    </button>
                                 </div>
                             </div>
 
@@ -123,7 +193,96 @@ const terminateAgent = () => {
                 </section>
             </div>
         </div>
+
+        <!-- File Explorer Modal -->
+        <Teleport to="body">
+            <Transition name="modal">
+                <div v-if="showFileExplorer" class="fixed inset-0 z-50 flex items-center justify-center p-8">
+                    <!-- Backdrop -->
+                    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" @click="closeFileExplorer"></div>
+
+                    <!-- Modal -->
+                    <div
+                        class="relative w-full max-w-xl bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+                        <!-- Modal Header -->
+                        <div class="p-6 border-b border-white/5 shrink-0">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <FolderOpen class="w-5 h-5 text-yellow-500" />
+                                    <h2 class="text-sm font-black uppercase tracking-widest text-white">Select Workspace
+                                    </h2>
+                                </div>
+                                <button @click="closeFileExplorer"
+                                    class="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-all">
+                                    <X class="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <!-- Navigation -->
+                            <div class="flex items-center gap-2 mt-4">
+                                <button @click="navigateHome"
+                                    class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all"
+                                    title="Home">
+                                    <Home class="w-4 h-4" />
+                                </button>
+                                <button @click="navigateUp"
+                                    class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all"
+                                    :disabled="currentPath === '~' || currentPath === '/'"
+                                    :class="{ 'opacity-30 cursor-not-allowed': currentPath === '~' || currentPath === '/' }"
+                                    title="Up">
+                                    <ArrowUp class="w-4 h-4" />
+                                </button>
+                                <button @click="loadDirectories(currentPath)"
+                                    class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all"
+                                    title="Refresh">
+                                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
+                                </button>
+                                <div
+                                    class="flex-1 px-4 py-2 bg-white/5 rounded-lg text-[11px] font-mono text-white/60 truncate">
+                                    {{ currentPath }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Directory List -->
+                        <div class="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
+                            <div v-if="directories.length === 0 && !isLoading"
+                                class="flex flex-col items-center justify-center py-12 opacity-30">
+                                <Folder class="w-8 h-8" />
+                                <span class="text-[10px] font-bold uppercase tracking-widest mt-3">No folders
+                                    here</span>
+                            </div>
+
+                            <div v-else class="space-y-1">
+                                <button v-for="dir in directories" :key="dir" @click="navigateToFolder(dir)"
+                                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-left transition-all group">
+                                    <Folder
+                                        class="w-4 h-4 text-yellow-500/60 group-hover:text-yellow-500 transition-colors shrink-0" />
+                                    <span
+                                        class="text-xs font-bold text-white/60 group-hover:text-white transition-colors truncate">{{
+                                        dir }}</span>
+                                    <ChevronRight
+                                        class="w-3 h-3 text-white/20 group-hover:text-white/40 ml-auto transition-colors shrink-0" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Modal Footer -->
+                        <div class="p-6 border-t border-white/5 shrink-0 flex items-center justify-between">
+                            <div class="text-[10px] font-mono text-white/40 truncate max-w-[300px]">
+                                {{ currentPath }}
+                            </div>
+                            <button @click="selectFolder"
+                                class="px-6 py-3 bg-white text-black text-[10px] font-black uppercase tracking-[0.15em] rounded-xl transition-all hover:scale-105 active:scale-95">
+                                Select This Folder
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
     </div>
+
     <div v-else class="h-full flex items-center justify-center bg-[#050505]">
         <div class="flex flex-col items-center gap-4 opacity-50">
             <div class="w-12 h-12 rounded-full border-2 border-white/10 border-t-white animate-spin"></div>
@@ -144,5 +303,21 @@ const terminateAgent = () => {
 .custom-scrollbar::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 10px;
+}
+
+/* Modal transitions */
+.modal-enter-active,
+.modal-leave-active {
+    transition: all 0.25s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+    opacity: 0;
+}
+
+.modal-enter-from>div:last-child,
+.modal-leave-to>div:last-child {
+    transform: scale(0.95);
 }
 </style>
