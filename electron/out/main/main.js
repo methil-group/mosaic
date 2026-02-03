@@ -346,6 +346,12 @@ class Agent {
               role: "user",
               content: "You said you would do something but didn't call a tool. Please call the appropriate tool now to complete the action you described."
             });
+          } else if (!contentWithoutTool || contentWithoutTool.length < 10) {
+            console.log("[Agent] Empty or too short response, nudging for answer...");
+            this.messages.push({
+              role: "user",
+              content: "Please provide a complete answer to my original question based on what you have learned, or call another tool if you need more information."
+            });
           } else {
             console.log("[Agent] Final answer received");
             console.log("[Agent] Step content:", JSON.stringify(stepResult.content));
@@ -364,18 +370,33 @@ class Agent {
     console.log("[Agent] Running step...");
     return new Promise((resolve, reject) => {
       let accumulated = "";
-      let isInsideToolCall = false;
+      let emittedLength = 0;
       this.llm.streamChat(this.model, this.messages, {
         onToken: (token) => {
           accumulated += token;
-          if (accumulated.includes("<tool_call>") && !isInsideToolCall) {
-            isInsideToolCall = true;
-          }
-          if (!isInsideToolCall) {
-            this.onEvent({ type: "token", data: token });
-          }
-          if (accumulated.includes("</tool_call>") && isInsideToolCall) {
-            isInsideToolCall = false;
+          const toolCallStart = accumulated.indexOf("<tool_call>");
+          if (toolCallStart === -1) {
+            let safeEnd = accumulated.length;
+            const potentialStarts = ["<", "<t", "<to", "<too", "<tool", "<tool_", "<tool_c", "<tool_ca", "<tool_cal", "<tool_call"];
+            for (const prefix of potentialStarts) {
+              if (accumulated.endsWith(prefix)) {
+                safeEnd = accumulated.length - prefix.length;
+                break;
+              }
+            }
+            if (safeEnd > emittedLength) {
+              const toEmit = accumulated.substring(emittedLength, safeEnd);
+              this.onEvent({ type: "token", data: toEmit });
+              emittedLength = safeEnd;
+            }
+          } else if (toolCallStart > emittedLength) {
+            const toEmit = accumulated.substring(emittedLength, toolCallStart);
+            if (toEmit) {
+              this.onEvent({ type: "token", data: toEmit });
+            }
+            emittedLength = accumulated.length;
+          } else {
+            emittedLength = accumulated.length;
           }
         },
         onError: (error) => {

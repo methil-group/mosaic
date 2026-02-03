@@ -90,6 +90,14 @@ export class Agent {
               content: 'You said you would do something but didn\'t call a tool. Please call the appropriate tool now to complete the action you described.' 
             });
             // Continue the loop
+          } else if (!contentWithoutTool || contentWithoutTool.length < 10) {
+            // Empty or very short response - nudge for a real answer
+            console.log('[Agent] Empty or too short response, nudging for answer...');
+            this.messages.push({ 
+              role: 'user', 
+              content: 'Please provide a complete answer to my original question based on what you have learned, or call another tool if you need more information.' 
+            });
+            // Continue the loop
           } else {
             console.log('[Agent] Final answer received');
             console.log('[Agent] Step content:', JSON.stringify(stepResult.content));
@@ -109,23 +117,44 @@ export class Agent {
     console.log('[Agent] Running step...');
     return new Promise((resolve, reject) => {
       let accumulated = "";
-      let isInsideToolCall = false;
+      let emittedLength = 0; // Track how much we've already emitted
 
       this.llm.streamChat(this.model, this.messages, {
         onToken: (token) => {
           accumulated += token;
           
-          // Basic state machine to avoid emitting tool call tokens to UI
-          if (accumulated.includes('<tool_call>') && !isInsideToolCall) {
-            isInsideToolCall = true;
-          }
-
-          if (!isInsideToolCall) {
-            this.onEvent({ type: 'token', data: token });
-          }
-
-          if (accumulated.includes('</tool_call>') && isInsideToolCall) {
-            isInsideToolCall = false;
+          // Find the safe portion to emit (everything before any potential <tool_call>)
+          const toolCallStart = accumulated.indexOf('<tool_call>');
+          
+          if (toolCallStart === -1) {
+            // No tool call found yet - but be careful about partial matches
+            // Check if the end of accumulated could be the start of <tool_call>
+            let safeEnd = accumulated.length;
+            const potentialStarts = ['<', '<t', '<to', '<too', '<tool', '<tool_', '<tool_c', '<tool_ca', '<tool_cal', '<tool_call'];
+            
+            for (const prefix of potentialStarts) {
+              if (accumulated.endsWith(prefix)) {
+                safeEnd = accumulated.length - prefix.length;
+                break;
+              }
+            }
+            
+            // Emit the safe portion
+            if (safeEnd > emittedLength) {
+              const toEmit = accumulated.substring(emittedLength, safeEnd);
+              this.onEvent({ type: 'token', data: toEmit });
+              emittedLength = safeEnd;
+            }
+          } else if (toolCallStart > emittedLength) {
+            // Tool call found - emit everything before it
+            const toEmit = accumulated.substring(emittedLength, toolCallStart);
+            if (toEmit) {
+              this.onEvent({ type: 'token', data: toEmit });
+            }
+            emittedLength = accumulated.length; // Don't emit anything more
+          } else {
+            // We're inside a tool call, don't emit
+            emittedLength = accumulated.length;
           }
         },
         onError: (error) => {
