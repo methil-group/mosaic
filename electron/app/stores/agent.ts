@@ -60,6 +60,8 @@ export interface State {
   workspaces: Workspace[]
   currentView: 'grid' | 'workspaces' | 'workspace-detail'
   activeWorkspaceId: string | null
+  // Layout persistence: keyed by agent IDs hash
+  customLayouts: Record<string, any>
 }
 
 const AGENT_NAMES = [
@@ -79,7 +81,8 @@ export const useAgentStore = defineStore('agent', {
     filesCache: {},
     workspaces: [],
     currentView: 'grid',
-    activeWorkspaceId: null
+    activeWorkspaceId: null,
+    customLayouts: {}
   }),
   getters: {
     availableModels: (state): Model[] => {

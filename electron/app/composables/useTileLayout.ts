@@ -1,4 +1,5 @@
-import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
+import { computed, watch, type Ref, type ComputedRef } from 'vue'
+import { useAgentStore } from '~/stores/agent'
 
 /**
  * Layout tree node types for Hyprland-style tiling
@@ -46,6 +47,7 @@ export interface ResizeHandle {
 }
 
 const GAP = 0.5 // Gap as percentage
+const MAX_AGENTS = 4 // Maximum agents visible on screen
 
 /**
  * Convert a layout tree to tile positions (percentages)
@@ -70,7 +72,6 @@ function nodeToPositions(
   const { direction, ratio, children } = node
 
   if (direction === 'horizontal') {
-    // Side by side
     const firstWidth = width * ratio - GAP / 2
     const secondWidth = width * (1 - ratio) - GAP / 2
     return [
@@ -78,7 +79,6 @@ function nodeToPositions(
       ...nodeToPositions(children[1], left + width * ratio + GAP / 2, top, secondWidth, height)
     ]
   } else {
-    // Stacked vertically
     const firstHeight = height * ratio - GAP / 2
     const secondHeight = height * (1 - ratio) - GAP / 2
     return [
@@ -106,7 +106,6 @@ function getResizeHandles(
   const handleId = path.length === 0 ? 'handle-root' : `handle-${path.join('-')}`
 
   if (direction === 'horizontal') {
-    // Vertical divider line
     const dividerLeft = left + width * ratio
     handles.push({
       id: handleId,
@@ -117,7 +116,6 @@ function getResizeHandles(
       height: height,
       path: [...path]
     })
-    // Recurse into children
     const firstWidth = width * ratio
     const secondWidth = width * (1 - ratio)
     handles.push(
@@ -125,7 +123,6 @@ function getResizeHandles(
       ...getResizeHandles(children[1], left + firstWidth, top, secondWidth, height, [...path, 1])
     )
   } else {
-    // Horizontal divider line
     const dividerTop = top + height * ratio
     handles.push({
       id: handleId,
@@ -136,7 +133,6 @@ function getResizeHandles(
       height: 1,
       path: [...path]
     })
-    // Recurse into children
     const firstHeight = height * ratio
     const secondHeight = height * (1 - ratio)
     handles.push(
@@ -187,56 +183,31 @@ export function buildAutoTileLayout(ids: string[]): LayoutNode | null {
     }
   }
 
-  if (ids.length === 4) {
-    return {
-      type: 'split',
-      direction: 'horizontal',
-      ratio: 0.5,
-      children: [
-        {
-          type: 'split',
-          direction: 'vertical',
-          ratio: 0.5,
-          children: [
-            { type: 'tile', id: ids[0]! },
-            { type: 'tile', id: ids[2]! }
-          ]
-        },
-        {
-          type: 'split',
-          direction: 'vertical',
-          ratio: 0.5,
-          children: [
-            { type: 'tile', id: ids[1]! },
-            { type: 'tile', id: ids[3]! }
-          ]
-        }
-      ]
-    }
-  }
-
-  // 5+ items: master-stack layout
-  const masterNode: TileNode = { type: 'tile', id: ids[0]! }
-  const stackIds = ids.slice(1)
-  
-  const buildStack = (stackIds: string[]): LayoutNode => {
-    if (stackIds.length === 1) return { type: 'tile', id: stackIds[0]! }
-    return {
-      type: 'split',
-      direction: 'vertical',
-      ratio: 1 / stackIds.length,
-      children: [
-        { type: 'tile', id: stackIds[0]! },
-        buildStack(stackIds.slice(1))
-      ]
-    }
-  }
-
+  // 4 agents: 2x2 grid
   return {
     type: 'split',
     direction: 'horizontal',
     ratio: 0.5,
-    children: [masterNode, buildStack(stackIds)]
+    children: [
+      {
+        type: 'split',
+        direction: 'vertical',
+        ratio: 0.5,
+        children: [
+          { type: 'tile', id: ids[0]! },
+          { type: 'tile', id: ids[2]! }
+        ]
+      },
+      {
+        type: 'split',
+        direction: 'vertical',
+        ratio: 0.5,
+        children: [
+          { type: 'tile', id: ids[1]! },
+          { type: 'tile', id: ids[3]! }
+        ]
+      }
+    ]
   }
 }
 
@@ -280,29 +251,35 @@ function updateRatioAtPath(node: LayoutNode, path: number[], newRatio: number): 
 
 /**
  * Vue composable for managing tile layout with resize support
+ * Uses Pinia store for persistence across navigation
  */
 export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>) {
-  // Store mutable layout tree
-  const customLayout = ref<LayoutNode | null>(null)
-  const lastIdsHash = ref<string>('')
-  const isDragging = ref(false)
+  const store = useAgentStore()
+  const isDragging = computed(() => false) // Will be managed locally in component
   
-  const getIdsHash = (ids: string[]) => ids.join(',')
+  const getIdsHash = (ids: string[]) => ids.slice(0, MAX_AGENTS).join(',')
   
-  // Reset custom layout when visible IDs change
-  watch(visibleIds, (newIds) => {
-    const newHash = getIdsHash(newIds)
-    if (newHash !== lastIdsHash.value) {
-      lastIdsHash.value = newHash
-      customLayout.value = null
-    }
-  }, { immediate: true })
+  // Limit to MAX_AGENTS
+  const limitedIds = computed(() => visibleIds.value.slice(0, MAX_AGENTS))
+  const hiddenCount = computed(() => Math.max(0, visibleIds.value.length - MAX_AGENTS))
+  
+  // Get custom layout from store
+  const getStoredLayout = (): LayoutNode | null => {
+    const hash = getIdsHash(limitedIds.value)
+    const stored = store.customLayouts[hash]
+    return stored ? (stored as LayoutNode) : null
+  }
+  
+  // Save layout to store
+  const saveLayout = (layout: LayoutNode) => {
+    const hash = getIdsHash(limitedIds.value)
+    store.customLayouts[hash] = layout
+  }
   
   const layoutTree = computed<LayoutNode | null>(() => {
-    if (customLayout.value) {
-      return customLayout.value
-    }
-    return buildAutoTileLayout(visibleIds.value)
+    const stored = getStoredLayout()
+    if (stored) return stored
+    return buildAutoTileLayout(limitedIds.value)
   })
 
   const tilePositions = computed<TilePosition[]>(() => {
@@ -315,7 +292,7 @@ export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>)
     return getResizeHandles(layoutTree.value, 0, 0, 100, 100)
   })
 
-  const getTileStyle = (id: string) => {
+  const getTileStyle = (id: string, dragging: boolean = false) => {
     const pos = tilePositions.value.find(p => p.id === id)
     if (!pos) return {}
     return {
@@ -324,13 +301,12 @@ export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>)
       top: `${pos.top}%`,
       width: `${pos.width}%`,
       height: `${pos.height}%`,
-      // No transition during drag for instant feedback
-      transition: isDragging.value ? 'none' : 'left 0.25s ease-out, top 0.25s ease-out, width 0.25s ease-out, height 0.25s ease-out'
+      transition: dragging ? 'none' : 'left 0.25s ease-out, top 0.25s ease-out, width 0.25s ease-out, height 0.25s ease-out'
     }
   }
 
   const getHandleStyle = (handle: ResizeHandle) => {
-    const hitPadding = 8 // px for hit area
+    const hitPadding = 8
     if (handle.direction === 'horizontal') {
       return {
         position: 'absolute' as const,
@@ -355,26 +331,22 @@ export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>)
   }
 
   const updateSplitRatio = (path: number[], newRatio: number) => {
-    const currentLayout = customLayout.value ?? buildAutoTileLayout(visibleIds.value)
+    const currentLayout = getStoredLayout() ?? buildAutoTileLayout(limitedIds.value)
     if (!currentLayout) return
     
     const cloned = cloneLayoutNode(currentLayout)
     const updated = updateRatioAtPath(cloned, path, newRatio)
-    customLayout.value = updated
-  }
-
-  const setDragging = (value: boolean) => {
-    isDragging.value = value
+    saveLayout(updated)
   }
 
   return {
     layoutTree,
     tilePositions,
     resizeHandles,
-    isDragging,
+    limitedIds,
+    hiddenCount,
     getTileStyle,
     getHandleStyle,
-    updateSplitRatio,
-    setDragging
+    updateSplitRatio
   }
 }
