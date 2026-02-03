@@ -116,6 +116,13 @@ export const useAgentStore = defineStore('agent', {
       this.instanceIds = this.instanceIds.filter(i => i !== id)
     },
 
+    toggleVisibility(id: string) {
+      const instance = this.instances[id]
+      if (instance) {
+        instance.isVisible = !instance.isVisible
+      }
+    },
+
     async sendMessage(instanceId: string, prompt: string) {
       const instance = this.instances[instanceId]
       if (!instance) return

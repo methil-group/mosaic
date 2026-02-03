@@ -58,7 +58,7 @@ const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
 <template>
   <div class="h-full flex flex-col min-w-0 bg-black overflow-hidden">
     <div ref="gridContainer" v-if="limitedIds.length > 0"
-      class="flex-1 p-2 overflow-hidden bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] [background-size:24px_24px] relative">
+      class="flex-1 p-4 overflow-hidden bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] [background-size:24px_24px] relative">
 
       <!-- Hidden agents indicator -->
       <div v-if="hiddenCount > 0"

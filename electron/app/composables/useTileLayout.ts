@@ -46,7 +46,8 @@ export interface ResizeHandle {
   path: number[]
 }
 
-const GAP = 0.5 // Gap as percentage
+const GAP = 1 // Gap between tiles as percentage
+const MARGIN = 1.5 // Margin from container edges as percentage
 const MAX_AGENTS = 4 // Maximum agents visible on screen
 
 /**
@@ -284,12 +285,15 @@ export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>)
 
   const tilePositions = computed<TilePosition[]>(() => {
     if (!layoutTree.value) return []
-    return nodeToPositions(layoutTree.value, 0, 0, 100, 100)
+    // Add margin offset: start at MARGIN%, use (100 - 2*MARGIN)% of container
+    const usableSize = 100 - MARGIN * 2
+    return nodeToPositions(layoutTree.value, MARGIN, MARGIN, usableSize, usableSize)
   })
 
   const resizeHandles = computed<ResizeHandle[]>(() => {
     if (!layoutTree.value) return []
-    return getResizeHandles(layoutTree.value, 0, 0, 100, 100)
+    const usableSize = 100 - MARGIN * 2
+    return getResizeHandles(layoutTree.value, MARGIN, MARGIN, usableSize, usableSize)
   })
 
   const getTileStyle = (id: string, dragging: boolean = false) => {

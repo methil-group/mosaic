@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { useAgentStore } from '~/stores/agent'
-import { Bot, User, Terminal, Loader2, Sparkles, Trash2, Copy, Check, Settings, ChevronDown } from 'lucide-vue-next'
+import { Bot, User, Terminal, Loader2, Sparkles, Trash2, Copy, Check, Settings, ChevronDown, EyeOff } from 'lucide-vue-next'
 import TodoDisplay from './TodoDisplay.vue'
 import AgentInput from './AgentInput.vue'
 import AgentSettingsModal from './AgentSettingsModal.vue'
@@ -108,9 +108,10 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
                     <Settings class="w-3.5 h-3.5" />
                 </button>
 
-                <button @click="store.removeInstance(instanceId)"
-                    class="p-1.5 rounded bg-white/5 border border-white/5 hover:bg-red-500/20 hover:border-red-500/30 transition-all text-white/20 hover:text-red-400">
-                    <Trash2 class="w-3 h-3" />
+                <button @click="store.toggleVisibility(instanceId)"
+                    class="p-1.5 rounded bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-white/20 hover:text-white/60"
+                    title="Hide from grid">
+                    <EyeOff class="w-3 h-3" />
                 </button>
             </div>
         </header>
