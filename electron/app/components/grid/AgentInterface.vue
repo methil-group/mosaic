@@ -12,14 +12,13 @@ const visibleInstances = computed(() => {
   return store.instanceIds.filter(id => store.instances[id]?.isVisible)
 })
 
-const { getTileStyle, getHandleStyle, resizeHandles, updateSplitRatio } = useTileLayout(visibleInstances)
+const { getTileStyle, getHandleStyle, resizeHandles, updateSplitRatio, isDragging, setDragging } = useTileLayout(visibleInstances)
 
 // Drag state
-const isDragging = ref(false)
 const activeHandle = ref<ResizeHandle | null>(null)
 
 const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
-  isDragging.value = true
+  setDragging(true)
   activeHandle.value = handle
   event.preventDefault()
   
@@ -31,20 +30,16 @@ const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
     
     let newRatio: number
     if (handle.direction === 'horizontal') {
-      // Calculate relative to handle's parent split area
-      const mouseX = e.clientX - rect.left
-      const parentLeft = (handle.left - handle.width / 2) // Approximate parent left
-      newRatio = mouseX / rect.width
+      newRatio = (e.clientX - rect.left) / rect.width
     } else {
-      const mouseY = e.clientY - rect.top
-      newRatio = mouseY / rect.height
+      newRatio = (e.clientY - rect.top) / rect.height
     }
     
     updateSplitRatio(handle.path, newRatio)
   }
   
   const onMouseUp = () => {
-    isDragging.value = false
+    setDragging(false)
     activeHandle.value = null
     document.removeEventListener('mousemove', onMouseMove)
     document.removeEventListener('mouseup', onMouseUp)

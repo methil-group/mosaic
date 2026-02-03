@@ -285,6 +285,7 @@ export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>)
   // Store mutable layout tree
   const customLayout = ref<LayoutNode | null>(null)
   const lastIdsHash = ref<string>('')
+  const isDragging = ref(false)
   
   const getIdsHash = (ids: string[]) => ids.join(',')
   
@@ -323,7 +324,8 @@ export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>)
       top: `${pos.top}%`,
       width: `${pos.width}%`,
       height: `${pos.height}%`,
-      transition: 'left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease'
+      // No transition during drag for instant feedback
+      transition: isDragging.value ? 'none' : 'left 0.25s ease-out, top 0.25s ease-out, width 0.25s ease-out, height 0.25s ease-out'
     }
   }
 
@@ -361,12 +363,18 @@ export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>)
     customLayout.value = updated
   }
 
+  const setDragging = (value: boolean) => {
+    isDragging.value = value
+  }
+
   return {
     layoutTree,
     tilePositions,
     resizeHandles,
+    isDragging,
     getTileStyle,
     getHandleStyle,
-    updateSplitRatio
+    updateSplitRatio,
+    setDragging
   }
 }
