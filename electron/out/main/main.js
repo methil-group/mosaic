@@ -328,7 +328,7 @@ class Agent {
     let loop = true;
     let toolRetryCount = 0;
     let totalSteps = 0;
-    const maxSteps = 25;
+    const maxSteps = 100;
     const maxToolRetries = 3;
     const accumulatedAssistantContent = [];
     let lastToolCallFingerprint = "";
