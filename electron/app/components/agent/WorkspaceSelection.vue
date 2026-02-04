@@ -79,7 +79,7 @@ const handleEnter = (event: KeyboardEvent) => {
             return
         }
     }
-    
+
     if (workspacePath.value) {
         setWorkspace()
     }
@@ -115,69 +115,72 @@ watch(workspacePath, () => {
 </script>
 
 <template>
-    <div class="w-full h-full overflow-y-auto bg-black relative custom-scrollbar-mini">
+    <div class="w-full h-full overflow-y-auto bg-gray-50 relative custom-scrollbar-mini">
         <!-- Background Glow -->
         <div class="absolute inset-0 overflow-hidden pointer-events-none">
-            <div class="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-white/5 rounded-full blur-[120px]"></div>
-            <div class="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-white/2 rounded-full blur-[120px]"></div>
+            <div class="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-gray-200/50 rounded-full blur-[120px]"></div>
+            <div class="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-gray-100/50 rounded-full blur-[120px]"></div>
         </div>
 
         <div class="flex flex-col items-center justify-center min-h-full p-4 lg:p-10 w-full box-border">
             <div class="w-full max-w-5xl animate-in fade-in zoom-in-95 duration-500 relative z-10">
                 <!-- Header (Always centered on top) -->
                 <div class="flex flex-col items-center text-center space-y-3 mb-8 lg:mb-12">
-                    <div class="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-2xl">
-                        <Bot class="w-6 h-6 text-black" />
+                    <div class="w-12 h-12 rounded-2xl bg-gray-900 flex items-center justify-center shadow-2xl">
+                        <Bot class="w-6 h-6 text-white" />
                     </div>
                     <div class="space-y-1">
-                        <h2 class="text-xs font-black uppercase tracking-[0.3em] text-white">Initialize Agent</h2>
-                        <p class="text-[10px] font-bold text-white/20 uppercase tracking-widest">Setup workspace & configuration</p>
+                        <h2 class="text-xs font-black uppercase tracking-[0.3em] text-gray-900">Initialize Agent</h2>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Setup workspace &
+                            configuration</p>
                     </div>
                 </div>
 
                 <!-- Main Content Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
-                    
+
                     <!-- Left: Identity & Path -->
                     <div class="space-y-5">
                         <!-- Name Section -->
                         <div class="space-y-1.5">
-                            <label class="text-[8px] font-black uppercase tracking-widest text-white/30 ml-1">Instance Name</label>
-                            <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:ring-4 focus-within:ring-white/5 focus-within:border-white/20 transition-all">
-                                <Sparkles class="w-4 h-4 text-white/20" />
-                                <input v-model="agentName" 
-                                    class="flex-1 bg-transparent border-none p-0 text-sm font-bold text-white outline-none placeholder:text-white/10"
+                            <label class="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Instance
+                                Name</label>
+                            <div
+                                class="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 focus-within:ring-4 focus-within:ring-gray-100 focus-within:border-gray-400 transition-all shadow-sm">
+                                <Sparkles class="w-4 h-4 text-gray-400" />
+                                <input v-model="agentName"
+                                    class="flex-1 bg-transparent border-none p-0 text-sm font-bold text-gray-900 outline-none placeholder:text-gray-300"
                                     placeholder="AGENT NAME" />
                             </div>
                         </div>
 
                         <!-- Workspace Section -->
                         <div class="space-y-1.5">
-                            <label class="text-[8px] font-black uppercase tracking-widest text-white/30 ml-1">Workspace Path</label>
+                            <label class="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Workspace
+                                Path</label>
                             <div class="relative">
-                                <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 focus-within:ring-8 focus-within:ring-white/5 focus-within:border-white/40 transition-all bg-gradient-to-br from-white/[0.02] to-transparent">
-                                    <Folder class="w-5 h-5 text-white/40" />
+                                <div
+                                    class="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3.5 focus-within:ring-8 focus-within:ring-gray-100 focus-within:border-gray-400 transition-all shadow-sm">
+                                    <Folder class="w-5 h-5 text-gray-400" />
                                     <input v-model="workspacePath"
                                         @focus="isInputFocused = true; fetchWorkspaceSuggestions()"
-                                        @blur="closeWorkspaceMenu" 
-                                        @keydown.tab="handleTab"
-                                        @keydown.enter="handleEnter"
-                                        class="flex-1 bg-transparent border-none p-0 text-[13px] font-mono text-white outline-none placeholder:text-white/10"
+                                        @blur="closeWorkspaceMenu" @keydown.tab="handleTab" @keydown.enter="handleEnter"
+                                        class="flex-1 bg-transparent border-none p-0 text-[13px] font-mono text-gray-900 outline-none placeholder:text-gray-300"
                                         placeholder="/path/to/workspace" />
                                 </div>
 
                                 <!-- Autocomplete Dropdown -->
                                 <div v-if="isWorkspaceMenuOpen"
-                                    class="absolute top-full left-0 right-0 mt-2 bg-black border border-white/10 rounded-xl shadow-3xl z-[150] overflow-hidden">
+                                    class="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-[150] overflow-hidden">
                                     <div class="max-h-48 overflow-y-auto p-1 space-y-0.5 custom-scrollbar-mini">
                                         <button v-for="(dir, sIdx) in workspaceSuggestions" :key="dir"
                                             @mousedown.prevent="selectWorkspaceSuggestion(dir)"
-                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-left transition-colors group"
-                                            :class="{ 'bg-white/10': selectedIndex === sIdx }">
-                                            <Folder class="w-3.5 h-3.5 text-white/20 group-hover:text-white/60"
-                                                :class="{ 'text-white/60': selectedIndex === sIdx }" />
-                                            <span class="text-xs font-mono text-white/40 group-hover:text-white"
-                                                :class="{ 'text-white': selectedIndex === sIdx }">{{ dir }}</span>
+                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 text-left transition-colors group"
+                                            :class="{ 'bg-gray-200': selectedIndex === sIdx }">
+                                            <Folder class="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600"
+                                                :class="{ 'text-gray-600': selectedIndex === sIdx }" />
+                                            <span class="text-xs font-mono text-gray-500 group-hover:text-gray-900"
+                                                :class="{ 'text-gray-900': selectedIndex === sIdx }">{{ dir }}</span>
                                         </button>
                                     </div>
                                 </div>
@@ -188,15 +191,20 @@ watch(workspacePath, () => {
                     <!-- Right: Logic Model -->
                     <div class="space-y-5">
                         <div class="space-y-1.5 h-full">
-                            <label class="text-[8px] font-black uppercase tracking-widest text-white/30 ml-1">Logic Model</label>
-                            <div class="grid grid-cols-1 gap-1.5 max-h-48 md:max-h-64 overflow-y-auto pr-2 custom-scrollbar-mini">
+                            <label class="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-1">Logic
+                                Model</label>
+                            <div
+                                class="grid grid-cols-1 gap-1.5 max-h-48 md:max-h-64 overflow-y-auto pr-2 custom-scrollbar-mini">
                                 <button v-for="model in store.availableModels" :key="model.id"
                                     @click="selectedModel = model.id"
-                                    class="flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-left w-full"
-                                    :class="selectedModel === model.id ? 'bg-white border-white text-black' : 'bg-white/5 border-white/5 text-white hover:bg-white/10'">
+                                    class="flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-left w-full shadow-sm"
+                                    :class="selectedModel === model.id ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-100'">
                                     <div class="flex flex-col">
-                                        <span class="text-[10px] font-black uppercase tracking-tight">{{ model.name }}</span>
-                                        <span class="text-[7px] font-mono opacity-40 uppercase tracking-widest line-clamp-1">{{ model.id }}</span>
+                                        <span class="text-[10px] font-black uppercase tracking-tight">{{ model.name
+                                            }}</span>
+                                        <span
+                                            class="text-[7px] font-mono opacity-50 uppercase tracking-widest line-clamp-1">{{
+                                            model.id }}</span>
                                     </div>
                                     <Check v-if="selectedModel === model.id" class="w-3 h-3" />
                                 </button>
@@ -206,9 +214,8 @@ watch(workspacePath, () => {
 
                     <!-- Submit Button (Full Width Spanning Columns) -->
                     <div class="md:col-span-2 w-full pt-2">
-                        <button @click="setWorkspace"
-                            :disabled="!workspacePath"
-                            class="w-full group flex items-center justify-center gap-3 px-6 py-4 md:py-5 rounded-2xl bg-white text-black text-[10px] md:text-[12px] font-black uppercase tracking-[0.3em] hover:bg-white/90 active:scale-[0.98] transition-all disabled:opacity-20 disabled:grayscale disabled:pointer-events-none shadow-2xl shadow-white/5">
+                        <button @click="setWorkspace" :disabled="!workspacePath"
+                            class="w-full group flex items-center justify-center gap-3 px-6 py-4 md:py-5 rounded-2xl bg-gray-900 text-white text-[10px] md:text-[12px] font-black uppercase tracking-[0.3em] hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-20 disabled:grayscale disabled:pointer-events-none shadow-2xl">
                             Create Workspace
                             <ArrowRight class="w-4 h-4 md:w-5 md:h-5 transition-transform group-hover:translate-x-1" />
                         </button>
@@ -216,10 +223,10 @@ watch(workspacePath, () => {
                 </div>
 
                 <!-- Footer Info -->
-                <div class="flex items-center justify-center gap-6 text-white/10 mt-12 lg:mt-20">
-                    <div class="h-px flex-1 bg-white/5"></div>
+                <div class="flex items-center justify-center gap-6 text-gray-300 mt-12 lg:mt-20">
+                    <div class="h-px flex-1 bg-gray-200"></div>
                     <span class="text-[9px] font-bold uppercase tracking-[0.4em]">Mosaic OS</span>
-                    <div class="h-px flex-1 bg-white/5"></div>
+                    <div class="h-px flex-1 bg-gray-200"></div>
                 </div>
             </div>
         </div>
@@ -236,7 +243,7 @@ watch(workspacePath, () => {
 }
 
 .custom-scrollbar-mini::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.05);
     border-radius: 10px;
 }
 </style>

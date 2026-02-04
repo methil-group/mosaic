@@ -606,7 +606,29 @@ class DatabaseService {
         value TEXT
       )
     `);
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS agents (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        workspace TEXT DEFAULT '',
+        model TEXT NOT NULL,
+        is_visible INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        agent_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        model TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+      )
+    `);
   }
+  // Settings methods
   getSetting(key) {
     const row = this.db.prepare("SELECT value FROM settings WHERE key = ?").get(key);
     return row ? row.value : null;
@@ -616,6 +638,41 @@ class DatabaseService {
   }
   deleteSetting(key) {
     this.db.prepare("DELETE FROM settings WHERE key = ?").run(key);
+  }
+  // Agent methods
+  getAgents() {
+    return this.db.prepare("SELECT * FROM agents ORDER BY created_at DESC").all();
+  }
+  getAgent(id) {
+    const row = this.db.prepare("SELECT * FROM agents WHERE id = ?").get(id);
+    return row || null;
+  }
+  saveAgent(agent) {
+    const isVisible = agent.is_visible !== void 0 ? agent.is_visible ? 1 : 0 : 1;
+    this.db.prepare(`
+      INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, created_at)
+      VALUES (?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
+    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.id);
+  }
+  updateAgentVisibility(id, isVisible) {
+    this.db.prepare("UPDATE agents SET is_visible = ? WHERE id = ?").run(isVisible ? 1 : 0, id);
+  }
+  deleteAgent(id) {
+    this.db.prepare("DELETE FROM agents WHERE id = ?").run(id);
+  }
+  // Message methods
+  getMessages(agentId) {
+    return this.db.prepare("SELECT * FROM messages WHERE agent_id = ? ORDER BY created_at ASC").all(agentId);
+  }
+  addMessage(agentId, role, content, model) {
+    const result = this.db.prepare("INSERT INTO messages (agent_id, role, content, model) VALUES (?, ?, ?, ?)").run(agentId, role, content, model || null);
+    return result.lastInsertRowid;
+  }
+  updateMessage(id, content) {
+    this.db.prepare("UPDATE messages SET content = ? WHERE id = ?").run(content, id);
+  }
+  deleteMessagesForAgent(agentId) {
+    this.db.prepare("DELETE FROM messages WHERE agent_id = ?").run(agentId);
   }
   close() {
     this.db.close();
@@ -730,5 +787,38 @@ ipcMain.handle("settings:set", (_event, { key, value }) => {
     llmProvider.updateApiKey(value);
     console.log("[Main] OpenRouter API Key updated in provider");
   }
+  return { success: true };
+});
+ipcMain.handle("agents:list", () => {
+  return databaseService.getAgents();
+});
+ipcMain.handle("agents:get", (_event, id) => {
+  return databaseService.getAgent(id);
+});
+ipcMain.handle("agents:save", (_event, agent) => {
+  databaseService.saveAgent(agent);
+  return { success: true };
+});
+ipcMain.handle("agents:updateVisibility", (_event, { id, isVisible }) => {
+  databaseService.updateAgentVisibility(id, isVisible);
+  return { success: true };
+});
+ipcMain.handle("agents:delete", (_event, id) => {
+  databaseService.deleteAgent(id);
+  return { success: true };
+});
+ipcMain.handle("messages:list", (_event, agentId) => {
+  return databaseService.getMessages(agentId);
+});
+ipcMain.handle("messages:add", (_event, { agentId, role, content, model }) => {
+  const id = databaseService.addMessage(agentId, role, content, model);
+  return { id };
+});
+ipcMain.handle("messages:update", (_event, { id, content }) => {
+  databaseService.updateMessage(id, content);
+  return { success: true };
+});
+ipcMain.handle("messages:clearForAgent", (_event, agentId) => {
+  databaseService.deleteMessagesForAgent(agentId);
   return { success: true };
 });

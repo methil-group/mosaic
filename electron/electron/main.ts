@@ -158,3 +158,48 @@ ipcMain.handle('settings:set', (_event, { key, value }) => {
   
   return { success: true }
 })
+
+// Agent Handlers
+ipcMain.handle('agents:list', () => {
+  return databaseService.getAgents()
+})
+
+ipcMain.handle('agents:get', (_event, id: string) => {
+  return databaseService.getAgent(id)
+})
+
+ipcMain.handle('agents:save', (_event, agent: { id: string; name: string; workspace: string; model: string; is_visible?: boolean }) => {
+  databaseService.saveAgent(agent)
+  return { success: true }
+})
+
+ipcMain.handle('agents:updateVisibility', (_event, { id, isVisible }: { id: string; isVisible: boolean }) => {
+  databaseService.updateAgentVisibility(id, isVisible)
+  return { success: true }
+})
+
+ipcMain.handle('agents:delete', (_event, id: string) => {
+  databaseService.deleteAgent(id)
+  return { success: true }
+})
+
+// Message Handlers
+ipcMain.handle('messages:list', (_event, agentId: string) => {
+  return databaseService.getMessages(agentId)
+})
+
+ipcMain.handle('messages:add', (_event, { agentId, role, content, model }: { agentId: string; role: string; content: string; model?: string }) => {
+  const id = databaseService.addMessage(agentId, role, content, model)
+  return { id }
+})
+
+ipcMain.handle('messages:update', (_event, { id, content }: { id: number; content: string }) => {
+  databaseService.updateMessage(id, content)
+  return { success: true }
+})
+
+ipcMain.handle('messages:clearForAgent', (_event, agentId: string) => {
+  databaseService.deleteMessagesForAgent(agentId)
+  return { success: true }
+})
+

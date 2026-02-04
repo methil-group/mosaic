@@ -9,6 +9,7 @@ export type AgentEvent =
   | { type: 'error', message: string }
 
 export interface Message {
+  id?: number // SQLite row id
   role: 'user' | 'assistant'
   content: string
   events?: AgentEvent[]
@@ -92,7 +93,7 @@ export const useAgentStore = defineStore('agent', {
     // but flattening all for the basic list is fine for now.
   },
   actions: {
-    createInstance(workspace?: string) {
+    async createInstance(workspace?: string) {
       const id = Math.random().toString(36).substring(7)
       const randomName = AGENT_NAMES[Math.floor(Math.random() * AGENT_NAMES.length)] || id.toUpperCase()
       this.instances[id] = {
@@ -108,18 +109,40 @@ export const useAgentStore = defineStore('agent', {
         abortController: null,
       }
       this.instanceIds.push(id)
+      
+      // Persist to SQLite
+      if ((window as any).electron) {
+        await (window as any).electron.ipcRenderer.invoke('agents:save', {
+          id,
+          name: randomName,
+          workspace: workspace || '',
+          model: this.defaultModelId,
+          is_visible: true
+        })
+      }
+      
       return id
     },
 
-    removeInstance(id: string) {
+    async removeInstance(id: string) {
       delete this.instances[id]
       this.instanceIds = this.instanceIds.filter(i => i !== id)
+      
+      // Delete from SQLite
+      if ((window as any).electron) {
+        await (window as any).electron.ipcRenderer.invoke('agents:delete', id)
+      }
     },
 
-    toggleVisibility(id: string) {
+    async toggleVisibility(id: string) {
       const instance = this.instances[id]
       if (instance) {
         instance.isVisible = !instance.isVisible
+        
+        // Update in SQLite
+        if ((window as any).electron) {
+          await (window as any).electron.ipcRenderer.invoke('agents:updateVisibility', { id, isVisible: instance.isVisible })
+        }
       }
     },
 
@@ -133,7 +156,18 @@ export const useAgentStore = defineStore('agent', {
       }
 
       instance.isProcessing = true
-      instance.messages.push({ role: 'user', content: prompt })
+      const userMessage: Message = { role: 'user', content: prompt }
+      instance.messages.push(userMessage)
+      
+      // Persist user message to SQLite
+      if ((window as any).electron) {
+        const result = await (window as any).electron.ipcRenderer.invoke('messages:add', {
+          agentId: instanceId,
+          role: 'user',
+          content: prompt
+        })
+        userMessage.id = result.id
+      }
 
       const assistantMessage: Message = {
         role: 'assistant',
@@ -143,6 +177,17 @@ export const useAgentStore = defineStore('agent', {
         model: instance.currentModel
       }
       instance.messages.push(assistantMessage)
+      
+      // Persist assistant message placeholder to SQLite
+      if ((window as any).electron) {
+        const result = await (window as any).electron.ipcRenderer.invoke('messages:add', {
+          agentId: instanceId,
+          role: 'assistant',
+          content: '',
+          model: instance.currentModel
+        })
+        assistantMessage.id = result.id
+      }
 
       try {
         const userStore = useUserStore()
@@ -171,6 +216,14 @@ export const useAgentStore = defineStore('agent', {
         instance.isProcessing = false
         assistantMessage.isStreaming = false
         instance.abortController = null
+        
+        // Update assistant message in SQLite with final content
+        if ((window as any).electron && assistantMessage.id) {
+          await (window as any).electron.ipcRenderer.invoke('messages:update', {
+            id: assistantMessage.id,
+            content: assistantMessage.content
+          })
+        }
 
         // Process next in queue
         if (instance.messageQueue.length > 0) {
@@ -207,9 +260,14 @@ export const useAgentStore = defineStore('agent', {
       }
     },
 
-    clearMemory(instanceId: string) {
+    async clearMemory(instanceId: string) {
       if (this.instances[instanceId]) {
         this.instances[instanceId].messages = []
+        
+        // Clear messages in SQLite
+        if ((window as any).electron) {
+          await (window as any).electron.ipcRenderer.invoke('messages:clearForAgent', instanceId)
+        }
       }
     },
 
@@ -320,6 +378,62 @@ export const useAgentStore = defineStore('agent', {
       } catch (e) {
         console.error(`Failed to set setting: ${key}`, e)
         return false
+      }
+    },
+
+    async loadAgents() {
+      try {
+        if ((window as any).electron) {
+          const agents = await (window as any).electron.ipcRenderer.invoke('agents:list')
+          
+          for (const agent of agents) {
+            // Load messages for each agent
+            const messages = await (window as any).electron.ipcRenderer.invoke('messages:list', agent.id)
+            
+            this.instances[agent.id] = {
+              id: agent.id,
+              name: agent.name,
+              messages: messages.map((m: any) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                model: m.model
+              })),
+              isProcessing: false,
+              currentWorkspace: agent.workspace,
+              currentModel: agent.model,
+              isVisible: agent.is_visible === 1,
+              colSpan: 1,
+              messageQueue: [],
+              abortController: null
+            }
+            this.instanceIds.push(agent.id)
+          }
+          
+          console.log(`[AgentStore] Loaded ${agents.length} agents from SQLite`)
+        }
+      } catch (e) {
+        console.error('Failed to load agents from SQLite', e)
+      }
+    },
+
+    async updateInstance(instanceId: string, updates: Partial<{ name: string; workspace: string; model: string }>) {
+      const instance = this.instances[instanceId]
+      if (!instance) return
+      
+      if (updates.name !== undefined) instance.name = updates.name
+      if (updates.workspace !== undefined) instance.currentWorkspace = updates.workspace
+      if (updates.model !== undefined) instance.currentModel = updates.model
+      
+      // Persist to SQLite
+      if ((window as any).electron) {
+        await (window as any).electron.ipcRenderer.invoke('agents:save', {
+          id: instanceId,
+          name: instance.name,
+          workspace: instance.currentWorkspace,
+          model: instance.currentModel,
+          is_visible: instance.isVisible
+        })
       }
     }
   }
