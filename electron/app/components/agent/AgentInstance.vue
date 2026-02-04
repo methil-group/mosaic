@@ -38,12 +38,24 @@ const toggleActions = (idx: number) => {
 
 const formatContent = (content: string) => {
     if (!content) return '';
-    let processed = content.replace(/<([^>]+)>/g, '&lt;$1&gt;');
-    const cleaned = processed
-        .replace(/&lt;tool_call&gt;[\s\S]*?&lt;\/tool_call&gt;/g, '\n')
-        .replace(/&lt;tool_result&gt;[\s\S]*?&lt;\/tool_result&gt;/g, '\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
+
+    // 1. Remove tool call blocks (complete or incomplete)
+    let cleaned = content
+        .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+        .replace(/<tool_call>[\s\S]*$/g, '') // Handle partial tool tags
+        .replace(/<\/tool_call>/g, '');
+
+    // 2. Remove tool result blocks (internal protocol, shouldn't be here but safety first)
+    cleaned = cleaned
+        .replace(/<tool_result>[\s\S]*?<\/tool_result>/g, '')
+        .replace(/<tool_result>[\s\S]*$/g, '');
+
+    // 3. Escape individual angle brackets only if they look like HTML tags but aren't allowed ones
+    // This is more complex than a simple replace. For now, let's just avoid the global tag nuker.
+    // Instead of nuking ALL <tag>, we just want to ensure we don't render malicious scripts
+    // markdown-it helps with most of this.
+
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
     return md.render(cleaned);
 }
 
@@ -130,8 +142,9 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
                 <div v-if="instance.messages.length === 0"
                     class="flex flex-col items-center justify-center py-8 opacity-40 text-center">
                     <Bot class="w-6 h-6 text-gray-400 mb-3" />
-                    <p class="text-[9px] uppercase font-bold tracking-widest leading-relaxed text-gray-500">System Idle<br />{{
-                        instance.currentWorkspace }}</p>
+                    <p class="text-[9px] uppercase font-bold tracking-widest leading-relaxed text-gray-500">System
+                        Idle<br />{{
+                            instance.currentWorkspace }}</p>
                 </div>
 
                 <div v-for="(msg, idx) in instance.messages" :key="idx"

@@ -81,8 +81,20 @@ export class OpenRouter extends AbstractLLM {
       });
 
     } catch (error: any) {
-      const errorMessage = error.response ? JSON.stringify(error.response.data) : error.message;
-      console.error('[OpenRouter] API Error:', errorMessage);
+      console.error('[OpenRouter] API Error:', error.message);
+      let errorMessage = error.message;
+      
+      if (error.response && error.response.data) {
+        try {
+          // Only stringify if it's not already a string
+          errorMessage = typeof error.response.data === 'string' 
+            ? error.response.data 
+            : JSON.stringify(error.response.data);
+        } catch (e) {
+          errorMessage = 'Error parsing API response';
+        }
+      }
+      
       callbacks.onError(`API Request failed: ${errorMessage}`);
     }
   }

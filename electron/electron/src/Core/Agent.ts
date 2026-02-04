@@ -25,10 +25,11 @@ export class Agent {
     this.tools = getTools();
   }
 
-  async run(userPrompt: string): Promise<void> {
+  async run(userPrompt: string, history: Message[] = []): Promise<void> {
     const systemPrompt = PromptBuilder.createSystemPrompt(this.tools, this.workspace, this.userName);
     this.messages = [
       { role: 'system', content: systemPrompt },
+      ...history,
       { role: 'user', content: userPrompt }
     ];
     await this.reasoningLoop();
@@ -36,16 +37,48 @@ export class Agent {
   }
 
   private async reasoningLoop(): Promise<void> {
-    console.log('[Agent] Starting reasoning loop');
+    console.log('[Agent v2] Starting reasoning loop');
     let loop = true;
+    let toolRetryCount = 0;
+    let totalSteps = 0;
+    const maxSteps = 25;
+    const maxToolRetries = 3;
+    const accumulatedAssistantContent: string[] = [];
+    let lastToolCallFingerprint = "";
+
     try {
       while (loop) {
+        totalSteps++;
+        if (totalSteps > maxSteps) {
+          console.error('[Agent v2] Max steps reached, stopping.');
+          this.onEvent({ type: 'error', message: 'Maximum reasoning steps exceeded.' });
+          break;
+        }
+
         const stepResult = await this.runStep();
         const contentWithoutTool = stepResult.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim();
+        
+        if (contentWithoutTool) {
+          accumulatedAssistantContent.push(contentWithoutTool);
+        }
 
         if (stepResult.toolCall) {
           const { name, parameters } = stepResult.toolCall;
-          console.log(`[Agent] Tool call: ${name}`, parameters);
+          const currentFingerprint = `${name}:${JSON.stringify(parameters)}`;
+          
+          console.log(`[Agent v2] Step ${totalSteps} | Tool call: ${name}`, parameters);
+
+          if (currentFingerprint === lastToolCallFingerprint) {
+            console.warn(`[Agent v2] Detected repetitive tool call: ${name}`);
+            this.messages.push({ 
+              role: 'user', 
+              content: `You just called '${name}' with the exact same parameters. If it didn't give you what you wanted, try a different approach or tool. Do not repeat the same call.` 
+            });
+            lastToolCallFingerprint = currentFingerprint;
+            continue; 
+          }
+          lastToolCallFingerprint = currentFingerprint;
+
           this.onEvent({ type: 'tool_started', name, parameters: JSON.stringify(parameters) });
           
           const tool = this.tools.find((t) => t.name === name);
@@ -54,21 +87,34 @@ export class Agent {
               const result = await tool.execute(parameters, this.workspace);
               this.onEvent({ type: 'tool_finished', name, result });
               
-              // Push the thought/talk part to history without the XML
+              // Push context to history
               if (contentWithoutTool) {
                 this.messages.push({ role: 'assistant', content: contentWithoutTool });
               }
               // Push the tool result
               this.messages.push({ role: 'user', content: PromptBuilder.formatToolResult(name, result) });
-              console.log(`[Agent] Tool finished: ${name}`);
+              console.log(`[Agent v2] Tool finished: ${name}. Result length: ${result.length}`);
+              toolRetryCount = 0; // Reset counter on success
             } catch (error: any) {
-              console.error(`[Agent] Tool error: ${name}`, error.message);
-              this.onEvent({ type: 'error', message: `Tool execution failed: ${error.message}` });
-              loop = false;
+              console.error(`[Agent v2] Tool execution error: ${name}`, error.message);
+              toolRetryCount++;
+              
+              if (toolRetryCount >= maxToolRetries) {
+                this.onEvent({ type: 'error', message: `Too many tool failures. Last error: ${error.message}` });
+                loop = false;
+              } else {
+                this.onEvent({ type: 'error', message: `Tool error: ${error.message}. Retrying...` });
+                this.messages.push({ 
+                  role: 'user', 
+                  content: `Tool '${name}' failed with error: ${error.message}. Please check your parameters and try again or use a different approach.` 
+                });
+              }
             }
           } else {
-            this.onEvent({ type: 'error', message: `Tool ${name} not found` });
-            loop = false;
+            console.error(`[Agent v2] Tool not found: ${name}`);
+            this.messages.push({ role: 'user', content: `Tool '${name}' not found. Please use one of the available tools.` });
+            toolRetryCount++;
+            if (toolRetryCount >= maxToolRetries) loop = false;
           }
         } else {
           // Check if this is an intent statement (LLM saying it will do something, but not doing it)
@@ -81,7 +127,7 @@ export class Agent {
           const isIntentStatement = intentPhrases.some(pattern => pattern.test(contentWithoutTool));
           
           if (isIntentStatement) {
-            console.log('[Agent] Detected intent statement without tool call, nudging...');
+            console.log('[Agent v2] Detected intent statement without tool call, nudging...');
             // Push the intent as assistant message
             this.messages.push({ role: 'assistant', content: contentWithoutTool });
             // Add a nudge to actually call the tool
@@ -90,19 +136,36 @@ export class Agent {
               content: 'You said you would do something but didn\'t call a tool. Please call the appropriate tool now to complete the action you described.' 
             });
             // Continue the loop
-          } else if (!contentWithoutTool || contentWithoutTool.length < 10) {
-            // Empty or very short response - nudge for a real answer
-            console.log('[Agent] Empty or too short response, nudging for answer...');
-            this.messages.push({ 
-              role: 'user', 
-              content: 'Please provide a complete answer to my original question based on what you have learned, or call another tool if you need more information.' 
-            });
-            // Continue the loop
+          } else if (!contentWithoutTool || contentWithoutTool.length < 5) {
+            // Empty or very short response - but maybe we already have content?
+            if (accumulatedAssistantContent.length > 0) {
+              const finalFullContent = Array.from(new Set(accumulatedAssistantContent)).join('\n\n');
+              
+              // If the total accumulation is very short (less than 50 chars) and we did multiple steps, 
+              // nudge for a better summary
+              if (finalFullContent.length < 50 && totalSteps > 2) {
+                console.log('[Agent v2] Accumulated content too short, nudging for a real summary...');
+                this.messages.push({ 
+                  role: 'user', 
+                  content: 'You have finished your exploration. Please provide a clear and comprehensive summary of what you found for the user.' 
+                });
+                continue;
+              }
+
+              console.log('[Agent v2] Finishing with accumulated content.');
+              this.onEvent({ type: 'final_answer', data: finalFullContent });
+              loop = false;
+            } else {
+              console.log('[Agent v2] Empty or too short response, nudging for answer...');
+              this.messages.push({ 
+                role: 'user', 
+                content: 'Please provide a complete answer based on what you have learned, or call another tool.' 
+              });
+            }
           } else {
-            console.log('[Agent] Final answer received');
-            console.log('[Agent] Step content:', JSON.stringify(stepResult.content));
-            console.log('[Agent] Content without tool:', JSON.stringify(contentWithoutTool));
-            this.onEvent({ type: 'final_answer', data: contentWithoutTool || stepResult.content });
+            console.log('[Agent v2] Final answer received');
+            const finalFullContent = Array.from(new Set(accumulatedAssistantContent.concat([contentWithoutTool]))).join('\n\n');
+            this.onEvent({ type: 'final_answer', data: finalFullContent });
             loop = false;
           }
         }
@@ -183,7 +246,7 @@ export class Agent {
 
     if (paramsMatch) {
       const paramsXml = paramsMatch[1];
-      const paramMatches = paramsXml.matchAll(/<(.*?)>(.*?)<\/\1>/g);
+      const paramMatches = paramsXml.matchAll(/<(.*?)>([\s\S]*?)<\/\1>/g);
       for (const m of paramMatches) {
         parameters[m[1]] = m[2].trim();
       }

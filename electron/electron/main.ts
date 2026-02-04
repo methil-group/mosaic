@@ -88,8 +88,8 @@ ipcMain.handle('fs:files', async (_event, path: string) => {
   return { files: await fileSystemService.listFiles(path) }
 })
 
-ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id, user_name }) => {
-  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}`)
+ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id, user_name, history }) => {
+  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}, History: ${history?.length || 0} messages`)
   const agent = new Agent(
     llmProvider,
     model_id,
@@ -105,7 +105,7 @@ ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id,
   )
 
   try {
-    await agent.run(user_prompt)
+    await agent.run(user_prompt, history || [])
     console.log('[Main] Agent run completed')
   } catch (error: any) {
     console.error('[Main] Agent run error:', error.message)
@@ -120,6 +120,7 @@ ipcMain.handle('providers:get', () => {
       id: 'openrouter',
       name: 'OpenRouter',
       models: [
+        { id: 'qwen/qwen3-coder-next', name: 'Qwen 3 Coder Next' },
         { id: 'qwen/qwen3-vl-8b-thinking', name: 'Qwen 3 VL 8B Thinking' },
         { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
         { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },

@@ -14,12 +14,19 @@ export class ReadFileTool extends Tool {
   });
 
   async execute(params: { path: string }, workspace: string): Promise<string> {
-    const fullPath = this.expandPath(params.path);
-    const absolutePath = join(this.expandPath(workspace), fullPath);
+    const expandedPath = this.expandPath(params.path);
+    const expandedWorkspace = this.expandPath(workspace);
+    
+    // Determine the path to read. If expandedPath is absolute, use it.
+    // Otherwise, join it with the workspace.
+    const absolutePath = (expandedPath.startsWith('/') || expandedPath.includes(':')) 
+      ? expandedPath 
+      : join(expandedWorkspace, expandedPath);
+
     try {
       return await fs.readFile(absolutePath, 'utf8');
     } catch (error: any) {
-      return `Error reading file: ${error.message}`;
+      return `Error reading file: ${error.message} (Attempted path: ${absolutePath})`;
     }
   }
 }

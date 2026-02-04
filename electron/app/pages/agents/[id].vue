@@ -122,10 +122,9 @@ const selectFolder = () => {
         <div class="flex-1 overflow-y-auto p-12 custom-scrollbar">
             <div class="max-w-4xl mx-auto space-y-12">
                 <!-- Overview Stats -->
-                <div class="grid grid-cols-4 gap-6">
+                <div class="grid grid-cols-3 gap-6">
                     <div v-for="stat in [
                         { label: 'Process Status', value: agent.isProcessing ? 'Processing' : 'Standby', icon: Terminal, color: agent.isProcessing ? 'text-blue-500' : 'text-green-500' },
-                        { label: 'Context Tokens', value: agent.messages.length, icon: Database, color: 'text-purple-500' },
                         { label: 'Memory Span', value: 'Episodic', icon: History, color: 'text-orange-500' },
                         { label: 'Core Model', value: agent.currentModel.split('/').pop(), icon: BotIcon, color: 'text-amber-500' }
                     ]" :key="stat.label"
@@ -165,7 +164,7 @@ const selectFolder = () => {
                                         <Folder
                                             class="w-4 h-4 text-amber-500/60 group-hover:text-amber-600 transition-colors shrink-0" />
                                         <span class="truncate flex-1">{{ agent.currentWorkspace || 'Click to select...'
-                                        }}</span>
+                                            }}</span>
                                         <ChevronRight
                                             class="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
                                     </button>

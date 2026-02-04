@@ -77,7 +77,7 @@ export const useAgentStore = defineStore('agent', {
     instanceIds: [],
     availableProviders: [],
     defaultProviderId: 'openrouter',
-    defaultModelId: 'qwen/qwen3-vl-8b-thinking',
+    defaultModelId: 'qwen/qwen3-coder-next',
     backendUrl: 'http://localhost:3710',
     filesCache: {},
     workspaces: [],
@@ -202,7 +202,11 @@ export const useAgentStore = defineStore('agent', {
             user_prompt: prompt,
             workspace: instance.currentWorkspace,
             model_id: instance.currentModel,
-            user_name: userStore.userName || 'User'
+            user_name: userStore.userName || 'User',
+            history: instance.messages.slice(0, -2).map(m => ({ 
+              role: m.role, 
+              content: m.content 
+            }))
           })
 
           removeListener()
@@ -253,7 +257,9 @@ export const useAgentStore = defineStore('agent', {
         if (event.type === 'token') {
           lastMessage.content += event.data
         } else if (event.type === 'final_answer') {
-          lastMessage.content = event.data
+          if (event.data && event.data.trim().length > 0) {
+            lastMessage.content = event.data
+          }
         } else if (event.type === 'error') {
           lastMessage.content += `\n\n[Error: ${event.message}]`
         }

@@ -13,6 +13,7 @@ export abstract class Tool {
   abstract execute(params: ToolParameters, workspace: string): Promise<string>;
 
   protected expandPath(path: string): string {
+    if (!path || typeof path !== 'string') return '';
     if (path.startsWith('~/')) {
       return join(os.homedir(), path.slice(2));
     }

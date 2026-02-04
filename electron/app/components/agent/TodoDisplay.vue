@@ -12,18 +12,41 @@ interface TodoItem {
     context: string
 }
 
-const splitResult = computed(() => {
-    const [todoPart, ...conclusionParts] = props.result.split('---CONCLUSION---')
-    return {
-        todos: todoPart || '',
-        conclusion: conclusionParts.join('---CONCLUSION---').trim() || ''
-    }
-})
-
 const parsedTodos = computed(() => {
-    const lines = splitResult.value.todos.split('\n')
+    let rawContent = props.result.trim()
     const todos: TodoItem[] = []
 
+    // Try parsing as JSON first
+    if (rawContent.startsWith('{') || rawContent.startsWith('[')) {
+        try {
+            const data = JSON.parse(rawContent)
+            if (Array.isArray(data)) {
+                return data.map(item => ({
+                    task: item.task || '',
+                    status: item.status || 'pending',
+                    context: item.context || ''
+                }))
+            } else if (data.todos && Array.isArray(data.todos)) {
+                return data.todos.map((item: any) => ({
+                    task: item.task || '',
+                    status: item.status || 'pending',
+                    context: item.context || ''
+                }))
+            } else if (data.task) {
+                // Single todo object
+                return [{
+                    task: data.task,
+                    status: data.status || 'pending',
+                    context: data.context || ''
+                }]
+            }
+        } catch (e) {
+            console.warn('Failed to parse todo JSON:', e)
+        }
+    }
+
+    // Fallback to legacy string parsing
+    const lines = rawContent.split('\n')
     for (const line of lines) {
         const trimmed = line.trim()
         if (!trimmed || trimmed.startsWith('(')) continue
@@ -55,7 +78,7 @@ const parsedTodos = computed(() => {
 
 const stats = computed(() => {
     const total = parsedTodos.value.length
-    const completed = parsedTodos.value.filter(t => t.status === 'completed').length
+    const completed = parsedTodos.value.filter((t: TodoItem) => t.status === 'completed').length
     const progress = total > 0 ? (completed / total) * 100 : 0
     return { total, completed, progress }
 })
@@ -117,16 +140,5 @@ const stats = computed(() => {
             </div>
         </div>
 
-        <!-- Conclusion / Summary -->
-        <div v-if="splitResult.conclusion"
-            class="mt-1 p-4 bg-gradient-to-br from-gray-50 to-transparent border-t border-gray-100 mx-2 mb-2 rounded-xl">
-            <div class="flex items-center gap-2 mb-2 text-blue-600">
-                <Sparkles class="w-3.5 h-3.5" />
-                <span class="text-[9px] font-black uppercase tracking-widest">Final Report</span>
-            </div>
-            <p class="text-[11px] font-medium text-gray-700 leading-relaxed italic">
-                {{ splitResult.conclusion }}
-            </p>
-        </div>
     </div>
 </template>

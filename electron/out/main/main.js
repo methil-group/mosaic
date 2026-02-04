@@ -24,6 +24,7 @@ const is = {
 });
 class Tool {
   expandPath(path2) {
+    if (!path2 || typeof path2 !== "string") return "";
     if (path2.startsWith("~/")) {
       return join(os.homedir(), path2.slice(2));
     }
@@ -75,12 +76,13 @@ class ReadFileTool extends Tool {
     });
   }
   async execute(params, workspace) {
-    const fullPath = this.expandPath(params.path);
-    const absolutePath = join(this.expandPath(workspace), fullPath);
+    const expandedPath = this.expandPath(params.path);
+    const expandedWorkspace = this.expandPath(workspace);
+    const absolutePath = expandedPath.startsWith("/") || expandedPath.includes(":") ? expandedPath : join(expandedWorkspace, expandedPath);
     try {
       return await fs.readFile(absolutePath, "utf8");
     } catch (error) {
-      return `Error reading file: ${error.message}`;
+      return `Error reading file: ${error.message} (Attempted path: ${absolutePath})`;
     }
   }
 }
@@ -173,29 +175,23 @@ class ManageTodosTool extends Tool {
   constructor() {
     super(...arguments);
     this.name = "manage_todos";
-    this.description = "Manage a list of todo items. Use this to track progress on multi-step tasks. Provide a conclusion once the task is finished.";
+    this.description = "Manage a list of todo items. Use this to track progress on multi-step tasks.";
     this.parameters = JSON.stringify({
       type: "object",
       properties: {
-        todos: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              task: { type: "string", description: "Description of the task." },
-              status: { type: "string", enum: ["pending", "in_progress", "completed"], description: "Status of the task." },
-              context: { type: "string", description: "Active form context (required for in_progress tasks, empty otherwise)." }
-            },
-            required: ["task", "status", "context"]
-          }
-        },
-        conclusion: { type: "string", description: "Optional final comment or summary of completed work." }
+        checklist: {
+          type: "string",
+          description: "The full list of tasks in the format: [x] completed, [>] in progress, [ ] pending. Use <- to add context, e.g., [>] Task Name <- details"
+        }
       },
-      required: ["todos"]
+      required: ["checklist"]
     });
   }
   async execute(params, _workspace) {
-    return JSON.stringify(params);
+    if (!params.checklist || params.checklist.trim() === "") {
+      throw new Error("Checklist cannot be empty. Please provide the full updated checklist.");
+    }
+    return params.checklist;
   }
 }
 function getTools() {
@@ -231,11 +227,19 @@ class ToolFormatPart {
 ${JSON.stringify(toolsJson, null, 2)}
 
 TOOL CALLING FORMAT:
-To call a tool, use the following XML-like format:
+To call a tool, use the following XML-like format. All parameter values MUST be strings:
 <tool_call>
   <name>tool_name</name>
   <parameters>
-    <param_name>value</param_name>
+    <your_parameter_name>the_actual_value</your_parameter_name>
+  </parameters>
+</tool_call>
+
+EXAMPLE:
+<tool_call>
+  <name>read_file</name>
+  <parameters>
+    <path>README.md</path>
   </parameters>
 </tool_call>
 
@@ -249,7 +253,21 @@ class ChecklistBehaviorPart {
 You MUST maintain a checklist of your progress using the 'manage_todos' tool.
 1. When you start a complex task, initialize the checklist.
 2. For every step you take, update the checklist status.
-3. When you are done, provide a final conclusion in the 'manage_todos' call.
+3. Use the following format for each item in the 'checklist' parameter:
+   - [ ] for pending tasks
+   - [>] for in-progress tasks
+   - [x] for completed tasks
+   - Follow with 'Task Name <- context/details'
+EXAMPLE CALL:
+<tool_call>
+  <name>manage_todos</name>
+  <parameters>
+    <checklist>
+[x] Initialization <- Done
+[>] Researching files <- Currently reading routes
+[ ] Final report <- Pending
+    </checklist>
+</tool_call>
 Always inform the user about the current state of the checklist.`;
   }
 }
@@ -295,25 +313,52 @@ class Agent {
     this.messages = [];
     this.tools = getTools();
   }
-  async run(userPrompt) {
+  async run(userPrompt, history = []) {
     const systemPrompt = PromptBuilder.createSystemPrompt(this.tools, this.workspace, this.userName);
     this.messages = [
       { role: "system", content: systemPrompt },
+      ...history,
       { role: "user", content: userPrompt }
     ];
     await this.reasoningLoop();
     console.log("[Agent] Run finished");
   }
   async reasoningLoop() {
-    console.log("[Agent] Starting reasoning loop");
+    console.log("[Agent v2] Starting reasoning loop");
     let loop = true;
+    let toolRetryCount = 0;
+    let totalSteps = 0;
+    const maxSteps = 25;
+    const maxToolRetries = 3;
+    const accumulatedAssistantContent = [];
+    let lastToolCallFingerprint = "";
     try {
       while (loop) {
+        totalSteps++;
+        if (totalSteps > maxSteps) {
+          console.error("[Agent v2] Max steps reached, stopping.");
+          this.onEvent({ type: "error", message: "Maximum reasoning steps exceeded." });
+          break;
+        }
         const stepResult = await this.runStep();
         const contentWithoutTool = stepResult.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
+        if (contentWithoutTool) {
+          accumulatedAssistantContent.push(contentWithoutTool);
+        }
         if (stepResult.toolCall) {
           const { name, parameters } = stepResult.toolCall;
-          console.log(`[Agent] Tool call: ${name}`, parameters);
+          const currentFingerprint = `${name}:${JSON.stringify(parameters)}`;
+          console.log(`[Agent v2] Step ${totalSteps} | Tool call: ${name}`, parameters);
+          if (currentFingerprint === lastToolCallFingerprint) {
+            console.warn(`[Agent v2] Detected repetitive tool call: ${name}`);
+            this.messages.push({
+              role: "user",
+              content: `You just called '${name}' with the exact same parameters. If it didn't give you what you wanted, try a different approach or tool. Do not repeat the same call.`
+            });
+            lastToolCallFingerprint = currentFingerprint;
+            continue;
+          }
+          lastToolCallFingerprint = currentFingerprint;
           this.onEvent({ type: "tool_started", name, parameters: JSON.stringify(parameters) });
           const tool = this.tools.find((t) => t.name === name);
           if (tool) {
@@ -324,15 +369,27 @@ class Agent {
                 this.messages.push({ role: "assistant", content: contentWithoutTool });
               }
               this.messages.push({ role: "user", content: PromptBuilder.formatToolResult(name, result) });
-              console.log(`[Agent] Tool finished: ${name}`);
+              console.log(`[Agent v2] Tool finished: ${name}. Result length: ${result.length}`);
+              toolRetryCount = 0;
             } catch (error) {
-              console.error(`[Agent] Tool error: ${name}`, error.message);
-              this.onEvent({ type: "error", message: `Tool execution failed: ${error.message}` });
-              loop = false;
+              console.error(`[Agent v2] Tool execution error: ${name}`, error.message);
+              toolRetryCount++;
+              if (toolRetryCount >= maxToolRetries) {
+                this.onEvent({ type: "error", message: `Too many tool failures. Last error: ${error.message}` });
+                loop = false;
+              } else {
+                this.onEvent({ type: "error", message: `Tool error: ${error.message}. Retrying...` });
+                this.messages.push({
+                  role: "user",
+                  content: `Tool '${name}' failed with error: ${error.message}. Please check your parameters and try again or use a different approach.`
+                });
+              }
             }
           } else {
-            this.onEvent({ type: "error", message: `Tool ${name} not found` });
-            loop = false;
+            console.error(`[Agent v2] Tool not found: ${name}`);
+            this.messages.push({ role: "user", content: `Tool '${name}' not found. Please use one of the available tools.` });
+            toolRetryCount++;
+            if (toolRetryCount >= maxToolRetries) loop = false;
           }
         } else {
           const intentPhrases = [
@@ -342,23 +399,37 @@ class Agent {
           ];
           const isIntentStatement = intentPhrases.some((pattern) => pattern.test(contentWithoutTool));
           if (isIntentStatement) {
-            console.log("[Agent] Detected intent statement without tool call, nudging...");
+            console.log("[Agent v2] Detected intent statement without tool call, nudging...");
             this.messages.push({ role: "assistant", content: contentWithoutTool });
             this.messages.push({
               role: "user",
               content: "You said you would do something but didn't call a tool. Please call the appropriate tool now to complete the action you described."
             });
-          } else if (!contentWithoutTool || contentWithoutTool.length < 10) {
-            console.log("[Agent] Empty or too short response, nudging for answer...");
-            this.messages.push({
-              role: "user",
-              content: "Please provide a complete answer to my original question based on what you have learned, or call another tool if you need more information."
-            });
+          } else if (!contentWithoutTool || contentWithoutTool.length < 5) {
+            if (accumulatedAssistantContent.length > 0) {
+              const finalFullContent = Array.from(new Set(accumulatedAssistantContent)).join("\n\n");
+              if (finalFullContent.length < 50 && totalSteps > 2) {
+                console.log("[Agent v2] Accumulated content too short, nudging for a real summary...");
+                this.messages.push({
+                  role: "user",
+                  content: "You have finished your exploration. Please provide a clear and comprehensive summary of what you found for the user."
+                });
+                continue;
+              }
+              console.log("[Agent v2] Finishing with accumulated content.");
+              this.onEvent({ type: "final_answer", data: finalFullContent });
+              loop = false;
+            } else {
+              console.log("[Agent v2] Empty or too short response, nudging for answer...");
+              this.messages.push({
+                role: "user",
+                content: "Please provide a complete answer based on what you have learned, or call another tool."
+              });
+            }
           } else {
-            console.log("[Agent] Final answer received");
-            console.log("[Agent] Step content:", JSON.stringify(stepResult.content));
-            console.log("[Agent] Content without tool:", JSON.stringify(contentWithoutTool));
-            this.onEvent({ type: "final_answer", data: contentWithoutTool || stepResult.content });
+            console.log("[Agent v2] Final answer received");
+            const finalFullContent = Array.from(new Set(accumulatedAssistantContent.concat([contentWithoutTool]))).join("\n\n");
+            this.onEvent({ type: "final_answer", data: finalFullContent });
             loop = false;
           }
         }
@@ -423,7 +494,7 @@ class Agent {
     const parameters = {};
     if (paramsMatch) {
       const paramsXml = paramsMatch[1];
-      const paramMatches = paramsXml.matchAll(/<(.*?)>(.*?)<\/\1>/g);
+      const paramMatches = paramsXml.matchAll(/<(.*?)>([\s\S]*?)<\/\1>/g);
       for (const m of paramMatches) {
         parameters[m[1]] = m[2].trim();
       }
@@ -499,8 +570,15 @@ class OpenRouter extends AbstractLLM {
         callbacks.onError(err.message);
       });
     } catch (error) {
-      const errorMessage = error.response ? JSON.stringify(error.response.data) : error.message;
-      console.error("[OpenRouter] API Error:", errorMessage);
+      console.error("[OpenRouter] API Error:", error.message);
+      let errorMessage = error.message;
+      if (error.response && error.response.data) {
+        try {
+          errorMessage = typeof error.response.data === "string" ? error.response.data : JSON.stringify(error.response.data);
+        } catch (e) {
+          errorMessage = "Error parsing API response";
+        }
+      }
       callbacks.onError(`API Request failed: ${errorMessage}`);
     }
   }
@@ -733,8 +811,8 @@ ipcMain.handle("fs:ls", async (_event, path2) => {
 ipcMain.handle("fs:files", async (_event, path2) => {
   return { files: await fileSystemService.listFiles(path2) };
 });
-ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id, user_name }) => {
-  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}`);
+ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id, user_name, history }) => {
+  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}, History: ${history?.length || 0} messages`);
   const agent = new Agent(
     llmProvider,
     model_id,
@@ -748,7 +826,7 @@ ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id,
     }
   );
   try {
-    await agent.run(user_prompt);
+    await agent.run(user_prompt, history || []);
     console.log("[Main] Agent run completed");
   } catch (error) {
     console.error("[Main] Agent run error:", error.message);
@@ -761,6 +839,7 @@ ipcMain.handle("providers:get", () => {
       id: "openrouter",
       name: "OpenRouter",
       models: [
+        { id: "qwen/qwen3-coder-next", name: "Qwen 3 Coder Next" },
         { id: "qwen/qwen3-vl-8b-thinking", name: "Qwen 3 VL 8B Thinking" },
         { id: "deepseek/deepseek-v3.2", name: "DeepSeek 3.2" },
         { id: "mistralai/devstral-2512", name: "Devstral 2512" },

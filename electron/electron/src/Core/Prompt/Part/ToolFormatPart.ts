@@ -14,11 +14,19 @@ export class ToolFormatPart implements PromptPart {
 ${JSON.stringify(toolsJson, null, 2)}
 
 TOOL CALLING FORMAT:
-To call a tool, use the following XML-like format:
+To call a tool, use the following XML-like format. All parameter values MUST be strings:
 <tool_call>
   <name>tool_name</name>
   <parameters>
-    <param_name>value</param_name>
+    <your_parameter_name>the_actual_value</your_parameter_name>
+  </parameters>
+</tool_call>
+
+EXAMPLE:
+<tool_call>
+  <name>read_file</name>
+  <parameters>
+    <path>README.md</path>
   </parameters>
 </tool_call>
 
