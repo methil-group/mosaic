@@ -4,15 +4,20 @@ import { IdentityPart } from './Part/IdentityPart';
 import { ToolFormatPart } from './Part/ToolFormatPart';
 import { ChecklistBehaviorPart } from './Part/ChecklistBehaviorPart';
 import { WorkspaceContextPart } from './Part/WorkspaceContextPart';
+import { PersonaPart } from './Part/PersonaPart';
 
 export class PromptBuilder {
-  static createSystemPrompt(tools: Tool[], workspace: string, userName: string): string {
+  static createSystemPrompt(tools: Tool[], workspace: string, userName: string, persona?: string): string {
     const parts: PromptPart[] = [
       new IdentityPart(userName),
       new WorkspaceContextPart(workspace),
       new ToolFormatPart(tools),
       new ChecklistBehaviorPart()
     ];
+
+    if (persona) {
+      parts.unshift(new PersonaPart(persona));
+    }
 
     return parts.map(p => p.render()).join('\n\n') + `
 

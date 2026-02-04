@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { useUserStore } from './user'
+import { AGENTS_REPO, type AgentConfig } from '~/constants/agents'
 
 export type AgentEvent =
   | { type: 'token', data: string }
@@ -28,6 +29,12 @@ export interface InstanceState {
   colSpan: number
   messageQueue: string[]
   abortController: AbortController | null
+  color?: string
+  icon?: string
+  description?: string
+  persona?: string
+  video?: string
+  lottie?: string
 }
 
 export interface Workspace {
@@ -65,11 +72,7 @@ export interface State {
   customLayouts: Record<string, any>
 }
 
-const AGENT_NAMES = [
-  'ORION', 'ATLAS', 'NOVA', 'CYPHER', 'ZENITH', 'OMEGA', 'PRIME', 'VECTOR',
-  'NEBULA', 'PULSAR', 'QUASAR', 'HELIX', 'FLUX', 'APEX', 'VORTEX', 'NEXUS',
-  'TITAN', 'CRONUS', 'AETHER', 'QUANTUM', 'ECHO', 'MIRAGE', 'PHANTOM', 'SPECTRE'
-]
+// AGENT_NAMES is deprecated in favor of AGENTS_REPO
 
 export const useAgentStore = defineStore('agent', {
   state: (): State => ({
@@ -95,18 +98,32 @@ export const useAgentStore = defineStore('agent', {
   actions: {
     async createInstance(workspace?: string) {
       const id = Math.random().toString(36).substring(7)
-      const randomName = AGENT_NAMES[Math.floor(Math.random() * AGENT_NAMES.length)] || id.toUpperCase()
+      
+      // Filter for agents with Lottie animations
+      const lottieAgents = AGENTS_REPO.filter(a => !!a.lottie)
+      const pool = lottieAgents.length > 0 ? lottieAgents : AGENTS_REPO
+
+      const agent = pool[Math.floor(Math.random() * pool.length)]
+      if (!agent) return id // Should not happen
+
+      const name = agent.name
       this.instances[id] = {
         id,
-        name: randomName,
+        name,
         messages: [],
         isProcessing: false,
-        currentWorkspace: workspace || '',
+        currentWorkspace: workspace || '~/Documents',
         currentModel: this.defaultModelId,
         isVisible: true,
         colSpan: 1,
         messageQueue: [],
         abortController: null,
+        color: agent.color,
+        icon: agent.icon,
+        description: agent.description,
+        persona: agent.systemPrompt,
+        video: agent.video,
+        lottie: agent.lottie
       }
       this.instanceIds.push(id)
       
@@ -114,10 +131,13 @@ export const useAgentStore = defineStore('agent', {
       if ((window as any).electron) {
         await (window as any).electron.ipcRenderer.invoke('agents:save', {
           id,
-          name: randomName,
-          workspace: workspace || '',
+          name,
+          workspace: workspace || '~/Documents',
           model: this.defaultModelId,
-          is_visible: true
+          is_visible: true,
+          color: agent.color,
+          icon: agent.icon,
+          description: agent.description
         })
       }
       
@@ -206,7 +226,8 @@ export const useAgentStore = defineStore('agent', {
             history: instance.messages.slice(0, -2).map(m => ({ 
               role: m.role, 
               content: m.content 
-            }))
+            })),
+            persona: instance.persona
           })
 
           removeListener()
@@ -396,6 +417,9 @@ export const useAgentStore = defineStore('agent', {
             // Load messages for each agent
             const messages = await (window as any).electron.ipcRenderer.invoke('messages:list', agent.id)
             
+            // Try to find matching config for persona/icon if not in DB
+            const config = AGENTS_REPO.find(a => a.name === agent.name)
+
             this.instances[agent.id] = {
               id: agent.id,
               name: agent.name,
@@ -411,7 +435,13 @@ export const useAgentStore = defineStore('agent', {
               isVisible: agent.is_visible === 1,
               colSpan: 1,
               messageQueue: [],
-              abortController: null
+              abortController: null,
+              color: agent.color || config?.color,
+              icon: agent.icon || config?.icon,
+              description: agent.description || config?.description,
+              persona: config?.systemPrompt,
+              video: config?.video,
+              lottie: config?.lottie
             }
             this.instanceIds.push(agent.id)
           }

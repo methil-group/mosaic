@@ -9,6 +9,9 @@ export interface AgentRecord {
   workspace: string;
   model: string;
   is_visible: number;
+  color?: string;
+  icon?: string;
+  description?: string;
   created_at: string;
 }
 
@@ -52,9 +55,38 @@ export class DatabaseService {
         workspace TEXT DEFAULT '',
         model TEXT NOT NULL,
         is_visible INTEGER DEFAULT 1,
+        color TEXT,
+        icon TEXT,
+        description TEXT,
+        video TEXT,
+        lottie TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Migration: Add missing columns if they don't exist
+    try {
+      const tableInfo = this.db.prepare('PRAGMA table_info(agents)').all() as any[];
+      const columns = tableInfo.map(c => c.name);
+
+      if (!columns.includes('color')) {
+        this.db.prepare('ALTER TABLE agents ADD COLUMN color TEXT').run();
+      }
+      if (!columns.includes('icon')) {
+        this.db.prepare('ALTER TABLE agents ADD COLUMN icon TEXT').run();
+      }
+      if (!columns.includes('description')) {
+        this.db.prepare('ALTER TABLE agents ADD COLUMN description TEXT').run();
+      }
+      if (!columns.includes('video')) {
+        this.db.prepare('ALTER TABLE agents ADD COLUMN video TEXT').run();
+      }
+      if (!columns.includes('lottie')) {
+        this.db.prepare('ALTER TABLE agents ADD COLUMN lottie TEXT').run();
+      }
+    } catch (error) {
+      console.error('Failed to migrate agents table:', error);
+    }
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS messages (
@@ -93,12 +125,12 @@ export class DatabaseService {
     return row || null;
   }
 
-  public saveAgent(agent: { id: string; name: string; workspace: string; model: string; is_visible?: boolean }): void {
+  public saveAgent(agent: { id: string; name: string; workspace: string; model: string; is_visible?: boolean; color?: string; icon?: string; description?: string; video?: string; lottie?: string }): void {
     const isVisible = agent.is_visible !== undefined ? (agent.is_visible ? 1 : 0) : 1;
     this.db.prepare(`
-      INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, created_at)
-      VALUES (?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
-    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.id);
+      INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, color, icon, description, video, lottie, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
+    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.color || null, agent.icon || null, agent.description || null, agent.video || null, agent.lottie || null, agent.id);
   }
 
   public updateAgentVisibility(id: string, isVisible: boolean): void {

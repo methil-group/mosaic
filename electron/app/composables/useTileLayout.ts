@@ -229,7 +229,7 @@ function cloneLayoutNode(node: LayoutNode): LayoutNode {
  * Update a split ratio at a given path in the tree
  */
 function updateRatioAtPath(node: LayoutNode, path: number[], newRatio: number): LayoutNode {
-  const clampedRatio = Math.max(0.15, Math.min(0.85, newRatio))
+  const clampedRatio = Math.max(0.1, Math.min(0.95, newRatio))
   
   if (path.length === 0 && node.type === 'split') {
     return { ...node, ratio: clampedRatio }

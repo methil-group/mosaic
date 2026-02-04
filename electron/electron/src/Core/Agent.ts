@@ -25,8 +25,8 @@ export class Agent {
     this.tools = getTools();
   }
 
-  async run(userPrompt: string, history: Message[] = []): Promise<void> {
-    const systemPrompt = PromptBuilder.createSystemPrompt(this.tools, this.workspace, this.userName);
+  async run(userPrompt: string, history: Message[] = [], persona?: string): Promise<void> {
+    const systemPrompt = PromptBuilder.createSystemPrompt(this.tools, this.workspace, this.userName, persona);
     this.messages = [
       { role: 'system', content: systemPrompt },
       ...history,

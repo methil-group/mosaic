@@ -5,6 +5,8 @@
 </template>
 
 <style>
+@import "~/assets/css/mosaic.css";
+
 /* Page transition - fade with subtle slide */
 .page-enter-active,
 .page-leave-active {

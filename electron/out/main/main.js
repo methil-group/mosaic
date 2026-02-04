@@ -280,14 +280,27 @@ class WorkspaceContextPart {
 You have full access to this directory. Use 'run_bash' to explore or 'read_file' to understand the code.`;
   }
 }
+class PersonaPart {
+  constructor(persona) {
+    this.persona = persona;
+  }
+  render() {
+    return `## YOUR PERSONA
+
+${this.persona}`;
+  }
+}
 class PromptBuilder {
-  static createSystemPrompt(tools, workspace, userName) {
+  static createSystemPrompt(tools, workspace, userName, persona) {
     const parts = [
       new IdentityPart(userName),
       new WorkspaceContextPart(workspace),
       new ToolFormatPart(tools),
       new ChecklistBehaviorPart()
     ];
+    if (persona) {
+      parts.unshift(new PersonaPart(persona));
+    }
     return parts.map((p) => p.render()).join("\n\n") + `
 
 ## CRITICAL RULES
@@ -313,8 +326,8 @@ class Agent {
     this.messages = [];
     this.tools = getTools();
   }
-  async run(userPrompt, history = []) {
-    const systemPrompt = PromptBuilder.createSystemPrompt(this.tools, this.workspace, this.userName);
+  async run(userPrompt, history = [], persona) {
+    const systemPrompt = PromptBuilder.createSystemPrompt(this.tools, this.workspace, this.userName, persona);
     this.messages = [
       { role: "system", content: systemPrompt },
       ...history,
@@ -691,9 +704,35 @@ class DatabaseService {
         workspace TEXT DEFAULT '',
         model TEXT NOT NULL,
         is_visible INTEGER DEFAULT 1,
+        color TEXT,
+        icon TEXT,
+        description TEXT,
+        video TEXT,
+        lottie TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    try {
+      const tableInfo = this.db.prepare("PRAGMA table_info(agents)").all();
+      const columns = tableInfo.map((c) => c.name);
+      if (!columns.includes("color")) {
+        this.db.prepare("ALTER TABLE agents ADD COLUMN color TEXT").run();
+      }
+      if (!columns.includes("icon")) {
+        this.db.prepare("ALTER TABLE agents ADD COLUMN icon TEXT").run();
+      }
+      if (!columns.includes("description")) {
+        this.db.prepare("ALTER TABLE agents ADD COLUMN description TEXT").run();
+      }
+      if (!columns.includes("video")) {
+        this.db.prepare("ALTER TABLE agents ADD COLUMN video TEXT").run();
+      }
+      if (!columns.includes("lottie")) {
+        this.db.prepare("ALTER TABLE agents ADD COLUMN lottie TEXT").run();
+      }
+    } catch (error) {
+      console.error("Failed to migrate agents table:", error);
+    }
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -728,9 +767,9 @@ class DatabaseService {
   saveAgent(agent) {
     const isVisible = agent.is_visible !== void 0 ? agent.is_visible ? 1 : 0 : 1;
     this.db.prepare(`
-      INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, created_at)
-      VALUES (?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
-    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.id);
+      INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, color, icon, description, video, lottie, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
+    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.color || null, agent.icon || null, agent.description || null, agent.video || null, agent.lottie || null, agent.id);
   }
   updateAgentVisibility(id, isVisible) {
     this.db.prepare("UPDATE agents SET is_visible = ? WHERE id = ?").run(isVisible ? 1 : 0, id);
@@ -811,8 +850,8 @@ ipcMain.handle("fs:ls", async (_event, path2) => {
 ipcMain.handle("fs:files", async (_event, path2) => {
   return { files: await fileSystemService.listFiles(path2) };
 });
-ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id, user_name, history }) => {
-  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}, History: ${history?.length || 0} messages`);
+ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id, user_name, history, persona }) => {
+  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}, Persona present: ${!!persona}`);
   const agent = new Agent(
     llmProvider,
     model_id,
@@ -826,7 +865,7 @@ ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id,
     }
   );
   try {
-    await agent.run(user_prompt, history || []);
+    await agent.run(user_prompt, history || [], persona);
     console.log("[Main] Agent run completed");
   } catch (error) {
     console.error("[Main] Agent run error:", error.message);

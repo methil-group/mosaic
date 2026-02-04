@@ -88,8 +88,8 @@ ipcMain.handle('fs:files', async (_event, path: string) => {
   return { files: await fileSystemService.listFiles(path) }
 })
 
-ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id, user_name, history }) => {
-  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}, History: ${history?.length || 0} messages`)
+ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id, user_name, history, persona }) => {
+  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}, Persona present: ${!!persona}`)
   const agent = new Agent(
     llmProvider,
     model_id,
@@ -105,7 +105,7 @@ ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id,
   )
 
   try {
-    await agent.run(user_prompt, history || [])
+    await agent.run(user_prompt, history || [], persona)
     console.log('[Main] Agent run completed')
   } catch (error: any) {
     console.error('[Main] Agent run error:', error.message)
@@ -169,7 +169,7 @@ ipcMain.handle('agents:get', (_event, id: string) => {
   return databaseService.getAgent(id)
 })
 
-ipcMain.handle('agents:save', (_event, agent: { id: string; name: string; workspace: string; model: string; is_visible?: boolean }) => {
+ipcMain.handle('agents:save', (_event, agent: { id: string; name: string; workspace: string; model: string; is_visible?: boolean; color?: string; icon?: string; description?: string }) => {
   databaseService.saveAgent(agent)
   return { success: true }
 })
