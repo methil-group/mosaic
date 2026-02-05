@@ -2,7 +2,7 @@
 import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import { useVideoCache } from '~/composables/useVideoCache'
-import { Bot, User, Terminal, Loader2, Sparkles, Trash2, Copy, Check, Settings, ChevronDown, EyeOff, X, Maximize2, Monitor } from 'lucide-vue-next'
+import { Bot, User, Terminal, Loader2, Sparkles, Trash2, Copy, Check, Settings, ChevronDown, EyeOff, X, Maximize2, Monitor, Code } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import TodoDisplay from './TodoDisplay.vue'
 import AgentInput from './AgentInput.vue'
@@ -31,6 +31,7 @@ const copiedIdx = ref<number | null>(null)
 const isSettingsOpen = ref(false)
 const panelRef = ref<HTMLElement | null>(null)
 const currentMode = ref('mode-full')
+const showRaw = ref<Record<number, boolean>>({})
 
 const hexToRgba = (hex: string, alpha: number) => {
     if (!hex) return `rgba(0,0,0,${alpha})`
@@ -94,6 +95,10 @@ onMounted(() => {
 
 const toggleActions = (idx: number) => {
     expandedActions.value[idx] = !expandedActions.value[idx]
+}
+
+const toggleRaw = (idx: number) => {
+    showRaw.value[idx] = !showRaw.value[idx]
 }
 
 const formatContent = (content: string) => {
@@ -320,10 +325,23 @@ watch(() => instance.value?.messages[instance.value.messages.length - 1]?.conten
 
                             <div v-if="formatContent(msg.content)"
                                 class="relative group/msg px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 leading-relaxed font-medium text-[12px] prose prose-sm max-w-none shadow-sm"
-                                v-html="formatContent(msg.content)">
+                            >
+                                <div v-if="showRaw[idx]" class="font-mono text-[10px] whitespace-pre-wrap opacity-70 selection:bg-gray-200">
+                                    {{ msg.content }}
+                                </div>
+                                <div v-else v-html="formatContent(msg.content)"></div>
                             </div>
 
                             <div v-if="formatContent(msg.content)" class="flex justify-end pr-1">
+                                <button @click="toggleRaw(idx)"
+                                    class="flex items-center gap-1.5 px-2 py-1 rounded bg-gray-100 border border-gray-200 opacity-60 hover:opacity-100 transition-all active:scale-95 group/raw"
+                                    :title="showRaw[idx] ? 'Show Rendered' : 'Show Raw'">
+                                    <Code class="w-2.5 h-2.5" :class="showRaw[idx] ? 'text-gray-900' : 'text-gray-400'" />
+                                    <span class="text-[8px] font-black uppercase tracking-widest" :class="showRaw[idx] ? 'text-gray-900' : 'text-gray-400'">
+                                        {{ showRaw[idx] ? 'Rendered' : 'Raw' }}
+                                    </span>
+                                </button>
+
                                 <button @click="copyToClipboard(msg.content, idx)"
                                     class="flex items-center gap-1.5 px-2 py-1 rounded bg-gray-100 border border-gray-200 opacity-60 hover:opacity-100 transition-all active:scale-95 group/copy">
                                     <Check v-if="copiedIdx === idx" class="w-2.5 h-2.5 text-green-500" />
