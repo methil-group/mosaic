@@ -52,8 +52,9 @@ const activeWorkspaceName = computed(() => {
 <template>
   <div class="h-full relative min-w-0 bg-gray-100 overflow-hidden">
     <!-- Layer 1: Workspace Mosaic (Lower layer) -->
-    <div class="absolute inset-0 transition-all duration-500 ease-in-out"
-      :class="{ 'opacity-0 scale-95 blur-xl pointer-events-none': store.viewMode === 'desktop' }">
+    <div class="absolute inset-0 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+      :class="{ 'opacity-0 scale-150 pointer-events-none': store.viewMode === 'desktop' }"
+      :style="{ transformOrigin: transitionOrigin }">
       <div class="h-full overflow-y-auto">
         <WorkspaceMosaic />
       </div>
@@ -62,33 +63,28 @@ const activeWorkspaceName = computed(() => {
     <!-- Layer 2: Workspace Detail (Top layer, Zooms in) -->
     <div class="absolute inset-0 flex flex-col bg-gray-100 overflow-hidden transition-all duration-500 ease-in-out"
       :class="[
-        store.viewMode === 'desktop' ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-50 blur-2xl pointer-events-none'
+        store.viewMode === 'desktop' ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-50 pointer-events-none'
       ]" :style="{ transformOrigin: transitionOrigin }">
-      <div v-if="store.activeWorkspaceId"
-        class="px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between z-[60]">
-        <div class="flex items-center gap-4">
-          <button @click="store.setActiveWorkspace(null)" class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            title="Retour à la mosaïque">
-            <ChevronLeft class="w-5 h-5 text-gray-600" />
-          </button>
-          <div class="flex flex-col">
-            <h1 class="text-sm font-black uppercase tracking-widest text-gray-900">{{ activeWorkspaceName }}</h1>
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ visibleInstances.length }}
-              Agent{{ visibleInstances.length !== 1 ? 's' : '' }} Actif{{ visibleInstances.length !== 1 ? 's' : ''
-              }}</span>
-          </div>
-        </div>
+      <!-- Floating Controls (Top Right) -->
+      <div v-if="store.activeWorkspaceId" class="absolute top-6 right-6 z-[60] flex items-center gap-3">
+        <!-- Back Button -->
+        <button @click="store.setActiveWorkspace(null)"
+          class="w-10 h-10 flex items-center justify-center bg-white/80 backdrop-blur-md rounded-full border border-gray-200 shadow-sm hover:shadow-md hover:bg-white transition-all group"
+          title="Retour à la mosaïque">
+          <ChevronLeft class="w-5 h-5 text-gray-600 group-hover:text-gray-900 transition-colors" />
+        </button>
 
-        <div class="flex items-center gap-2">
-          <button @click="store.createInstance()" :disabled="visibleInstances.length >= 6" :class="[
-            'px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all',
-            visibleInstances.length >= 6
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-50'
-              : 'bg-black text-white hover:bg-gray-800 shadow-sm hover:shadow-md'
-          ]">
-            {{ visibleInstances.length >= 6 ? 'Limite Atteinte (6)' : 'Ajouter un Agent' }}
-          </button>
-        </div>
+        <!-- Add Agent Button -->
+        <button @click="store.createInstance()" :disabled="visibleInstances.length >= 6" :class="[
+          'h-10 px-4 rounded-full flex items-center gap-2 border shadow-sm transition-all',
+          visibleInstances.length >= 6
+            ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+            : 'bg-black border-black text-white hover:bg-gray-800 hover:shadow-md'
+        ]">
+          <span class="text-xs font-bold uppercase tracking-wider">
+            {{ visibleInstances.length >= 6 ? 'Full' : 'Add Agent' }}
+          </span>
+        </button>
       </div>
 
       <div

@@ -124,15 +124,15 @@ watch(() => instance.value?.messages[instance.value?.messages.length - 1]?.conte
 
 <template>
     <div v-if="instance" ref="panelRef"
-        :class="[preview ? 'agent-chip' : 'panel flex flex-col h-full bg-white overflow-hidden relative group/instance transition-all duration-200 border border-gray-200 shadow-sm', currentMode]"
-        :style="{
+        class="panel flex flex-col h-full bg-white overflow-hidden relative group/instance transition-all duration-200 border border-gray-200 shadow-sm"
+        :class="currentMode" :style="{
             '--bot-color': instance.color || '#000000',
             '--bot-color-soft': hexToRgba(instance.color || '#000000', 0.1),
             '--msg-bg-light': hexToRgba(instance.color || '#000000', 0.08)
         }">
 
         <!-- Full View Content -->
-        <template v-if="!preview">
+        <template v-if="true">
             <button class="btn-remove-panel z-50" @click="store.removeInstance(instanceId)" title="Remove Bot">
                 <X class="w-2.5 h-2.5" />
             </button>
@@ -201,18 +201,6 @@ watch(() => instance.value?.messages[instance.value?.messages.length - 1]?.conte
                     <AgentInput :instance-id="instanceId" />
                 </div>
             </template>
-        </template>
-
-        <!-- Preview View Content (Chip) -->
-        <template v-else>
-            <div class="chip-content"
-                :style="{ backgroundColor: hexToRgba(instance.color || '#eee', 0.1), borderColor: hexToRgba(instance.color || '#eee', 0.2) }">
-                <div class="chip-icon-wrapper">
-                    <component :is="getIconComponent(instance.icon)" class="w-10 h-10"
-                        :style="{ color: instance.color }" />
-                </div>
-                <span class="chip-name">{{ instance.name }}</span>
-            </div>
         </template>
     </div>
 </template>
