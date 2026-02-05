@@ -26,12 +26,12 @@
                     class="px-2 text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4 animate-in fade-in duration-300">
                     Application</h3>
                 <div class="space-y-1.5">
-                    <NuxtLink to="/" v-tooltip="!isSidebarExpanded ? 'Workspace' : null"
+                    <NuxtLink to="/" v-tooltip="!isSidebarExpanded ? 'Workspaces' : null"
                         class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
                         active-class="bg-gray-200 text-gray-900">
                         <LayoutGrid class="w-4 h-4 shrink-0" />
                         <span v-if="isSidebarExpanded"
-                            class="animate-in slide-in-from-left-2 duration-300 truncate">Grid</span>
+                            class="animate-in slide-in-from-left-2 duration-300 truncate">Workspaces</span>
                     </NuxtLink>
                     <NuxtLink to="/agents" v-tooltip="!isSidebarExpanded ? 'Agents' : null"
                         class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
@@ -62,14 +62,6 @@
                     class="animate-in slide-in-from-left-2 duration-300 truncate">Profile</span>
             </NuxtLink>
         </div>
-
-        <!-- Footer/Info -->
-        <footer class="p-4 border-t border-gray-100 flex flex-col items-center overflow-hidden">
-            <div v-if="isSidebarExpanded" class="w-full px-2 animate-in fade-in duration-300">
-                <div class="text-[7px] font-bold text-gray-300 uppercase tracking-[0.4em] truncate">BUILD 1.0.5</div>
-            </div>
-            <div v-else class="text-[7px] font-bold text-gray-300 uppercase tracking-widest">v1</div>
-        </footer>
     </aside>
 </template>
 
