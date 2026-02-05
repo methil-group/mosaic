@@ -67,12 +67,14 @@
                             Agent <span class="agent-name-label font-extrabold">{{ instance.name }}</span>
                         </span>
                     </div>
-                    <div class="action-circle" :class="{
-                        'status-working': instance.isProcessing,
-                        'status-waiting': !instance.isProcessing && instance.messages.length === 0,
-                        'status-done': !instance.isProcessing && instance.messages.length > 0
-                    }"></div>
                 </div>
+
+                <!-- Activity/Status Indicator -->
+                <div class="action-circle absolute bottom-3 right-3 z-30 shadow-lg" :class="{
+                    'status-working': instance.isProcessing,
+                    'status-waiting': !instance.isProcessing && instance.messages.length === 0,
+                    'status-done': !instance.isProcessing && instance.messages.length > 0
+                }"></div>
             </header>
 
             <AgentSettingsModal v-model="isSettingsOpen" :instance-id="instanceId" />
@@ -267,11 +269,12 @@ watch(() => instance.value?.messages[instance.value?.messages.length - 1]?.conte
 }
 
 .action-circle {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background: #94a3b8;
     transition: all 0.3s;
+    border: 2px solid rgba(255, 255, 255, 0.5);
 }
 
 .status-working {

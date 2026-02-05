@@ -10,10 +10,9 @@
     </div>
 
     <!-- Layer 2: Workspace Detail (Top layer, Zooms in) -->
-    <div class="absolute inset-0 flex flex-col bg-gray-100 overflow-hidden transition-all duration-500 ease-in-out"
-      :class="[
-        store.viewMode === 'desktop' ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-50 pointer-events-none'
-      ]" :style="{ transformOrigin: transitionOrigin }">
+    <div class="absolute inset-0 flex flex-col overflow-hidden transition-all duration-500 ease-in-out" :class="[
+      store.viewMode === 'desktop' ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-50 pointer-events-none'
+    ]" :style="{ transformOrigin: transitionOrigin }">
       <!-- Floating Controls -->
       <div v-if="store.activeWorkspaceId" class="absolute top-6 left-6 z-[60]">
         <!-- Back Button -->
@@ -24,7 +23,7 @@
         </button>
       </div>
 
-      <div v-if="store.activeWorkspaceId" class="absolute top-6 right-6 z-[60] flex items-center gap-3">
+      <div v-if="store.activeWorkspaceId" class="absolute bottom-6 left-6 z-[60] flex items-center gap-3">
         <!-- Add Agent Button -->
         <button @click="store.createInstance()" :disabled="visibleInstances.length >= 6" :class="[
           'h-10 px-4 rounded-full flex items-center gap-2 border shadow-sm transition-all',
