@@ -1,31 +1,3 @@
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useAgentStore } from '~/stores/agent'
-import { useRoute } from 'vue-router'
-import { Sparkles, Plus, LayoutGrid, Menu, X, Bot, Eye, EyeOff, Settings, User, Folder } from 'lucide-vue-next'
-
-const store = useAgentStore()
-const route = useRoute()
-const isSidebarExpanded = ref(false)
-const hoveredAgentId = ref<string | null>(null)
-
-const isGridView = computed(() => route.path === '/')
-
-const addAgent = () => {
-    store.createInstance()
-}
-
-const toggleSidebar = () => {
-    isSidebarExpanded.value = !isSidebarExpanded.value
-}
-
-const toggleVisibility = (id: string) => {
-    if (store.instances[id]) {
-        store.instances[id].isVisible = !store.instances[id].isVisible
-    }
-}
-</script>
-
 <template>
     <!-- Mini Persistent Sidebar -->
     <aside
@@ -100,3 +72,31 @@ const toggleVisibility = (id: string) => {
         </footer>
     </aside>
 </template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useAgentStore } from '~/stores/agent'
+import { useRoute } from 'vue-router'
+import { Sparkles, Plus, LayoutGrid, Menu, X, Bot, Eye, EyeOff, Settings, User, Folder } from 'lucide-vue-next'
+
+const store = useAgentStore()
+const route = useRoute()
+const isSidebarExpanded = ref(false)
+const hoveredAgentId = ref<string | null>(null)
+
+const isGridView = computed(() => route.path === '/')
+
+const addAgent = () => {
+    store.createInstance()
+}
+
+const toggleSidebar = () => {
+    isSidebarExpanded.value = !isSidebarExpanded.value
+}
+
+const toggleVisibility = (id: string) => {
+    if (store.instances[id]) {
+        store.instances[id].isVisible = !store.instances[id].isVisible
+    }
+}
+</script>

@@ -1,120 +1,3 @@
-<script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { useAgentStore } from '~/stores/agent'
-import { Settings, X, Folder, Check, Globe } from 'lucide-vue-next'
-
-const props = defineProps<{
-    instanceId: string
-    modelValue: boolean
-}>()
-
-const emit = defineEmits<{
-    (e: 'update:modelValue', value: boolean): void
-}>()
-
-const store = useAgentStore()
-const instance = computed(() => store.instances[props.instanceId])
-
-const workspaceSuggestions = ref<string[]>([])
-const allSuggestionsForPath = ref<string[]>([])
-const lastFetchedPath = ref('')
-const selectedIndex = ref(-1)
-const isWorkspaceMenuOpen = ref(false)
-const isInputFocused = ref(false)
-
-const fetchWorkspaceSuggestions = async () => {
-    if (!instance.value?.currentWorkspace) return
-    const currentPath = instance.value.currentWorkspace
-
-    let parentPath = currentPath
-    let partial = ''
-
-    if (!currentPath.endsWith('/')) {
-        const lastSlash = currentPath.lastIndexOf('/')
-        if (lastSlash !== -1) {
-            parentPath = currentPath.substring(0, lastSlash + 1)
-            partial = currentPath.substring(lastSlash + 1)
-        } else {
-            parentPath = './'
-            partial = currentPath
-        }
-    }
-
-    if (parentPath !== lastFetchedPath.value) {
-        const dirs = await store.listDirectories(parentPath)
-        allSuggestionsForPath.value = dirs
-        lastFetchedPath.value = parentPath
-    }
-
-    workspaceSuggestions.value = allSuggestionsForPath.value.filter(d =>
-        d.toLowerCase().startsWith(partial.toLowerCase())
-    )
-
-    selectedIndex.value = -1
-    isWorkspaceMenuOpen.value = workspaceSuggestions.value.length > 0
-}
-
-const handleTab = (event: KeyboardEvent) => {
-    if (!isWorkspaceMenuOpen.value || workspaceSuggestions.value.length === 0) return
-    event.preventDefault()
-
-    selectedIndex.value = (selectedIndex.value + 1) % workspaceSuggestions.value.length
-
-    const dir = workspaceSuggestions.value[selectedIndex.value]
-    const current = instance.value!.currentWorkspace
-    const lastSlash = current.lastIndexOf('/')
-    const parent = current.substring(0, lastSlash + 1)
-    instance.value!.currentWorkspace = `${parent}${dir}`
-}
-
-const handleEnter = (event: KeyboardEvent) => {
-    if (!isWorkspaceMenuOpen.value || workspaceSuggestions.value.length === 0) return
-
-    if (selectedIndex.value !== -1 || workspaceSuggestions.value.length === 1) {
-        event.preventDefault()
-        const idx = selectedIndex.value === -1 ? 0 : selectedIndex.value
-        const dir = workspaceSuggestions.value[idx]
-        const current = instance.value!.currentWorkspace
-        const lastSlash = current.lastIndexOf('/')
-        const parent = current.substring(0, lastSlash + 1)
-
-        instance.value!.currentWorkspace = `${parent}${dir}/`
-        isWorkspaceMenuOpen.value = false
-        fetchWorkspaceSuggestions()
-    }
-}
-
-const selectWorkspaceSuggestion = (dir: string) => {
-    if (!instance.value) return
-    const current = instance.value.currentWorkspace
-    const lastSlash = current.lastIndexOf('/')
-    const parent = current.substring(0, lastSlash + 1)
-
-    instance.value.currentWorkspace = `${parent}${dir}/`
-    fetchWorkspaceSuggestions()
-}
-
-const closeWorkspaceMenu = () => {
-    setTimeout(() => {
-        isWorkspaceMenuOpen.value = false
-    }, 200)
-}
-
-const selectModel = (modelId: string) => {
-    store.updateInstanceModel(props.instanceId, modelId)
-}
-
-watch(() => instance.value?.currentWorkspace, () => {
-    if (isInputFocused.value) {
-        fetchWorkspaceSuggestions()
-    }
-})
-
-const close = () => {
-    emit('update:modelValue', false)
-}
-</script>
-
 <template>
     <Teleport to="body">
         <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="opacity-0"
@@ -264,6 +147,123 @@ const close = () => {
         </Transition>
     </Teleport>
 </template>
+
+<script setup lang="ts">
+import { ref, watch, computed } from 'vue'
+import { useAgentStore } from '~/stores/agent'
+import { Settings, X, Folder, Check, Globe } from 'lucide-vue-next'
+
+const props = defineProps<{
+    instanceId: string
+    modelValue: boolean
+}>()
+
+const emit = defineEmits<{
+    (e: 'update:modelValue', value: boolean): void
+}>()
+
+const store = useAgentStore()
+const instance = computed(() => store.instances[props.instanceId])
+
+const workspaceSuggestions = ref<string[]>([])
+const allSuggestionsForPath = ref<string[]>([])
+const lastFetchedPath = ref('')
+const selectedIndex = ref(-1)
+const isWorkspaceMenuOpen = ref(false)
+const isInputFocused = ref(false)
+
+const fetchWorkspaceSuggestions = async () => {
+    if (!instance.value?.currentWorkspace) return
+    const currentPath = instance.value.currentWorkspace
+
+    let parentPath = currentPath
+    let partial = ''
+
+    if (!currentPath.endsWith('/')) {
+        const lastSlash = currentPath.lastIndexOf('/')
+        if (lastSlash !== -1) {
+            parentPath = currentPath.substring(0, lastSlash + 1)
+            partial = currentPath.substring(lastSlash + 1)
+        } else {
+            parentPath = './'
+            partial = currentPath
+        }
+    }
+
+    if (parentPath !== lastFetchedPath.value) {
+        const dirs = await store.listDirectories(parentPath)
+        allSuggestionsForPath.value = dirs
+        lastFetchedPath.value = parentPath
+    }
+
+    workspaceSuggestions.value = allSuggestionsForPath.value.filter(d =>
+        d.toLowerCase().startsWith(partial.toLowerCase())
+    )
+
+    selectedIndex.value = -1
+    isWorkspaceMenuOpen.value = workspaceSuggestions.value.length > 0
+}
+
+const handleTab = (event: KeyboardEvent) => {
+    if (!isWorkspaceMenuOpen.value || workspaceSuggestions.value.length === 0) return
+    event.preventDefault()
+
+    selectedIndex.value = (selectedIndex.value + 1) % workspaceSuggestions.value.length
+
+    const dir = workspaceSuggestions.value[selectedIndex.value]
+    const current = instance.value!.currentWorkspace
+    const lastSlash = current.lastIndexOf('/')
+    const parent = current.substring(0, lastSlash + 1)
+    instance.value!.currentWorkspace = `${parent}${dir}`
+}
+
+const handleEnter = (event: KeyboardEvent) => {
+    if (!isWorkspaceMenuOpen.value || workspaceSuggestions.value.length === 0) return
+
+    if (selectedIndex.value !== -1 || workspaceSuggestions.value.length === 1) {
+        event.preventDefault()
+        const idx = selectedIndex.value === -1 ? 0 : selectedIndex.value
+        const dir = workspaceSuggestions.value[idx]
+        const current = instance.value!.currentWorkspace
+        const lastSlash = current.lastIndexOf('/')
+        const parent = current.substring(0, lastSlash + 1)
+
+        instance.value!.currentWorkspace = `${parent}${dir}/`
+        isWorkspaceMenuOpen.value = false
+        fetchWorkspaceSuggestions()
+    }
+}
+
+const selectWorkspaceSuggestion = (dir: string) => {
+    if (!instance.value) return
+    const current = instance.value.currentWorkspace
+    const lastSlash = current.lastIndexOf('/')
+    const parent = current.substring(0, lastSlash + 1)
+
+    instance.value.currentWorkspace = `${parent}${dir}/`
+    fetchWorkspaceSuggestions()
+}
+
+const closeWorkspaceMenu = () => {
+    setTimeout(() => {
+        isWorkspaceMenuOpen.value = false
+    }, 200)
+}
+
+const selectModel = (modelId: string) => {
+    store.updateInstanceModel(props.instanceId, modelId)
+}
+
+watch(() => instance.value?.currentWorkspace, () => {
+    if (isInputFocused.value) {
+        fetchWorkspaceSuggestions()
+    }
+})
+
+const close = () => {
+    emit('update:modelValue', false)
+}
+</script>
 
 <style scoped>
 .custom-scrollbar-mini::-webkit-scrollbar {

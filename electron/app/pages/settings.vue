@@ -59,11 +59,11 @@
                                     :class="store.defaultModelId === model.id ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-100'">
                                     <div class="flex items-center justify-between w-full mb-0.5">
                                         <span class="text-xs font-black uppercase tracking-tight">{{ model.name
-                                        }}</span>
+                                            }}</span>
                                         <Check v-if="store.defaultModelId === model.id" class="w-3 h-3" />
                                     </div>
                                     <span class="text-[9px] font-mono opacity-50 uppercase tracking-widest">{{ model.id
-                                    }}</span>
+                                        }}</span>
                                 </button>
                             </div>
                             <p v-if="availableModelsForDefault.length === 0"

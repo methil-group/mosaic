@@ -1,40 +1,3 @@
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useAgentStore } from '~/stores/agent'
-import { Bot, Plus, Search, MoreVertical, ExternalLink, Trash2, Cpu, Activity, LayoutGrid } from 'lucide-vue-next'
-
-const store = useAgentStore()
-const searchQuery = ref('')
-
-const activeAgents = computed(() => {
-    return store.instanceIds
-        .map(id => store.instances[id])
-        .filter((a): a is any => !!a)
-})
-
-const filteredAgents = computed(() => {
-    if (!searchQuery.value) return activeAgents.value
-    return activeAgents.value.filter(a =>
-        a.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        a.currentWorkspace.toLowerCase().includes(searchQuery.value.toLowerCase())
-    )
-})
-
-const deployAgent = () => {
-    store.createInstance()
-}
-
-const deleteAgent = (id: string) => {
-    if (confirm('Terminate this agent instance?')) {
-        store.removeInstance(id)
-    }
-}
-
-const openAgentDetail = (id: string) => {
-    navigateTo(`/agents/${id}`)
-}
-</script>
-
 <template>
     <div class="h-full flex flex-col bg-gray-50">
         <!-- Header -->
@@ -141,6 +104,43 @@ const openAgentDetail = (id: string) => {
         </div>
     </div>
 </template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useAgentStore } from '~/stores/agent'
+import { Bot, Plus, Search, MoreVertical, ExternalLink, Trash2, Cpu, Activity, LayoutGrid } from 'lucide-vue-next'
+
+const store = useAgentStore()
+const searchQuery = ref('')
+
+const activeAgents = computed(() => {
+    return store.instanceIds
+        .map(id => store.instances[id])
+        .filter((a): a is any => !!a)
+})
+
+const filteredAgents = computed(() => {
+    if (!searchQuery.value) return activeAgents.value
+    return activeAgents.value.filter(a =>
+        a.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        a.currentWorkspace.toLowerCase().includes(searchQuery.value.toLowerCase())
+    )
+})
+
+const deployAgent = () => {
+    store.createInstance()
+}
+
+const deleteAgent = (id: string) => {
+    if (confirm('Terminate this agent instance?')) {
+        store.removeInstance(id)
+    }
+}
+
+const openAgentDetail = (id: string) => {
+    navigateTo(`/agents/${id}`)
+}
+</script>
 
 <style scoped>
 .custom-scrollbar::-webkit-scrollbar {

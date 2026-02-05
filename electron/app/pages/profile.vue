@@ -1,21 +1,3 @@
-<script setup lang="ts">
-import { useUserStore } from '~/stores/user'
-import { User, Save, ArrowLeft, Check } from 'lucide-vue-next'
-import { ref } from 'vue'
-
-const userStore = useUserStore()
-const nameInput = ref(userStore.userName)
-const showSaved = ref(false)
-
-const saveProfile = () => {
-    userStore.setUserName(nameInput.value)
-    showSaved.value = true
-    setTimeout(() => {
-        showSaved.value = false
-    }, 2000)
-}
-</script>
-
 <template>
     <div class="h-full overflow-y-auto bg-gray-50 selection:bg-gray-900 selection:text-white">
         <div class="flex flex-col min-h-full p-12 md:p-20 max-w-5xl mx-auto w-full">
@@ -98,3 +80,21 @@ const saveProfile = () => {
         </div>
     </div>
 </template>
+
+<script setup lang="ts">
+import { useUserStore } from '~/stores/user'
+import { User, Save, ArrowLeft, Check } from 'lucide-vue-next'
+import { ref } from 'vue'
+
+const userStore = useUserStore()
+const nameInput = ref(userStore.userName)
+const showSaved = ref(false)
+
+const saveProfile = () => {
+    userStore.setUserName(nameInput.value)
+    showSaved.value = true
+    setTimeout(() => {
+        showSaved.value = false
+    }, 2000)
+}
+</script>

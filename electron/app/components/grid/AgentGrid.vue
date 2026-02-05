@@ -1,3 +1,30 @@
+<template>
+    <div ref="gridContainer" v-if="limitedIds.length > 0" class="flex-1 w-full h-full overflow-hidden relative" :class="{
+        'pointer-events-none': isPreview,
+        'bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px]': !isPreview
+    }">
+
+        <!-- Tiles with absolute positioning -->
+        <TransitionGroup name="tile">
+            <div v-for="id in limitedIds" :key="id" class="tile-item" :style="getTileStyle(id, isDragging)">
+                <AgentInstance :instance-id="id" :chromeless="isPreview" class="w-full h-full" />
+            </div>
+        </TransitionGroup>
+
+        <!-- Resize Handles (Only if not preview) -->
+        <template v-if="!isPreview">
+            <div v-for="handle in resizeHandles" :key="handle.id" class="resize-handle z-50" :class="{
+                'resize-handle-active': isDragging && activeHandle?.id === handle.id,
+                'resize-handle-horizontal': handle.direction === 'horizontal',
+                'resize-handle-vertical': handle.direction === 'vertical'
+            }" :style="getHandleStyle(handle)" @mousedown="startDrag(handle, $event)">
+                <div class="resize-handle-visual"
+                    :class="handle.direction === 'horizontal' ? 'w-1 h-full' : 'w-full h-1'" />
+            </div>
+        </template>
+    </div>
+</template>
+
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAgentStore } from '~/stores/agent'
@@ -68,33 +95,6 @@ const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
     document.body.style.userSelect = 'none'
 }
 </script>
-
-<template>
-    <div ref="gridContainer" v-if="limitedIds.length > 0" class="flex-1 w-full h-full overflow-hidden relative" :class="{
-        'pointer-events-none': isPreview,
-        'bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px]': !isPreview
-    }">
-
-        <!-- Tiles with absolute positioning -->
-        <TransitionGroup name="tile">
-            <div v-for="id in limitedIds" :key="id" class="tile-item" :style="getTileStyle(id, isDragging)">
-                <AgentInstance :instance-id="id" :chromeless="isPreview" class="w-full h-full" />
-            </div>
-        </TransitionGroup>
-
-        <!-- Resize Handles (Only if not preview) -->
-        <template v-if="!isPreview">
-            <div v-for="handle in resizeHandles" :key="handle.id" class="resize-handle z-50" :class="{
-                'resize-handle-active': isDragging && activeHandle?.id === handle.id,
-                'resize-handle-horizontal': handle.direction === 'horizontal',
-                'resize-handle-vertical': handle.direction === 'vertical'
-            }" :style="getHandleStyle(handle)" @mousedown="startDrag(handle, $event)">
-                <div class="resize-handle-visual"
-                    :class="handle.direction === 'horizontal' ? 'w-1 h-full' : 'w-full h-1'" />
-            </div>
-        </template>
-    </div>
-</template>
 
 <style scoped>
 /* Tile animations */

@@ -1,91 +1,3 @@
-<script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router'
-import { useAgentStore } from '~/stores/agent'
-import { ArrowLeft, Bot, Settings, Terminal, BotIcon, Save, History, Database, Trash2, Folder, FolderOpen, ChevronRight, Home, ArrowUp, RefreshCw, X } from 'lucide-vue-next'
-import { computed, ref, watch } from 'vue'
-
-const route = useRoute()
-const router = useRouter()
-const store = useAgentStore()
-
-const id = route.params.id as string
-const agent = computed(() => store.instances[id])
-
-const goBack = () => {
-    router.back()
-}
-
-const terminateAgent = () => {
-    if (confirm('Terminate this agent?')) {
-        store.removeInstance(id)
-        router.push('/agents')
-    }
-}
-
-// File Explorer Modal state
-const showFileExplorer = ref(false)
-const currentPath = ref('~')
-const directories = ref<string[]>([])
-const isLoading = ref(false)
-
-const openFileExplorer = () => {
-    showFileExplorer.value = true
-    if (agent.value?.currentWorkspace) {
-        loadDirectories(agent.value.currentWorkspace)
-    } else {
-        loadDirectories('~')
-    }
-}
-
-const closeFileExplorer = () => {
-    showFileExplorer.value = false
-}
-
-const loadDirectories = async (path: string) => {
-    isLoading.value = true
-    try {
-        const result = await store.listDirectories(path)
-        directories.value = result.filter(d => !d.startsWith('.'))
-        currentPath.value = path
-    } catch (e) {
-        console.error(e)
-    } finally {
-        isLoading.value = false
-    }
-}
-
-const navigateToFolder = (folderName: string) => {
-    const newPath = currentPath.value.endsWith('/')
-        ? `${currentPath.value}${folderName}`
-        : `${currentPath.value}/${folderName}`
-    loadDirectories(newPath)
-}
-
-const navigateUp = () => {
-    const path = currentPath.value
-    if (path === '~' || path === '/') return
-    const lastSlash = path.lastIndexOf('/')
-    if (lastSlash > 0) {
-        loadDirectories(path.substring(0, lastSlash))
-    } else if (lastSlash === 0) {
-        loadDirectories('/')
-    } else {
-        loadDirectories('~')
-    }
-}
-
-const navigateHome = () => {
-    loadDirectories('~')
-}
-
-const selectFolder = () => {
-    if (agent.value) {
-        agent.value.currentWorkspace = currentPath.value
-    }
-    closeFileExplorer()
-}
-</script>
-
 <template>
     <div v-if="agent" class="h-full flex flex-col bg-gray-50 overflow-hidden">
         <!-- Header -->
@@ -164,7 +76,7 @@ const selectFolder = () => {
                                         <Folder
                                             class="w-4 h-4 text-amber-500/60 group-hover:text-amber-600 transition-colors shrink-0" />
                                         <span class="truncate flex-1">{{ agent.currentWorkspace || 'Click to select...'
-                                            }}</span>
+                                        }}</span>
                                         <ChevronRight
                                             class="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
                                     </button>
@@ -292,6 +204,94 @@ const selectFolder = () => {
         </div>
     </div>
 </template>
+
+<script setup lang="ts">
+import { useRoute, useRouter } from 'vue-router'
+import { useAgentStore } from '~/stores/agent'
+import { ArrowLeft, Bot, Settings, Terminal, BotIcon, Save, History, Database, Trash2, Folder, FolderOpen, ChevronRight, Home, ArrowUp, RefreshCw, X } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
+
+const route = useRoute()
+const router = useRouter()
+const store = useAgentStore()
+
+const id = route.params.id as string
+const agent = computed(() => store.instances[id])
+
+const goBack = () => {
+    router.back()
+}
+
+const terminateAgent = () => {
+    if (confirm('Terminate this agent?')) {
+        store.removeInstance(id)
+        router.push('/agents')
+    }
+}
+
+// File Explorer Modal state
+const showFileExplorer = ref(false)
+const currentPath = ref('~')
+const directories = ref<string[]>([])
+const isLoading = ref(false)
+
+const openFileExplorer = () => {
+    showFileExplorer.value = true
+    if (agent.value?.currentWorkspace) {
+        loadDirectories(agent.value.currentWorkspace)
+    } else {
+        loadDirectories('~')
+    }
+}
+
+const closeFileExplorer = () => {
+    showFileExplorer.value = false
+}
+
+const loadDirectories = async (path: string) => {
+    isLoading.value = true
+    try {
+        const result = await store.listDirectories(path)
+        directories.value = result.filter(d => !d.startsWith('.'))
+        currentPath.value = path
+    } catch (e) {
+        console.error(e)
+    } finally {
+        isLoading.value = false
+    }
+}
+
+const navigateToFolder = (folderName: string) => {
+    const newPath = currentPath.value.endsWith('/')
+        ? `${currentPath.value}${folderName}`
+        : `${currentPath.value}/${folderName}`
+    loadDirectories(newPath)
+}
+
+const navigateUp = () => {
+    const path = currentPath.value
+    if (path === '~' || path === '/') return
+    const lastSlash = path.lastIndexOf('/')
+    if (lastSlash > 0) {
+        loadDirectories(path.substring(0, lastSlash))
+    } else if (lastSlash === 0) {
+        loadDirectories('/')
+    } else {
+        loadDirectories('~')
+    }
+}
+
+const navigateHome = () => {
+    loadDirectories('~')
+}
+
+const selectFolder = () => {
+    if (agent.value) {
+        agent.value.currentWorkspace = currentPath.value
+    }
+    closeFileExplorer()
+}
+</script>
 
 <style scoped>
 .custom-scrollbar::-webkit-scrollbar {
