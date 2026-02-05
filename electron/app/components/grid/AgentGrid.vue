@@ -6,8 +6,11 @@
 
         <!-- Tiles with absolute positioning -->
         <TransitionGroup name="tile">
-            <div v-for="id in limitedIds" :key="id" class="tile-item" :style="getTileStyle(id, isDragging)">
-                <AgentInstance :instance-id="id" :chromeless="isPreview" class="w-full h-full" />
+            <div v-for="id in limitedIds" :key="id" class="tile-item" :style="getTileStyle(id, isDragging)"
+                @dragover.prevent="handleDragOver(id)" @dragleave="handleDragLeave(id)" @drop="handleDrop(id)"
+                :class="{ 'tile-drag-over': dragOverId === id }">
+                <AgentInstance :instance-id="id" :chromeless="isPreview" class="w-full h-full"
+                    @drag-start="handleAgentDragStart" @drag-end="handleAgentDragEnd" />
             </div>
         </TransitionGroup>
 
@@ -48,7 +51,7 @@ const visibleInstances = computed(() => {
     })
 })
 
-const { tilePositions, resizeHandles, limitedIds, getTileStyle, getHandleStyle, updateSplitRatio } = useTileLayout(visibleInstances, {
+const { tilePositions, resizeHandles, limitedIds, getTileStyle, getHandleStyle, updateSplitRatio, swapTiles } = useTileLayout(visibleInstances, {
     margin: props.isPreview ? 0 : undefined,
     gap: props.isPreview ? 0 : undefined
 })
@@ -56,6 +59,36 @@ const { tilePositions, resizeHandles, limitedIds, getTileStyle, getHandleStyle, 
 // Drag state managed locally
 const isDragging = ref(false)
 const activeHandle = ref<ResizeHandle | null>(null)
+const dragOverId = ref<string | null>(null)
+const draggedAgentId = ref<string | null>(null)
+
+const handleAgentDragStart = (id: string) => {
+    draggedAgentId.value = id
+}
+
+const handleAgentDragEnd = () => {
+    dragOverId.value = null
+    draggedAgentId.value = null
+}
+
+const handleDragOver = (id: string) => {
+    if (draggedAgentId.value === id) return
+    dragOverId.value = id
+}
+
+const handleDragLeave = (id: string) => {
+    if (dragOverId.value === id) {
+        dragOverId.value = null
+    }
+}
+
+const handleDrop = (targetId: string) => {
+    if (draggedAgentId.value && draggedAgentId.value !== targetId) {
+        swapTiles(draggedAgentId.value, targetId)
+    }
+    dragOverId.value = null
+    draggedAgentId.value = null
+}
 
 const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
     if (props.isPreview) return
@@ -130,6 +163,36 @@ const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
 .tile-leave-to {
     opacity: 0;
     transform: scale(0.85);
+}
+
+.tile-drag-over {
+    z-index: 40;
+}
+
+.tile-drag-over::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 3px solid #6366f1;
+    border-radius: 20px;
+    background: rgba(99, 102, 241, 0.1);
+    pointer-events: none;
+    animation: pulse-border 1.5s infinite;
+    z-index: 100;
+}
+
+@keyframes pulse-border {
+    0% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.6;
+    }
 }
 
 /* Resize handles */

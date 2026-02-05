@@ -312,6 +312,24 @@ function cloneLayoutNode(node: LayoutNode): LayoutNode {
 }
 
 /**
+ * Swap IDs of two tiles in the layout tree
+ */
+function findAndSwapIds(node: LayoutNode, id1: string, id2: string): LayoutNode {
+  if (node.type === 'tile') {
+    if (node.id === id1) return { ...node, id: id2 }
+    if (node.id === id2) return { ...node, id: id1 }
+    return node
+  }
+  return {
+    ...node,
+    children: [
+      findAndSwapIds(node.children[0], id1, id2),
+      findAndSwapIds(node.children[1], id1, id2)
+    ]
+  }
+}
+
+/**
  * Update a split ratio at a given path in the tree
  */
 function updateRatioAtPath(node: LayoutNode, path: number[], newRatio: number): LayoutNode {
@@ -431,6 +449,15 @@ export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>,
     saveLayout(updated)
   }
 
+  const swapTiles = (id1: string, id2: string) => {
+    if (id1 === id2) return
+    const currentLayout = getStoredLayout() ?? buildAutoTileLayout(limitedIds.value)
+    if (!currentLayout) return
+    
+    const updated = findAndSwapIds(currentLayout, id1, id2)
+    saveLayout(updated)
+  }
+
   return {
     layoutTree,
     tilePositions,
@@ -439,6 +466,7 @@ export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>,
     hiddenCount,
     getTileStyle,
     getHandleStyle,
-    updateSplitRatio
+    updateSplitRatio,
+    swapTiles
   }
 }

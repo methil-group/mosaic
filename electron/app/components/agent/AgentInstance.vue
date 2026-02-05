@@ -46,7 +46,9 @@
                 </button>
             </div>
 
-            <header class="panel-header shrink-0" :style="{ backgroundColor: instance.color }">
+            <header class="panel-header shrink-0 cursor-grab active:cursor-grabbing"
+                :style="{ backgroundColor: instance.color }" draggable="true" @dragstart="handleDragStart"
+                @dragend="handleDragEnd">
                 <video v-if="videoSource" autoplay loop muted playsinline
                     class="absolute top-0 left-0 w-full h-full object-cover z-0 opacity-100 pointer-events-none">
                     <source :src="videoSource" type="video/webm">
@@ -60,7 +62,7 @@
                     </client-only>
                 </div>
 
-                <div class="panel-header-top relative z-20">
+                <div class="panel-header-top relative z-20 pointer-events-none">
                     <div class="flex items-center gap-3">
                         <span class="panel-label-tag flex items-center gap-2">
                             <component :is="getIconComponent(instance.icon)" class="w-3.5 h-3.5" />
@@ -128,6 +130,8 @@ const props = defineProps<{
     chromeless?: boolean
 }>()
 
+const emit = defineEmits(['drag-start', 'drag-end'])
+
 const store = useAgentStore()
 const { getVideoUrl, preloadVideos } = useVideoCache()
 const instance = computed(() => store.instances[props.instanceId])
@@ -143,6 +147,18 @@ const isSettingsOpen = ref(false)
 const panelRef = ref<HTMLElement | null>(null)
 const currentMode = ref('mode-full')
 const showRaw = ref<Record<number, boolean>>({})
+
+const handleDragStart = (e: DragEvent) => {
+    if (e.dataTransfer) {
+        e.dataTransfer.setData('agentId', props.instanceId)
+        e.dataTransfer.effectAllowed = 'move'
+    }
+    emit('drag-start', props.instanceId)
+}
+
+const handleDragEnd = () => {
+    emit('drag-end')
+}
 
 const hexToRgba = (hex: string, alpha: number) => {
     if (!hex) return `rgba(0,0,0,${alpha})`
