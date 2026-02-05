@@ -78,7 +78,7 @@ const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
         <!-- Tiles with absolute positioning -->
         <TransitionGroup name="tile">
             <div v-for="id in limitedIds" :key="id" class="tile-item" :style="getTileStyle(id, isDragging)">
-                <AgentInstance :instance-id="id" class="w-full h-full" />
+                <AgentInstance :instance-id="id" :chromeless="isPreview" class="w-full h-full" />
             </div>
         </TransitionGroup>
 

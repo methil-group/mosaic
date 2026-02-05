@@ -13,7 +13,7 @@ import { Vue3Lottie } from 'vue3-lottie'
 
 const props = defineProps<{
     instanceId: string,
-    preview?: boolean
+    chromeless?: boolean
 }>()
 
 const store = useAgentStore()
@@ -131,8 +131,31 @@ watch(() => instance.value?.messages[instance.value?.messages.length - 1]?.conte
             '--msg-bg-light': hexToRgba(instance.color || '#000000', 0.08)
         }">
 
+        }">
+
+        <!-- Chromeless Mode (Animation Only) -->
+        <template v-if="chromeless">
+            <div class="absolute inset-0 w-full h-full overflow-hidden bg-gray-50">
+                <video v-if="videoSource" autoplay loop muted playsinline
+                    class="absolute inset-0 w-full h-full object-cover">
+                    <source :src="videoSource" type="video/webm">
+                </video>
+                <div v-else-if="lottieAnimation" class="absolute inset-0 w-full h-full">
+                    <client-only>
+                        <Vue3Lottie :animationLink="lottieAnimation" :height="'100%'" :width="'100%'" :speed="0.5"
+                            :rendererSettings="{ preserveAspectRatio: 'xMidYMid slice' }" />
+                    </client-only>
+                </div>
+                <!-- Fallback Icon if no animation -->
+                <div v-else class="w-full h-full flex items-center justify-center opacity-10">
+                    <component :is="getIconComponent(instance.icon)" class="w-1/3 h-1/3"
+                        :style="{ color: instance.color }" />
+                </div>
+            </div>
+        </template>
+
         <!-- Full View Content -->
-        <template v-if="true">
+        <template v-else>
             <button class="btn-remove-panel z-50" @click="store.removeInstance(instanceId)" title="Remove Bot">
                 <X class="w-2.5 h-2.5" />
             </button>

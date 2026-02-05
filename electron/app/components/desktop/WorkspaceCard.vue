@@ -24,12 +24,12 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useAgentStore, type Desktop, type InstanceState } from '~/stores/agent'
+import { useAgentStore, type Workspace, type InstanceState } from '~/stores/agent'
 import { X } from 'lucide-vue-next'
 import AgentGrid from '../grid/AgentGrid.vue'
 
 const props = defineProps<{
-  workspace: Desktop
+  workspace: Workspace
   agents: InstanceState[]
 }>()
 
@@ -81,7 +81,7 @@ const displayPath = computed(() => {
 .workspace-preview {
   flex: 1;
   background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  padding: 16px;
+  padding: 32px;
   position: relative;
   overflow: hidden;
 }
