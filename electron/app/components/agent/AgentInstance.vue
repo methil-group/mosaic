@@ -131,7 +131,7 @@ watch(() => instance.value?.messages[instance.value?.messages.length - 1]?.conte
             '--msg-bg-light': hexToRgba(instance.color || '#000000', 0.08)
         }">
 
-        }">
+
 
         <!-- Chromeless Mode (Animation Only) -->
         <template v-if="chromeless">
