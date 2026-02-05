@@ -1,21 +1,16 @@
 <template>
   <div class="mosaic-container">
     <div class="mosaic-header">
-      <h2 class="mosaic-title">VOS BUREAUX</h2>
-      <p class="mosaic-subtitle">{{ desktopIds.length }} ESPACES DE TRAVAIL</p>
+      <h1 class="text-4xl font-black uppercase tracking-tighter text-gray-900 mb-2">Vos Workspaces</h1>
+      <p class="mosaic-subtitle">{{ workspaceIds.length }} ESPACES DE TRAVAIL</p>
     </div>
 
     <div class="mosaic-grid">
-      <template v-for="id in desktopIds" :key="id">
-        <DesktopCard 
-          v-if="desktops[id]"
-          :desktop="desktops[id]!"
-          :agents="getAgentsForDesktop(id)"
-          @select="handleSelect(id)"
-          @delete="handleDelete(id)"
-        />
+      <template v-for="id in workspaceIds" :key="id">
+        <WorkspaceCard v-if="workspaces[id]" :workspace="workspaces[id]!" :agents="getAgentsForWorkspace(id)"
+          @select="handleSelect(id)" @delete="handleDelete(id)" />
       </template>
-      
+
       <button v-if="!isCreating" class="add-desktop-btn" @click="startCreation">
         <div class="add-desktop-inner">
           <Plus class="w-8 h-8 mb-2" />
@@ -25,14 +20,8 @@
 
       <div v-else class="add-desktop-form">
         <div class="form-content">
-          <input 
-            v-model="newName"
-            ref="nameInput"
-            placeholder="Nom du workspace..."
-            @keydown.enter="handleCreate"
-            @keydown.esc="cancelCreation"
-            class="name-input"
-          />
+          <input v-model="newName" ref="nameInput" placeholder="Nom du workspace..." @keydown.enter="handleCreate"
+            @keydown.esc="cancelCreation" class="name-input" />
           <div class="form-actions">
             <button class="action-btn cancel" @click="cancelCreation">ANNULER</button>
             <button class="action-btn confirm" @click="handleCreate">SÉLECT. DOSSIER</button>
@@ -40,6 +29,16 @@
         </div>
       </div>
     </div>
+
+    <!-- File Explorer Modal -->
+    <Transition name="fade">
+      <div v-if="showExplorer" class="explorer-overlay">
+        <div class="explorer-modal">
+          <FileExplorer :title="`DOSSIER : ${newName}`" subtitle="SÉLECTIONNEZ LE DOSSIER DU WORKSPACE"
+            @select="onFolderSelect" @cancel="showExplorer = false" />
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -47,13 +46,15 @@
 import { ref, nextTick } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import { storeToRefs } from 'pinia'
-import DesktopCard from './DesktopCard.vue'
-import { Plus } from 'lucide-vue-next'
+import WorkspaceCard from './WorkspaceCard.vue'
+import FileExplorer from '../agent/FileExplorer.vue'
+import { Plus, X } from 'lucide-vue-next'
 
 const agentStore = useAgentStore()
-const { desktops, desktopIds, instances, instanceIds } = storeToRefs(agentStore)
+const { workspaces, workspaceIds, instances, instanceIds } = storeToRefs(agentStore)
 
 const isCreating = ref(false)
+const showExplorer = ref(false)
 const newName = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 
@@ -70,41 +71,37 @@ const cancelCreation = () => {
   newName.value = ''
 }
 
-const getAgentsForDesktop = (desktopId: string) => {
+const getAgentsForWorkspace = (workspaceId: string) => {
   return instanceIds.value
     .map(id => instances.value[id])
-    .filter((agent): agent is NonNullable<typeof agent> => !!agent && agent.desktopId === desktopId)
+    .filter((agent): agent is NonNullable<typeof agent> => !!agent && agent.workspaceId === workspaceId)
 }
 
 const handleSelect = (id: string) => {
-  agentStore.setActiveDesktop(id)
+  agentStore.setActiveWorkspace(id)
 }
 
 const handleDelete = async (id: string) => {
-  if (confirm('Supprimer ce bureau ? Les agents seront déplacés vers le bureau par défaut.')) {
-    await agentStore.removeDesktop(id)
+  if (confirm('Supprimer cet espace de travail ? Les agents seront déplacés vers l\'espace par défaut.')) {
+    await agentStore.removeWorkspace(id)
   }
 }
 
-const handleCreate = async () => {
+const handleCreate = () => {
   if (!newName.value) return
+  showExplorer.value = true
+}
+
+const onFolderSelect = async (path: string) => {
   try {
     const name = newName.value
-    let path = ''
-    
-    if ((window as any).electron) {
-      const result = await (window as any).electron.ipcRenderer.invoke('dialog:openDirectory')
-      if (result.canceled) return
-      path = result.path
-    }
-
     const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID()
       : Math.random().toString(36).substring(2, 15)
 
     console.log('[DesktopMosaic] Creating new workspace:', { id, name, path })
 
-    await agentStore.saveDesktop({
+    await agentStore.saveWorkspace({
       id,
       name,
       path,
@@ -112,7 +109,12 @@ const handleCreate = async () => {
     })
 
     console.log('[DesktopMosaic] Workspace saved successfully')
+
+    // Auto-enter the workspace
+    agentStore.setActiveWorkspace(id)
+
     isCreating.value = false
+    showExplorer.value = false
     newName.value = ''
   } catch (error) {
     console.error('[DesktopMosaic] Failed to create workspace:', error)
@@ -132,8 +134,8 @@ const getRandomColor = () => {
   max-width: 1600px;
   margin: 0 auto;
   min-height: 100%;
-  background-image: 
-    radial-gradient(circle at 2px 2px, rgba(0,0,0,0.03) 1px, transparent 0);
+  background-image:
+    radial-gradient(circle at 2px 2px, rgba(0, 0, 0, 0.03) 1px, transparent 0);
   background-size: 32px 32px;
 }
 
@@ -178,7 +180,7 @@ const getRandomColor = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
 }
 
 .add-desktop-btn:hover {
@@ -272,5 +274,50 @@ const getRandomColor = () => {
   background: #4f46e5;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.explorer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.explorer-modal {
+  width: 100%;
+  max-width: 600px;
+  height: 80vh;
+  background: white;
+  border-radius: 32px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: modal-in 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -20,6 +20,11 @@ export interface SplitNode {
 
 export type LayoutNode = TileNode | SplitNode
 
+export interface LayoutOptions {
+  margin?: number
+  gap?: number
+}
+
 /**
  * Tile position as percentages for smooth animation
  */
@@ -48,7 +53,7 @@ export interface ResizeHandle {
 
 const GAP = 1 // Gap between tiles as percentage
 const MARGIN = 1.5 // Margin from container edges as percentage
-const MAX_AGENTS = 4 // Maximum agents visible on screen
+const MAX_AGENTS = 6 // Maximum agents visible on screen
 
 /**
  * Convert a layout tree to tile positions (percentages)
@@ -58,7 +63,8 @@ export function nodeToPositions(
   left: number,
   top: number,
   width: number,
-  height: number
+  height: number,
+  gap: number = GAP
 ): TilePosition[] {
   if (node.type === 'tile') {
     return [{
@@ -73,18 +79,18 @@ export function nodeToPositions(
   const { direction, ratio, children } = node
 
   if (direction === 'horizontal') {
-    const firstWidth = width * ratio - GAP / 2
-    const secondWidth = width * (1 - ratio) - GAP / 2
+    const firstWidth = width * ratio - gap / 2
+    const secondWidth = width * (1 - ratio) - gap / 2
     return [
-      ...nodeToPositions(children[0], left, top, firstWidth, height),
-      ...nodeToPositions(children[1], left + width * ratio + GAP / 2, top, secondWidth, height)
+      ...nodeToPositions(children[0], left, top, firstWidth, height, gap),
+      ...nodeToPositions(children[1], left + width * ratio + gap / 2, top, secondWidth, height, gap)
     ]
   } else {
-    const firstHeight = height * ratio - GAP / 2
-    const secondHeight = height * (1 - ratio) - GAP / 2
+    const firstHeight = height * ratio - gap / 2
+    const secondHeight = height * (1 - ratio) - gap / 2
     return [
-      ...nodeToPositions(children[0], left, top, width, firstHeight),
-      ...nodeToPositions(children[1], left, top + height * ratio + GAP / 2, width, secondHeight)
+      ...nodeToPositions(children[0], left, top, width, firstHeight, gap),
+      ...nodeToPositions(children[1], left, top + height * ratio + gap / 2, width, secondHeight, gap)
     ]
   }
 }
@@ -184,11 +190,75 @@ export function buildAutoTileLayout(ids: string[]): LayoutNode | null {
     }
   }
 
-  // 4 agents: 2x2 grid
+  if (ids.length === 4) {
+    return {
+      type: 'split',
+      direction: 'horizontal',
+      ratio: 0.5,
+      children: [
+        {
+          type: 'split',
+          direction: 'vertical',
+          ratio: 0.5,
+          children: [
+            { type: 'tile', id: ids[0]! },
+            { type: 'tile', id: ids[3]! }
+          ]
+        },
+        {
+          type: 'split',
+          direction: 'vertical',
+          ratio: 0.5,
+          children: [
+            { type: 'tile', id: ids[1]! },
+            { type: 'tile', id: ids[2]! }
+          ]
+        }
+      ]
+    }
+  }
+
+  if (ids.length === 5) {
+    return {
+      type: 'split',
+      direction: 'horizontal',
+      ratio: 0.33,
+      children: [
+        {
+          type: 'split',
+          direction: 'vertical',
+          ratio: 0.5,
+          children: [
+            { type: 'tile', id: ids[0]! },
+            { type: 'tile', id: ids[3]! }
+          ]
+        },
+        {
+          type: 'split',
+          direction: 'horizontal',
+          ratio: 0.5,
+          children: [
+            {
+              type: 'split',
+              direction: 'vertical',
+              ratio: 0.5,
+              children: [
+                { type: 'tile', id: ids[1]! },
+                { type: 'tile', id: ids[4]! }
+              ]
+            },
+            { type: 'tile', id: ids[2]! }
+          ]
+        }
+      ]
+    }
+  }
+
+  // 6 agents: 3x2 grid
   return {
     type: 'split',
     direction: 'horizontal',
-    ratio: 0.5,
+    ratio: 0.33,
     children: [
       {
         type: 'split',
@@ -196,16 +266,32 @@ export function buildAutoTileLayout(ids: string[]): LayoutNode | null {
         ratio: 0.5,
         children: [
           { type: 'tile', id: ids[0]! },
-          { type: 'tile', id: ids[2]! }
+          { type: 'tile', id: ids[3]! }
         ]
       },
       {
         type: 'split',
-        direction: 'vertical',
+        direction: 'horizontal',
         ratio: 0.5,
         children: [
-          { type: 'tile', id: ids[1]! },
-          { type: 'tile', id: ids[3]! }
+          {
+            type: 'split',
+            direction: 'vertical',
+            ratio: 0.5,
+            children: [
+              { type: 'tile', id: ids[1]! },
+              { type: 'tile', id: ids[4]! }
+            ]
+          },
+          {
+            type: 'split',
+            direction: 'vertical',
+            ratio: 0.5,
+            children: [
+              { type: 'tile', id: ids[2]! },
+              { type: 'tile', id: ids[5]! }
+            ]
+          }
         ]
       }
     ]
@@ -254,10 +340,12 @@ function updateRatioAtPath(node: LayoutNode, path: number[], newRatio: number): 
  * Vue composable for managing tile layout with resize support
  * Uses Pinia store for persistence across navigation
  */
-export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>) {
+export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>, options: LayoutOptions = {}) {
   const store = useAgentStore()
-  const isDragging = computed(() => false) // Will be managed locally in component
   
+  const currentMargin = options.margin !== undefined ? options.margin : MARGIN
+  const currentGap = options.gap !== undefined ? options.gap : GAP
+
   const getIdsHash = (ids: string[]) => ids.slice(0, MAX_AGENTS).join(',')
   
   // Limit to MAX_AGENTS
@@ -285,15 +373,15 @@ export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>)
 
   const tilePositions = computed<TilePosition[]>(() => {
     if (!layoutTree.value) return []
-    // Add margin offset: start at MARGIN%, use (100 - 2*MARGIN)% of container
-    const usableSize = 100 - MARGIN * 2
-    return nodeToPositions(layoutTree.value, MARGIN, MARGIN, usableSize, usableSize)
+    // Add margin offset
+    const usableSize = 100 - currentMargin * 2
+    return nodeToPositions(layoutTree.value, currentMargin, currentMargin, usableSize, usableSize, currentGap)
   })
 
   const resizeHandles = computed<ResizeHandle[]>(() => {
     if (!layoutTree.value) return []
-    const usableSize = 100 - MARGIN * 2
-    return getResizeHandles(layoutTree.value, MARGIN, MARGIN, usableSize, usableSize)
+    const usableSize = 100 - currentMargin * 2
+    return getResizeHandles(layoutTree.value, currentMargin, currentMargin, usableSize, usableSize)
   })
 
   const getTileStyle = (id: string, dragging: boolean = false) => {

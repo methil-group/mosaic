@@ -1,135 +1,103 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAgentStore } from '~/stores/agent'
-import AgentInstance from '../agent/AgentInstance.vue'
-import DesktopMosaic from '../desktop/DesktopMosaic.vue'
-import { LayoutGrid, AlertTriangle, ChevronLeft } from 'lucide-vue-next'
-import { useTileLayout, type ResizeHandle } from '~/composables/useTileLayout'
+import { LayoutGrid, ChevronLeft } from 'lucide-vue-next'
+import WorkspaceMosaic from '../desktop/WorkspaceMosaic.vue'
+import AgentGrid from './AgentGrid.vue'
 
 const store = useAgentStore()
-const gridContainer = ref<HTMLElement | null>(null)
 
+const transitionOrigin = computed(() => {
+  if (!store.transitionRect) return 'center center'
+
+  // Calculate coordinates relative to window
+  const rect = store.transitionRect
+  const x = rect.left + rect.width / 2
+  const y = rect.top + rect.height / 2
+
+  return `${x}px ${y}px`
+})
+
+// Transition state
+const isZooming = ref(false)
+const showDetails = ref(false)
+
+// Sync showDetails with store.viewMode
+watch(() => store.viewMode, (newMode) => {
+  if (newMode === 'desktop') {
+    isZooming.value = true
+    setTimeout(() => {
+      showDetails.value = true
+      isZooming.value = false
+    }, 500) // Match CSS transition
+  } else {
+    showDetails.value = false
+  }
+}, { immediate: true })
 const visibleInstances = computed(() => {
   return store.instanceIds.filter(id => {
     const instance = store.instances[id]
     if (!instance || !instance.isVisible) return false
-    if (store.activeDesktopId && instance.desktopId !== store.activeDesktopId) return false
+    if (store.activeWorkspaceId && instance.workspaceId !== store.activeWorkspaceId) return false
     return true
   })
 })
 
-const activeDesktopName = computed(() => {
-  if (!store.activeDesktopId) return ''
-  return store.desktops[store.activeDesktopId]?.name || 'Bureau'
+const activeWorkspaceName = computed(() => {
+  if (!store.activeWorkspaceId || !store.workspaces[store.activeWorkspaceId]) return ''
+  return store.workspaces[store.activeWorkspaceId]?.name || 'Workspace'
 })
-
-const { getTileStyle, getHandleStyle, resizeHandles, updateSplitRatio, limitedIds, hiddenCount } = useTileLayout(visibleInstances)
-
-// Drag state managed locally
-const isDragging = ref(false)
-const activeHandle = ref<ResizeHandle | null>(null)
-
-const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
-  isDragging.value = true
-  activeHandle.value = handle
-  event.preventDefault()
-
-  const onMouseMove = (e: MouseEvent) => {
-    if (!activeHandle.value || !gridContainer.value) return
-
-    const rect = gridContainer.value.getBoundingClientRect()
-    const handle = activeHandle.value
-
-    let newRatio: number
-    if (handle.direction === 'horizontal') {
-      newRatio = (e.clientX - rect.left) / rect.width
-    } else {
-      newRatio = (e.clientY - rect.top) / rect.height
-    }
-
-    updateSplitRatio(handle.path, newRatio)
-  }
-
-  const onMouseUp = () => {
-    isDragging.value = false
-    activeHandle.value = null
-    document.removeEventListener('mousemove', onMouseMove)
-    document.removeEventListener('mouseup', onMouseUp)
-    document.body.style.cursor = ''
-    document.body.style.userSelect = ''
-  }
-
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
-  document.body.style.cursor = handle.direction === 'horizontal' ? 'col-resize' : 'row-resize'
-  document.body.style.userSelect = 'none'
-}
 </script>
 
 <template>
-  <div class="h-full flex flex-col min-w-0 bg-gray-100 overflow-hidden">
-    <Transition name="zoom-fade" mode="out-in">
-      <!-- Mosaic View -->
-      <div v-if="store.viewMode === 'mosaic'" key="mosaic" class="flex-1 overflow-y-auto">
-        <DesktopMosaic />
+  <div class="h-full relative min-w-0 bg-gray-100 overflow-hidden">
+    <!-- Layer 1: Workspace Mosaic (Lower layer) -->
+    <div class="absolute inset-0 transition-all duration-500 ease-in-out"
+      :class="{ 'opacity-0 scale-95 blur-xl pointer-events-none': store.viewMode === 'desktop' }">
+      <div class="h-full overflow-y-auto">
+        <WorkspaceMosaic />
+      </div>
+    </div>
+
+    <!-- Layer 2: Workspace Detail (Top layer, Zooms in) -->
+    <div class="absolute inset-0 flex flex-col bg-gray-100 overflow-hidden transition-all duration-500 ease-in-out"
+      :class="[
+        store.viewMode === 'desktop' ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-50 blur-2xl pointer-events-none'
+      ]" :style="{ transformOrigin: transitionOrigin }">
+      <div v-if="store.activeWorkspaceId"
+        class="px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between z-[60]">
+        <div class="flex items-center gap-4">
+          <button @click="store.setActiveWorkspace(null)" class="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            title="Retour à la mosaïque">
+            <ChevronLeft class="w-5 h-5 text-gray-600" />
+          </button>
+          <div class="flex flex-col">
+            <h1 class="text-sm font-black uppercase tracking-widest text-gray-900">{{ activeWorkspaceName }}</h1>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ visibleInstances.length }}
+              Agent{{ visibleInstances.length !== 1 ? 's' : '' }} Actif{{ visibleInstances.length !== 1 ? 's' : ''
+              }}</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button @click="store.createInstance()" :disabled="visibleInstances.length >= 6" :class="[
+            'px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all',
+            visibleInstances.length >= 6
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-50'
+              : 'bg-black text-white hover:bg-gray-800 shadow-sm hover:shadow-md'
+          ]">
+            {{ visibleInstances.length >= 6 ? 'Limite Atteinte (6)' : 'Ajouter un Agent' }}
+          </button>
+        </div>
       </div>
 
-      <!-- Desktop View -->
-      <div v-else key="desktop" class="flex-1 flex flex-col overflow-hidden">
-        <!-- Sub-header for Desktop Navigation -->
-        <div class="px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between z-[60]">
-          <div class="flex items-center gap-4">
-            <button @click="store.setActiveDesktop(null)" 
-                    class="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                    title="Retour à la mosaïque">
-              <ChevronLeft class="w-5 h-5 text-gray-600" />
-            </button>
-            <div class="flex flex-col">
-              <h1 class="text-sm font-black uppercase tracking-widest text-gray-900">{{ activeDesktopName }}</h1>
-              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ visibleInstances.length }} Agent{{ visibleInstances.length !== 1 ? 's' : '' }} Actif{{ visibleInstances.length !== 1 ? 's' : '' }}</span>
-            </div>
-          </div>
-          
-          <div class="flex items-center gap-2">
-            <button @click="store.createInstance()"
-                    class="px-4 py-2 bg-black text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-colors">
-              Ajouter un Agent
-            </button>
-          </div>
-        </div>
-
-        <div ref="gridContainer" v-if="limitedIds.length > 0"
-          class="flex-1 p-4 overflow-hidden bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px] relative">
-
-          <!-- Hidden agents indicator -->
-          <div v-if="hiddenCount > 0"
-            class="absolute top-4 right-4 z-50 flex items-center gap-2 px-3 py-1.5 bg-orange-100 border border-orange-200 rounded-full">
-            <AlertTriangle class="w-3 h-3 text-orange-500" />
-            <span class="text-[9px] font-black uppercase tracking-widest text-orange-600">
-              +{{ hiddenCount }} hidden
-            </span>
-          </div>
-
-          <!-- Tiles with absolute positioning -->
-          <TransitionGroup name="tile">
-            <div v-for="id in limitedIds" :key="id" class="tile-item"
-              :style="getTileStyle(id, isDragging)">
-              <AgentInstance :instance-id="id" class="w-full h-full" />
-            </div>
-          </TransitionGroup>
-
-          <!-- Resize Handles -->
-          <div v-for="handle in resizeHandles" :key="handle.id" class="resize-handle z-50" :class="{
-            'resize-handle-active': isDragging && activeHandle?.id === handle.id,
-            'resize-handle-horizontal': handle.direction === 'horizontal',
-            'resize-handle-vertical': handle.direction === 'vertical'
-          }" :style="getHandleStyle(handle)" @mousedown="startDrag(handle, $event)">
-            <div class="resize-handle-visual" :class="handle.direction === 'horizontal' ? 'w-1 h-full' : 'w-full h-1'" />
-          </div>
-        </div>
+      <div
+        class="flex-1 min-h-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px] p-4 relative">
+        <AgentGrid v-if="store.activeWorkspaceId" :workspace-id="store.activeWorkspaceId" />
 
         <!-- Empty State -->
-        <div v-else class="flex-1 flex flex-col items-center justify-center bg-gray-50 gap-6 opacity-60 select-none">
+        <div v-else-if="visibleInstances.length === 0"
+          class="h-full flex flex-col items-center justify-center bg-gray-50 gap-6 opacity-60 select-none">
           <div class="relative">
             <div
               class="w-16 h-16 rounded-2xl border border-gray-200 flex items-center justify-center bg-white animate-pulse shadow-sm">
@@ -138,7 +106,8 @@ const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
           </div>
           <div class="text-center space-y-2">
             <h2 class="text-xs font-black tracking-[0.3em] uppercase text-gray-900">Mosaic Grid Empty</h2>
-            <p class="text-[9px] font-bold tracking-widest uppercase text-gray-400">Deploy an agent from the sidebar or
+            <p class="text-[9px] font-bold tracking-widest uppercase text-gray-400">Deploy an agent from the sidebar
+              or
               workspaces</p>
           </div>
           <button @click="store.createInstance()"
@@ -147,26 +116,13 @@ const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
           </button>
         </div>
       </div>
-    </Transition>
+    </div>
   </div>
 </template>
 
 <style>
-/* Zoom-Fade transition */
-.zoom-fade-enter-active,
-.zoom-fade-leave-active {
-  transition: all 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
-}
-
-.zoom-fade-enter-from {
-  opacity: 0;
-  transform: scale(0.95);
-}
-
-.zoom-fade-leave-to {
-  opacity: 0;
-  transform: scale(1.05);
-}
+/* Transition Origin Styles */
+/* Handled via inline v-bind in Template */
 
 /* Tile animations */
 .tile-item {

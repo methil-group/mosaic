@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import path, { dirname as dirname$1, join as join$1 } from "path";
 import { fileURLToPath } from "url";
 import { exec } from "node:child_process";
@@ -718,6 +718,7 @@ class DatabaseService {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         color TEXT,
+        path TEXT DEFAULT '',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -746,6 +747,11 @@ class DatabaseService {
       if (!columns.includes("desktop_id")) {
         this.db.prepare("ALTER TABLE agents ADD COLUMN desktop_id TEXT").run();
         this.db.prepare("UPDATE agents SET desktop_id = ?").run("default");
+      }
+      const desktopTableInfo = this.db.prepare("PRAGMA table_info(desktops)").all();
+      const desktopColumns = desktopTableInfo.map((c) => c.name);
+      if (!desktopColumns.includes("path")) {
+        this.db.prepare('ALTER TABLE desktops ADD COLUMN path TEXT DEFAULT ""').run();
       }
     } catch (error) {
       console.error("Failed to migrate agents table:", error);
@@ -798,9 +804,9 @@ class DatabaseService {
   }
   saveDesktop(desktop) {
     this.db.prepare(`
-      INSERT OR REPLACE INTO desktops (id, name, color, created_at)
-      VALUES (?, ?, ?, COALESCE((SELECT created_at FROM desktops WHERE id = ?), CURRENT_TIMESTAMP))
-    `).run(desktop.id, desktop.name, desktop.color || null, desktop.id);
+      INSERT OR REPLACE INTO desktops (id, name, color, path, created_at)
+      VALUES (?, ?, ?, ?, COALESCE((SELECT created_at FROM desktops WHERE id = ?), CURRENT_TIMESTAMP))
+    `).run(desktop.id, desktop.name, desktop.color || null, desktop.path || "", desktop.id);
   }
   deleteDesktop(id) {
     this.db.prepare("UPDATE agents SET desktop_id = ? WHERE desktop_id = ?").run("default", id);
@@ -879,6 +885,18 @@ const llmProvider = new OpenRouter(storedApiKey || "");
 console.log("[Main] Services initialized");
 console.log("[Main] API Key from DB present:", !!storedApiKey);
 ipcMain.handle("ping", () => "pong");
+ipcMain.handle("dialog:openDirectory", async (event) => {
+  const browserWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!browserWindow) return { canceled: true };
+  const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow, {
+    properties: ["openDirectory"]
+  });
+  if (canceled) {
+    return { canceled: true };
+  } else {
+    return { canceled: false, path: filePaths[0] };
+  }
+});
 ipcMain.handle("fs:ls", async (_event, path2) => {
   return { directories: await fileSystemService.listDirectories(path2) };
 });

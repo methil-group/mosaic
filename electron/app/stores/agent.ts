@@ -35,14 +35,7 @@ export interface InstanceState {
   persona?: string
   video?: string
   lottie?: string
-  desktopId: string
-}
-
-export interface Desktop {
-  id: string
-  name: string
-  color?: string
-  path: string
+  workspaceId: string
 }
 
 export interface Workspace {
@@ -73,15 +66,15 @@ export interface State {
   defaultModelId: string
   backendUrl: string
   filesCache: Record<string, string[]> // workspacePath -> files
-  workspaces: Workspace[]
-  desktops: Record<string, Desktop>
-  desktopIds: string[]
-  activeDesktopId: string | null
+  workspaces: Record<string, Workspace>
+  workspaceIds: string[]
   viewMode: 'mosaic' | 'desktop'
   currentView: 'grid' | 'workspaces' | 'workspace-detail'
   activeWorkspaceId: string | null
   // Layout persistence: keyed by agent IDs hash
   customLayouts: Record<string, any>
+  // Shared element transition state
+  transitionRect: DOMRect | null
 }
 
 // AGENT_NAMES is deprecated in favor of AGENTS_REPO
@@ -95,14 +88,13 @@ export const useAgentStore = defineStore('agent', {
     defaultModelId: 'qwen/qwen3-coder-next',
     backendUrl: 'http://localhost:3710',
     filesCache: {},
-    workspaces: [],
-    desktops: {},
-    desktopIds: [],
-    activeDesktopId: null,
+    workspaces: {},
+    workspaceIds: [],
+    activeWorkspaceId: null,
     viewMode: 'mosaic',
     currentView: 'grid',
-    activeWorkspaceId: null,
-    customLayouts: {}
+    customLayouts: {},
+    transitionRect: null
   }),
   getters: {
     availableModels: (state): Model[] => {
@@ -113,9 +105,9 @@ export const useAgentStore = defineStore('agent', {
   },
   actions: {
     async createInstance() {
-      if (!this.activeDesktopId) return
-      const activeDesktop = this.desktops[this.activeDesktopId]
-      const workspacePath = activeDesktop?.path || ''
+      if (!this.activeWorkspaceId) return
+      const activeWorkspace = this.workspaces[this.activeWorkspaceId]
+      const workspacePath = activeWorkspace?.path || ''
 
       const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
         ? crypto.randomUUID()
@@ -146,7 +138,7 @@ export const useAgentStore = defineStore('agent', {
         persona: agent.systemPrompt,
         video: agent.video,
         lottie: agent.lottie,
-        desktopId: this.activeDesktopId
+        workspaceId: this.activeWorkspaceId as string
       }
       this.instanceIds.push(id)
       
@@ -161,7 +153,7 @@ export const useAgentStore = defineStore('agent', {
           color: agent.color,
           icon: agent.icon,
           description: agent.description,
-          desktop_id: this.activeDesktopId || 'default'
+          desktop_id: this.activeWorkspaceId || 'default'
         })
       }
       
@@ -358,115 +350,64 @@ export const useAgentStore = defineStore('agent', {
       }
     },
     
-    // Desktop Actions
-    async loadDesktops() {
+    // Workspace Actions
+    async loadWorkspaces() {
       try {
         if ((window as any).electron) {
-          console.log('[AgentStore] Loading desktops...')
-          const desktops = await (window as any).electron.ipcRenderer.invoke('desktops:list')
-          console.log('[AgentStore] Desktops loaded:', desktops)
-          this.desktops = {}
-          this.desktopIds = []
-          for (const d of desktops) {
-            this.desktops[d.id] = d
-            this.desktopIds.push(d.id)
+          console.log('[AgentStore] Loading workspaces...')
+          const workspaces = await (window as any).electron.ipcRenderer.invoke('desktops:list')
+          console.log('[AgentStore] Workspaces loaded:', workspaces)
+          this.workspaces = {}
+          this.workspaceIds = []
+          for (const w of workspaces) {
+            this.workspaces[w.id] = w
+            this.workspaceIds.push(w.id)
           }
-          if (this.desktopIds.length > 0 && !this.activeDesktopId) {
-            this.activeDesktopId = 'default'
+          if (this.workspaceIds.length > 0 && !this.activeWorkspaceId) {
+            this.activeWorkspaceId = 'default'
           }
         }
       } catch (e) {
-        console.error('[AgentStore] Failed to load desktops', e)
+        console.error('[AgentStore] Failed to load workspaces', e)
       }
     },
 
-    async saveDesktop(desktop: Desktop) {
-      console.log('[AgentStore] Saving desktop:', desktop)
-      // Use spread for reactivity in case it's a new key
-      this.desktops = { ...this.desktops, [desktop.id]: desktop }
+    async saveWorkspace(workspace: Workspace) {
+      console.log('[AgentStore] Saving workspace:', workspace)
+      this.workspaces = { ...this.workspaces, [workspace.id]: workspace }
       
-      if (!this.desktopIds.includes(desktop.id)) {
-        this.desktopIds.push(desktop.id)
+      if (!this.workspaceIds.includes(workspace.id)) {
+        this.workspaceIds.push(workspace.id)
       }
       
       if ((window as any).electron) {
         try {
-          console.log('[AgentStore] Invoking desktops:save...')
-          await (window as any).electron.ipcRenderer.invoke('desktops:save', desktop)
-          console.log('[AgentStore] Desktop saved to DB successfully')
+          await (window as any).electron.ipcRenderer.invoke('desktops:save', workspace)
         } catch (e) {
-          console.error('[AgentStore] Failed to save desktop to DB:', e)
+          console.error('[AgentStore] Failed to save workspace to DB:', e)
         }
       }
     },
 
-    async removeDesktop(id: string) {
+    async removeWorkspace(id: string) {
       if (id === 'default') return
-      delete this.desktops[id]
-      this.desktopIds = this.desktopIds.filter(i => i !== id)
-      if (this.activeDesktopId === id) {
-        this.activeDesktopId = 'default'
+      delete this.workspaces[id]
+      this.workspaceIds = this.workspaceIds.filter(i => i !== id)
+      if (this.activeWorkspaceId === id) {
+        this.activeWorkspaceId = 'default'
       }
       if ((window as any).electron) {
         await (window as any).electron.ipcRenderer.invoke('desktops:delete', id)
       }
     },
 
-    setActiveDesktop(id: string | null) {
-      this.activeDesktopId = id
-      if (id) {
-        this.viewMode = 'desktop'
-      } else {
-        this.viewMode = 'mosaic'
-      }
+    setActiveWorkspace(id: string | null) {
+      this.activeWorkspaceId = id
+      this.viewMode = id ? 'desktop' : 'mosaic'
     },
 
     setViewMode(mode: 'mosaic' | 'desktop') {
       this.viewMode = mode
-    },
-
-    async fetchProviders() {
-      try {
-        if ((window as any).electron) {
-          const data = await (window as any).electron.ipcRenderer.invoke('providers:get')
-          this.availableProviders = data.providers || []
-        }
-      } catch (e) {
-        console.error('Failed to fetch providers', e)
-      }
-    },
-
-    // Workspace Actions
-    async fetchWorkspaces() {
-      try {
-        if ((window as any).api) {
-          this.workspaces = await (window as any).api.getWorkspaces()
-        }
-      } catch (e) {
-        console.error('Failed to fetch workspaces', e)
-      }
-    },
-
-    async saveWorkspace(workspace: Workspace) {
-      try {
-        if ((window as any).api) {
-          await (window as any).api.saveWorkspace(workspace)
-          await this.fetchWorkspaces()
-        }
-      } catch (e) {
-        console.error('Failed to save workspace', e)
-      }
-    },
-
-    async deleteWorkspace(id: string) {
-      try {
-        if ((window as any).api) {
-          await (window as any).api.deleteWorkspace(id)
-          await this.fetchWorkspaces()
-        }
-      } catch (e) {
-        console.error('Failed to delete workspace', e)
-      }
     },
 
     setView(view: 'grid' | 'workspaces' | 'workspace-detail', activeId: string | null = null) {
@@ -496,6 +437,17 @@ export const useAgentStore = defineStore('agent', {
       } catch (e) {
         console.error(`Failed to set setting: ${key}`, e)
         return false
+      }
+    },
+
+    async fetchProviders() {
+      try {
+        if ((window as any).electron) {
+          const data = await (window as any).electron.ipcRenderer.invoke('providers:get')
+          this.availableProviders = data.providers || []
+        }
+      } catch (e) {
+        console.error('Failed to fetch providers', e)
       }
     },
 
@@ -533,12 +485,12 @@ export const useAgentStore = defineStore('agent', {
               persona: config?.systemPrompt,
               video: config?.video,
               lottie: config?.lottie,
-              desktopId: agent.desktop_id || 'default'
+              workspaceId: agent.desktop_id || 'default'
             }
             this.instanceIds.push(agent.id)
           }
           
-          await this.loadDesktops()
+          await this.loadWorkspaces()
           
           console.log(`[AgentStore] Loaded ${agents.length} agents from SQLite`)
         }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAgentStore } from '~/stores/agent'
-import { Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Home, ArrowUp, RefreshCw } from 'lucide-vue-next'
+import { Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Home, ArrowUp, RefreshCw, X, AlertCircle } from 'lucide-vue-next'
 
 const props = defineProps<{
     instanceId?: string,
@@ -105,92 +105,108 @@ const displayPath = computed(() => {
 </script>
 
 <template>
-    <div class="h-full flex flex-col bg-gray-50 select-none">
+    <div class="h-full flex flex-col bg-white select-none relative overflow-hidden">
+        <!-- Decoration Gradient -->
+        <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+
         <!-- Header -->
-        <div class="p-6 border-b border-gray-100 space-y-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center">
-                    <FolderOpen class="w-5 h-5 text-gray-500" />
+        <div class="p-6 space-y-4 relative z-10">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shadow-sm">
+                        <FolderOpen class="w-6 h-6 text-indigo-500" />
+                    </div>
+                    <div>
+                        <h2 class="text-xs font-black tracking-[0.2em] uppercase text-gray-900">{{ title || 'Explorateur' }}</h2>
+                        <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">{{ subtitle || 'Choisissez un emplacement' }}</p>
+                    </div>
                 </div>
-                <div>
-                    <h2 class="text-xs font-black tracking-[0.2em] uppercase text-gray-900">Select Workspace</h2>
-                    <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Choose a folder for
-                        your agent</p>
-                </div>
+                <button v-if="!instanceId" @click="emit('cancel')" class="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600">
+                    <X class="w-5 h-5" />
+                </button>
             </div>
 
             <!-- Path bar -->
             <div class="flex items-center gap-2">
-                <button @click="navigateHome"
-                    class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 transition-all"
-                    title="Go to home">
-                    <Home class="w-4 h-4" />
-                </button>
-                <button @click="navigateUp"
-                    class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 transition-all"
-                    :disabled="currentPath === '~' || currentPath === '/'"
-                    :class="{ 'opacity-30 cursor-not-allowed': currentPath === '~' || currentPath === '/' }"
-                    title="Go up">
-                    <ArrowUp class="w-4 h-4" />
-                </button>
-                <button @click="loadDirectories(currentPath)"
-                    class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 transition-all"
-                    title="Refresh">
-                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
-                </button>
+                <div class="flex items-center gap-1">
+                    <button @click="navigateHome"
+                        class="p-2.5 rounded-xl bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 text-gray-500 hover:text-indigo-600 shadow-sm hover:shadow transition-all"
+                        title="Go to home">
+                        <Home class="w-4 h-4" />
+                    </button>
+                    <button @click="navigateUp"
+                        class="p-2.5 rounded-xl bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 text-gray-500 hover:text-indigo-600 shadow-sm hover:shadow transition-all"
+                        :disabled="currentPath === '~' || currentPath === '/'"
+                        :class="{ 'opacity-30 cursor-not-allowed': currentPath === '~' || currentPath === '/' }"
+                        title="Go up">
+                        <ArrowUp class="w-4 h-4" />
+                    </button>
+                    <button @click="loadDirectories(currentPath)"
+                        class="p-2.5 rounded-xl bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 text-gray-500 hover:text-indigo-600 shadow-sm hover:shadow transition-all"
+                        title="Refresh">
+                        <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
+                    </button>
+                </div>
                 <div
-                    class="flex-1 px-4 py-2 bg-white rounded-lg border border-gray-200 text-[11px] font-mono text-gray-600 truncate">
+                    class="flex-1 px-4 py-2.5 bg-gray-50 rounded-xl border border-gray-100 text-[11px] font-mono text-gray-500 truncate shadow-inner">
                     {{ displayPath }}
                 </div>
             </div>
         </div>
 
         <!-- Directory List -->
-        <div class="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar bg-white">
+        <div class="flex-1 min-h-0 overflow-y-auto px-6 py-2 custom-scrollbar bg-white relative z-10">
             <div v-if="isLoading && directories.length === 0" class="flex items-center justify-center h-full">
                 <div class="flex flex-col items-center gap-3 opacity-40">
-                    <RefreshCw class="w-6 h-6 animate-spin text-gray-500" />
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Loading...</span>
+                    <RefreshCw class="w-8 h-8 animate-spin text-indigo-500" />
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Scan en cours...</span>
                 </div>
             </div>
 
             <div v-else-if="error" class="flex items-center justify-center h-full">
                 <div class="flex flex-col items-center gap-3 opacity-40">
+                    <AlertCircle class="w-8 h-8 text-red-400" />
                     <span class="text-[10px] font-bold uppercase tracking-widest text-red-500">{{ error }}</span>
                 </div>
             </div>
 
             <div v-else-if="directories.length === 0" class="flex items-center justify-center h-full">
                 <div class="flex flex-col items-center gap-3 opacity-40">
-                    <Folder class="w-8 h-8 text-gray-400" />
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-500">No folders here</span>
+                    <Folder class="w-10 h-10 text-gray-300" />
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Aucun dossier</span>
                 </div>
             </div>
 
-            <div v-else class="space-y-1">
+            <div v-else class="grid grid-cols-1 gap-1">
                 <button v-for="dir in directories" :key="dir" @click="navigateTo(dir)"
-                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 text-left transition-all group">
-                    <Folder class="w-4 h-4 text-amber-500/60 group-hover:text-amber-600 transition-colors" />
-                    <span class="text-xs font-bold text-gray-600 group-hover:text-gray-900 transition-colors truncate">{{
-                        dir }}</span>
-                    <ChevronRight class="w-3 h-3 text-gray-300 group-hover:text-gray-500 ml-auto transition-colors" />
+                    class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-indigo-50/50 text-left transition-all group border border-transparent hover:border-indigo-100">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center group-hover:bg-white border border-transparent group-hover:border-indigo-100 transition-all">
+                        <Folder class="w-4 h-4 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
+                    </div>
+                    <span class="text-xs font-bold text-gray-600 group-hover:text-indigo-900 transition-colors truncate">{{ dir }}</span>
+                    <ChevronRight class="w-4 h-4 text-gray-300 group-hover:text-indigo-400 ml-auto transition-colors" />
                 </button>
             </div>
         </div>
 
         <!-- Footer -->
-        <div class="shrink-0 p-6 border-t border-gray-100 space-y-4 bg-gray-50">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Selected</p>
-                    <p class="text-xs font-mono text-gray-600 mt-1 truncate max-w-[300px]">{{ selectedFolder || 'None'
-                    }}</p>
+        <div class="shrink-0 p-6 border-t border-gray-100 bg-gray-50/50 relative z-10 backdrop-blur-sm">
+            <div class="flex items-center justify-between gap-6">
+                <div class="flex-1 min-w-0">
+                    <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-none">Emplacement sélectionné</p>
+                    <p class="text-[11px] font-mono text-indigo-600 mt-1.5 truncate">{{ selectedFolder || '...' }}</p>
                 </div>
-                <button @click="createAgent" :disabled="!selectedFolder"
-                    class="px-6 py-3 bg-gray-900 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100">
-                    <Plus class="w-4 h-4" />
-                    Create Agent
-                </button>
+                <div class="flex items-center gap-3">
+                    <button v-if="!instanceId" @click="emit('cancel')"
+                        class="px-5 py-3 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-colors">
+                        ANNULER
+                    </button>
+                    <button @click="handleSelect" :disabled="!selectedFolder"
+                        class="px-8 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl shadow-lg shadow-indigo-100 hover:shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-3 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100">
+                        <Plus class="w-4 h-4" />
+                        {{ instanceId ? 'CHOISIR' : 'SÉLECTIONNER' }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -198,7 +214,7 @@ const displayPath = computed(() => {
 
 <style scoped>
 .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
+    width: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -206,11 +222,11 @@ const displayPath = computed(() => {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(99, 102, 241, 0.1);
     border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(99, 102, 241, 0.2);
 }
 </style>
