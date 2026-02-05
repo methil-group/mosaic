@@ -2,14 +2,25 @@
 import { ref, computed } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import AgentInstance from '../agent/AgentInstance.vue'
-import { LayoutGrid, AlertTriangle } from 'lucide-vue-next'
+import DesktopMosaic from '../desktop/DesktopMosaic.vue'
+import { LayoutGrid, AlertTriangle, ChevronLeft } from 'lucide-vue-next'
 import { useTileLayout, type ResizeHandle } from '~/composables/useTileLayout'
 
 const store = useAgentStore()
 const gridContainer = ref<HTMLElement | null>(null)
 
 const visibleInstances = computed(() => {
-  return store.instanceIds.filter(id => store.instances[id]?.isVisible)
+  return store.instanceIds.filter(id => {
+    const instance = store.instances[id]
+    if (!instance || !instance.isVisible) return false
+    if (store.activeDesktopId && instance.desktopId !== store.activeDesktopId) return false
+    return true
+  })
+})
+
+const activeDesktopName = computed(() => {
+  if (!store.activeDesktopId) return ''
+  return store.desktops[store.activeDesktopId]?.name || 'Bureau'
 })
 
 const { getTileStyle, getHandleStyle, resizeHandles, updateSplitRatio, limitedIds, hiddenCount } = useTileLayout(visibleInstances)
@@ -56,9 +67,38 @@ const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col min-w-0 bg-gray-50 overflow-hidden">
-    <div ref="gridContainer" v-if="limitedIds.length > 0"
-      class="flex-1 p-4 overflow-hidden bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px] relative">
+  <div class="h-full flex flex-col min-w-0 bg-gray-100 overflow-hidden">
+    <!-- Mosaic View -->
+    <div v-if="store.viewMode === 'mosaic'" class="flex-1 overflow-y-auto">
+      <DesktopMosaic />
+    </div>
+
+    <!-- Desktop View -->
+    <template v-else>
+      <!-- Sub-header for Desktop Navigation -->
+      <div class="px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between z-50">
+        <div class="flex items-center gap-4">
+          <button @click="store.setActiveDesktop(null)" 
+                  class="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  title="Retour à la mosaïque">
+            <ChevronLeft class="w-5 h-5 text-gray-600" />
+          </button>
+          <div class="flex flex-col">
+            <h1 class="text-sm font-black uppercase tracking-widest text-gray-900">{{ activeDesktopName }}</h1>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ visibleInstances.length }} Agent{{ visibleInstances.length !== 1 ? 's' : '' }} Actif{{ visibleInstances.length !== 1 ? 's' : '' }}</span>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <button @click="store.createInstance()"
+                  class="px-4 py-2 bg-black text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-colors">
+            Ajouter un Agent
+          </button>
+        </div>
+      </div>
+
+      <div ref="gridContainer" v-if="limitedIds.length > 0"
+        class="flex-1 p-4 overflow-hidden bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px] relative">
 
       <!-- Hidden agents indicator -->
       <div v-if="hiddenCount > 0"
@@ -104,7 +144,8 @@ const startDrag = (handle: ResizeHandle, event: MouseEvent) => {
         class="mt-4 px-6 py-2.5 rounded-full border border-gray-300 hover:border-gray-500 bg-white hover:bg-gray-50 transition-all text-[9px] font-black uppercase tracking-[0.2em] text-gray-900 shadow-sm">
         Initialize Primary Unit
       </button>
-    </div>
+      </div>
+    </template>
   </div>
 </template>
 

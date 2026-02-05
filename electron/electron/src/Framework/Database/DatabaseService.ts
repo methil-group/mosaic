@@ -12,6 +12,14 @@ export interface AgentRecord {
   color?: string;
   icon?: string;
   description?: string;
+  desktop_id: string;
+  created_at: string;
+}
+
+export interface DesktopRecord {
+  id: string;
+  name: string;
+  color?: string;
   created_at: string;
 }
 
@@ -60,9 +68,25 @@ export class DatabaseService {
         description TEXT,
         video TEXT,
         lottie TEXT,
+        desktop_id TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS desktops (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        color TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Ensure at least one desktop exists
+    const defaultDesktop = this.db.prepare('SELECT id FROM desktops WHERE id = ?').get('default');
+    if (!defaultDesktop) {
+      this.db.prepare('INSERT INTO desktops (id, name, color) VALUES (?, ?, ?)').run('default', 'Main Desktop', '#6366f1');
+    }
 
     // Migration: Add missing columns if they don't exist
     try {
@@ -83,6 +107,11 @@ export class DatabaseService {
       }
       if (!columns.includes('lottie')) {
         this.db.prepare('ALTER TABLE agents ADD COLUMN lottie TEXT').run();
+      }
+      if (!columns.includes('desktop_id')) {
+        this.db.prepare('ALTER TABLE agents ADD COLUMN desktop_id TEXT').run();
+        // Move all existing agents to default desktop
+        this.db.prepare('UPDATE agents SET desktop_id = ?').run('default');
       }
     } catch (error) {
       console.error('Failed to migrate agents table:', error);
@@ -125,12 +154,36 @@ export class DatabaseService {
     return row || null;
   }
 
-  public saveAgent(agent: { id: string; name: string; workspace: string; model: string; is_visible?: boolean; color?: string; icon?: string; description?: string; video?: string; lottie?: string }): void {
+  public saveAgent(agent: { id: string; name: string; workspace: string; model: string; is_visible?: boolean; color?: string; icon?: string; description?: string; video?: string; lottie?: string; desktop_id?: string }): void {
     const isVisible = agent.is_visible !== undefined ? (agent.is_visible ? 1 : 0) : 1;
     this.db.prepare(`
-      INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, color, icon, description, video, lottie, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
-    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.color || null, agent.icon || null, agent.description || null, agent.video || null, agent.lottie || null, agent.id);
+      INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, color, icon, description, video, lottie, desktop_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
+    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.color || null, agent.icon || null, agent.description || null, agent.video || null, agent.lottie || null, agent.desktop_id || 'default', agent.id);
+  }
+
+  // Desktop methods
+  public getDesktops(): DesktopRecord[] {
+    return this.db.prepare('SELECT * FROM desktops ORDER BY created_at ASC').all() as DesktopRecord[];
+  }
+
+  public getDesktop(id: string): DesktopRecord | null {
+    const row = this.db.prepare('SELECT * FROM desktops WHERE id = ?').get(id) as DesktopRecord | undefined;
+    return row || null;
+  }
+
+  public saveDesktop(desktop: { id: string; name: string; color?: string }): void {
+    this.db.prepare(`
+      INSERT OR REPLACE INTO desktops (id, name, color, created_at)
+      VALUES (?, ?, ?, COALESCE((SELECT created_at FROM desktops WHERE id = ?), CURRENT_TIMESTAMP))
+    `).run(desktop.id, desktop.name, desktop.color || null, desktop.id);
+  }
+
+  public deleteDesktop(id: string): void {
+    // We might want to move agents to default or delete them. 
+    // For now, let's keep them and mark them as without desktop (or move to default)
+    this.db.prepare('UPDATE agents SET desktop_id = ? WHERE desktop_id = ?').run('default', id);
+    this.db.prepare('DELETE FROM desktops WHERE id = ?').run(id);
   }
 
   public updateAgentVisibility(id: string, isVisible: boolean): void {

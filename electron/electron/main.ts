@@ -169,7 +169,7 @@ ipcMain.handle('agents:get', (_event, id: string) => {
   return databaseService.getAgent(id)
 })
 
-ipcMain.handle('agents:save', (_event, agent: { id: string; name: string; workspace: string; model: string; is_visible?: boolean; color?: string; icon?: string; description?: string }) => {
+ipcMain.handle('agents:save', (_event, agent: { id: string; name: string; workspace: string; model: string; is_visible?: boolean; color?: string; icon?: string; description?: string; desktop_id?: string }) => {
   databaseService.saveAgent(agent)
   return { success: true }
 })
@@ -181,6 +181,24 @@ ipcMain.handle('agents:updateVisibility', (_event, { id, isVisible }: { id: stri
 
 ipcMain.handle('agents:delete', (_event, id: string) => {
   databaseService.deleteAgent(id)
+  return { success: true }
+})
+
+// Desktop Handlers
+ipcMain.handle('desktops:list', () => {
+  console.log('[Main] Handling desktops:list')
+  return databaseService.getDesktops()
+})
+
+ipcMain.handle('desktops:save', (_event, desktop: { id: string; name: string; color?: string }) => {
+  console.log('[Main] Handling desktops:save:', desktop)
+  databaseService.saveDesktop(desktop)
+  return { success: true }
+})
+
+ipcMain.handle('desktops:delete', (_event, id: string) => {
+  console.log('[Main] Handling desktops:delete:', id)
+  databaseService.deleteDesktop(id)
   return { success: true }
 })
 

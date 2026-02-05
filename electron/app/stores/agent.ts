@@ -35,6 +35,13 @@ export interface InstanceState {
   persona?: string
   video?: string
   lottie?: string
+  desktopId: string
+}
+
+export interface Desktop {
+  id: string
+  name: string
+  color?: string
 }
 
 export interface Workspace {
@@ -66,6 +73,10 @@ export interface State {
   backendUrl: string
   filesCache: Record<string, string[]> // workspacePath -> files
   workspaces: Workspace[]
+  desktops: Record<string, Desktop>
+  desktopIds: string[]
+  activeDesktopId: string | null
+  viewMode: 'mosaic' | 'desktop'
   currentView: 'grid' | 'workspaces' | 'workspace-detail'
   activeWorkspaceId: string | null
   // Layout persistence: keyed by agent IDs hash
@@ -84,6 +95,10 @@ export const useAgentStore = defineStore('agent', {
     backendUrl: 'http://localhost:3710',
     filesCache: {},
     workspaces: [],
+    desktops: {},
+    desktopIds: [],
+    activeDesktopId: null,
+    viewMode: 'mosaic',
     currentView: 'grid',
     activeWorkspaceId: null,
     customLayouts: {}
@@ -123,7 +138,8 @@ export const useAgentStore = defineStore('agent', {
         description: agent.description,
         persona: agent.systemPrompt,
         video: agent.video,
-        lottie: agent.lottie
+        lottie: agent.lottie,
+        desktopId: this.activeDesktopId || 'default'
       }
       this.instanceIds.push(id)
       
@@ -137,7 +153,8 @@ export const useAgentStore = defineStore('agent', {
           is_visible: true,
           color: agent.color,
           icon: agent.icon,
-          description: agent.description
+          description: agent.description,
+          desktop_id: this.activeDesktopId || 'default'
         })
       }
       
@@ -333,6 +350,73 @@ export const useAgentStore = defineStore('agent', {
         this.instances[instanceId].currentModel = modelId
       }
     },
+    
+    // Desktop Actions
+    async loadDesktops() {
+      try {
+        if ((window as any).electron) {
+          console.log('[AgentStore] Loading desktops...')
+          const desktops = await (window as any).electron.ipcRenderer.invoke('desktops:list')
+          console.log('[AgentStore] Desktops loaded:', desktops)
+          this.desktops = {}
+          this.desktopIds = []
+          for (const d of desktops) {
+            this.desktops[d.id] = d
+            this.desktopIds.push(d.id)
+          }
+          if (this.desktopIds.length > 0 && !this.activeDesktopId) {
+            this.activeDesktopId = 'default'
+          }
+        }
+      } catch (e) {
+        console.error('[AgentStore] Failed to load desktops', e)
+      }
+    },
+
+    async saveDesktop(desktop: Desktop) {
+      console.log('[AgentStore] Saving desktop:', desktop)
+      // Use spread for reactivity in case it's a new key
+      this.desktops = { ...this.desktops, [desktop.id]: desktop }
+      
+      if (!this.desktopIds.includes(desktop.id)) {
+        this.desktopIds.push(desktop.id)
+      }
+      
+      if ((window as any).electron) {
+        try {
+          console.log('[AgentStore] Invoking desktops:save...')
+          await (window as any).electron.ipcRenderer.invoke('desktops:save', desktop)
+          console.log('[AgentStore] Desktop saved to DB successfully')
+        } catch (e) {
+          console.error('[AgentStore] Failed to save desktop to DB:', e)
+        }
+      }
+    },
+
+    async removeDesktop(id: string) {
+      if (id === 'default') return
+      delete this.desktops[id]
+      this.desktopIds = this.desktopIds.filter(i => i !== id)
+      if (this.activeDesktopId === id) {
+        this.activeDesktopId = 'default'
+      }
+      if ((window as any).electron) {
+        await (window as any).electron.ipcRenderer.invoke('desktops:delete', id)
+      }
+    },
+
+    setActiveDesktop(id: string | null) {
+      this.activeDesktopId = id
+      if (id) {
+        this.viewMode = 'desktop'
+      } else {
+        this.viewMode = 'mosaic'
+      }
+    },
+
+    setViewMode(mode: 'mosaic' | 'desktop') {
+      this.viewMode = mode
+    },
 
     async fetchProviders() {
       try {
@@ -441,10 +525,13 @@ export const useAgentStore = defineStore('agent', {
               description: agent.description || config?.description,
               persona: config?.systemPrompt,
               video: config?.video,
-              lottie: config?.lottie
+              lottie: config?.lottie,
+              desktopId: agent.desktop_id || 'default'
             }
             this.instanceIds.push(agent.id)
           }
+          
+          await this.loadDesktops()
           
           console.log(`[AgentStore] Loaded ${agents.length} agents from SQLite`)
         }
