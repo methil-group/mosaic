@@ -1,18 +1,19 @@
 <template>
   <div ref="rootContainer" class="h-full relative min-w-0 bg-gray-100 overflow-hidden">
     <!-- Layer 1: Workspace Mosaic (Lower layer) -->
-    <div class="absolute inset-0 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+    <div class="absolute inset-0 transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
       :class="{ 'opacity-0 scale-150 pointer-events-none': store.viewMode === 'desktop' }"
       :style="{ transformOrigin: transitionOrigin }">
       <div class="h-full overflow-y-auto">
-        <WorkspaceMosaic />
+        <WorkspaceMosaic @select="handleWorkspaceSelect" />
       </div>
     </div>
 
     <!-- Layer 2: Workspace Detail (Top layer, Zooms in) -->
-    <div class="absolute inset-0 flex flex-col overflow-hidden transition-all duration-500 ease-in-out" :class="[
-      store.viewMode === 'desktop' ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-50 pointer-events-none'
-    ]" :style="{ transformOrigin: transitionOrigin }">
+    <div class="absolute inset-0 flex flex-col overflow-hidden transition-[opacity,transform] duration-500 ease-in-out"
+      :class="[
+        store.viewMode === 'desktop' ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-50 pointer-events-none'
+      ]" :style="{ transformOrigin: transitionOrigin }">
       <!-- Floating Controls -->
       <div v-if="store.activeWorkspaceId" class="absolute top-6 left-6 z-[60]">
         <!-- Back Button -->
@@ -76,12 +77,20 @@ import AgentGrid from './AgentGrid.vue'
 const store = useAgentStore()
 
 const rootContainer = ref<HTMLElement | null>(null)
+const transitionRect = ref<DOMRect | null>(null)
+
+const handleWorkspaceSelect = async (transitionObject: any) => {
+  transitionRect.value = transitionObject.transitionRect
+  // Ensure the DOM updates the transform-origin before we trigger the view mode change
+  await nextTick()
+  store.setActiveWorkspace(transitionObject.id)
+}
 
 const transitionOrigin = computed(() => {
-  if (!store.transitionRect) return 'center center'
+  if (!transitionRect.value) return 'center center'
 
   // Calculate coordinates relative to container (subtracting sidebar/offset)
-  const rect = store.transitionRect
+  const rect = transitionRect.value
   let containerX = 0
   let containerY = 0
 

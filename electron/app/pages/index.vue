@@ -1,7 +1,7 @@
 <template>
-    <AgentInterface />
+    <WorkspacePanel />
 </template>
 
 <script setup lang="ts">
-import AgentInterface from '~/components/grid/AgentInterface.vue'
+import WorkspacePanel from '~/components/grid/WorkspacePanel.vue'
 </script>

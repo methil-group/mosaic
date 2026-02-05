@@ -73,8 +73,6 @@ export interface State {
   activeWorkspaceId: string | null
   // Layout persistence: keyed by agent IDs hash
   customLayouts: Record<string, any>
-  // Shared element transition state
-  transitionRect: DOMRect | null
 }
 
 // AGENT_NAMES is deprecated in favor of AGENTS_REPO
@@ -93,8 +91,7 @@ export const useAgentStore = defineStore('agent', {
     activeWorkspaceId: null,
     viewMode: 'mosaic',
     currentView: 'grid',
-    customLayouts: {},
-    transitionRect: null
+    customLayouts: {}
   }),
   getters: {
     availableModels: (state): Model[] => {

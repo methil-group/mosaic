@@ -39,10 +39,12 @@ const emit = defineEmits(['select', 'delete'])
 const previewRef = ref<HTMLElement | null>(null)
 
 const handleSelect = () => {
-  if (previewRef.value) {
-    store.transitionRect = previewRef.value.getBoundingClientRect()
+  const selectedWorkspace = {
+    id: props.workspace.id,
+    name: props.workspace.name,
+    transitionRect: previewRef.value!.getBoundingClientRect()
   }
-  emit('select', props.workspace.id)
+  emit('select', selectedWorkspace)
 }
 
 const displayPath = computed(() => {

@@ -8,7 +8,7 @@
     <div class="mosaic-grid">
       <template v-for="id in workspaceIds" :key="id">
         <WorkspaceCard v-if="workspaces[id]" :workspace="workspaces[id]!" :agents="getAgentsForWorkspace(id)"
-          @select="handleSelect(id)" @delete="handleDelete(id)" />
+          @select="handleSelect" @delete="handleDelete(id)" />
       </template>
 
       <button v-if="!isCreating" class="add-desktop-btn" @click="startCreation">
@@ -58,6 +58,8 @@ const showExplorer = ref(false)
 const newName = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 
+const emit = defineEmits(['select'])
+
 const startCreation = () => {
   isCreating.value = true
   newName.value = ''
@@ -77,8 +79,8 @@ const getAgentsForWorkspace = (workspaceId: string) => {
     .filter((agent): agent is NonNullable<typeof agent> => !!agent && agent.workspaceId === workspaceId)
 }
 
-const handleSelect = (id: string) => {
-  agentStore.setActiveWorkspace(id)
+const handleSelect = (transitionObject: any) => {
+  emit('select', transitionObject)
 }
 
 const handleDelete = async (id: string) => {
