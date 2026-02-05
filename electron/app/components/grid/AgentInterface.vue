@@ -7,13 +7,24 @@ import AgentGrid from './AgentGrid.vue'
 
 const store = useAgentStore()
 
+const rootContainer = ref<HTMLElement | null>(null)
+
 const transitionOrigin = computed(() => {
   if (!store.transitionRect) return 'center center'
 
-  // Calculate coordinates relative to window
+  // Calculate coordinates relative to container (subtracting sidebar/offset)
   const rect = store.transitionRect
-  const x = rect.left + rect.width / 2
-  const y = rect.top + rect.height / 2
+  let containerX = 0
+  let containerY = 0
+
+  if (rootContainer.value) {
+    const containerRect = rootContainer.value.getBoundingClientRect()
+    containerX = containerRect.left
+    containerY = containerRect.top
+  }
+
+  const x = rect.left - containerX + rect.width / 2
+  const y = rect.top - containerY + rect.height / 2
 
   return `${x}px ${y}px`
 })
@@ -50,7 +61,7 @@ const activeWorkspaceName = computed(() => {
 </script>
 
 <template>
-  <div class="h-full relative min-w-0 bg-gray-100 overflow-hidden">
+  <div ref="rootContainer" class="h-full relative min-w-0 bg-gray-100 overflow-hidden">
     <!-- Layer 1: Workspace Mosaic (Lower layer) -->
     <div class="absolute inset-0 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
       :class="{ 'opacity-0 scale-150 pointer-events-none': store.viewMode === 'desktop' }"

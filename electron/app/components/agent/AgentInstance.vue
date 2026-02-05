@@ -135,7 +135,7 @@ watch(() => instance.value?.messages[instance.value?.messages.length - 1]?.conte
 
         <!-- Chromeless Mode (Animation Only) -->
         <template v-if="chromeless">
-            <div class="absolute inset-0 w-full h-full overflow-hidden bg-gray-50">
+            <div class="absolute inset-0 w-full h-full overflow-hidden" :style="{ backgroundColor: instance.color }">
                 <video v-if="videoSource" autoplay loop muted playsinline
                     class="absolute inset-0 w-full h-full object-cover">
                     <source :src="videoSource" type="video/webm">
