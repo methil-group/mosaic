@@ -53,7 +53,7 @@ const MAX_AGENTS = 4 // Maximum agents visible on screen
 /**
  * Convert a layout tree to tile positions (percentages)
  */
-function nodeToPositions(
+export function nodeToPositions(
   node: LayoutNode,
   left: number,
   top: number,

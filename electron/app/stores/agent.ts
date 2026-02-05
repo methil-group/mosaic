@@ -42,6 +42,7 @@ export interface Desktop {
   id: string
   name: string
   color?: string
+  path: string
 }
 
 export interface Workspace {
@@ -111,23 +112,29 @@ export const useAgentStore = defineStore('agent', {
     // but flattening all for the basic list is fine for now.
   },
   actions: {
-    async createInstance(workspace?: string) {
-      const id = Math.random().toString(36).substring(7)
+    async createInstance() {
+      if (!this.activeDesktopId) return
+      const activeDesktop = this.desktops[this.activeDesktopId]
+      const workspacePath = activeDesktop?.path || ''
+
+      const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : Math.random().toString(36).substring(7)
       
       // Filter for agents with Lottie animations
       const lottieAgents = AGENTS_REPO.filter(a => !!a.lottie)
       const pool = lottieAgents.length > 0 ? lottieAgents : AGENTS_REPO
 
       const agent = pool[Math.floor(Math.random() * pool.length)]
-      if (!agent) return id // Should not happen
-
+      if (!agent) return
+      
       const name = agent.name
       this.instances[id] = {
         id,
         name,
         messages: [],
         isProcessing: false,
-        currentWorkspace: workspace || '~/Documents',
+        currentWorkspace: workspacePath,
         currentModel: this.defaultModelId,
         isVisible: true,
         colSpan: 1,
@@ -139,7 +146,7 @@ export const useAgentStore = defineStore('agent', {
         persona: agent.systemPrompt,
         video: agent.video,
         lottie: agent.lottie,
-        desktopId: this.activeDesktopId || 'default'
+        desktopId: this.activeDesktopId
       }
       this.instanceIds.push(id)
       
@@ -148,7 +155,7 @@ export const useAgentStore = defineStore('agent', {
         await (window as any).electron.ipcRenderer.invoke('agents:save', {
           id,
           name,
-          workspace: workspace || '~/Documents',
+          workspace: workspacePath,
           model: this.defaultModelId,
           is_visible: true,
           color: agent.color,

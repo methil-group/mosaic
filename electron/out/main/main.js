@@ -709,9 +709,22 @@ class DatabaseService {
         description TEXT,
         video TEXT,
         lottie TEXT,
+        desktop_id TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS desktops (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        color TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    const defaultDesktop = this.db.prepare("SELECT id FROM desktops WHERE id = ?").get("default");
+    if (!defaultDesktop) {
+      this.db.prepare("INSERT INTO desktops (id, name, color) VALUES (?, ?, ?)").run("default", "Main Desktop", "#6366f1");
+    }
     try {
       const tableInfo = this.db.prepare("PRAGMA table_info(agents)").all();
       const columns = tableInfo.map((c) => c.name);
@@ -729,6 +742,10 @@ class DatabaseService {
       }
       if (!columns.includes("lottie")) {
         this.db.prepare("ALTER TABLE agents ADD COLUMN lottie TEXT").run();
+      }
+      if (!columns.includes("desktop_id")) {
+        this.db.prepare("ALTER TABLE agents ADD COLUMN desktop_id TEXT").run();
+        this.db.prepare("UPDATE agents SET desktop_id = ?").run("default");
       }
     } catch (error) {
       console.error("Failed to migrate agents table:", error);
@@ -767,9 +784,27 @@ class DatabaseService {
   saveAgent(agent) {
     const isVisible = agent.is_visible !== void 0 ? agent.is_visible ? 1 : 0 : 1;
     this.db.prepare(`
-      INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, color, icon, description, video, lottie, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
-    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.color || null, agent.icon || null, agent.description || null, agent.video || null, agent.lottie || null, agent.id);
+      INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, color, icon, description, video, lottie, desktop_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
+    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.color || null, agent.icon || null, agent.description || null, agent.video || null, agent.lottie || null, agent.desktop_id || "default", agent.id);
+  }
+  // Desktop methods
+  getDesktops() {
+    return this.db.prepare("SELECT * FROM desktops ORDER BY created_at ASC").all();
+  }
+  getDesktop(id) {
+    const row = this.db.prepare("SELECT * FROM desktops WHERE id = ?").get(id);
+    return row || null;
+  }
+  saveDesktop(desktop) {
+    this.db.prepare(`
+      INSERT OR REPLACE INTO desktops (id, name, color, created_at)
+      VALUES (?, ?, ?, COALESCE((SELECT created_at FROM desktops WHERE id = ?), CURRENT_TIMESTAMP))
+    `).run(desktop.id, desktop.name, desktop.color || null, desktop.id);
+  }
+  deleteDesktop(id) {
+    this.db.prepare("UPDATE agents SET desktop_id = ? WHERE desktop_id = ?").run("default", id);
+    this.db.prepare("DELETE FROM desktops WHERE id = ?").run(id);
   }
   updateAgentVisibility(id, isVisible) {
     this.db.prepare("UPDATE agents SET is_visible = ? WHERE id = ?").run(isVisible ? 1 : 0, id);
@@ -923,6 +958,20 @@ ipcMain.handle("agents:updateVisibility", (_event, { id, isVisible }) => {
 });
 ipcMain.handle("agents:delete", (_event, id) => {
   databaseService.deleteAgent(id);
+  return { success: true };
+});
+ipcMain.handle("desktops:list", () => {
+  console.log("[Main] Handling desktops:list");
+  return databaseService.getDesktops();
+});
+ipcMain.handle("desktops:save", (_event, desktop) => {
+  console.log("[Main] Handling desktops:save:", desktop);
+  databaseService.saveDesktop(desktop);
+  return { success: true };
+});
+ipcMain.handle("desktops:delete", (_event, id) => {
+  console.log("[Main] Handling desktops:delete:", id);
+  databaseService.deleteDesktop(id);
   return { success: true };
 });
 ipcMain.handle("messages:list", (_event, agentId) => {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { is } from '@electron-toolkit/utils'
@@ -79,6 +79,21 @@ console.log('[Main] API Key from DB present:', !!storedApiKey)
 
 // IPC Handlers
 ipcMain.handle('ping', () => 'pong')
+
+ipcMain.handle('dialog:openDirectory', async (event) => {
+  const browserWindow = BrowserWindow.fromWebContents(event.sender)
+  if (!browserWindow) return { canceled: true }
+  
+  const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow, {
+    properties: ['openDirectory']
+  })
+  
+  if (canceled) {
+    return { canceled: true }
+  } else {
+    return { canceled: false, path: filePaths[0] }
+  }
+})
 
 ipcMain.handle('fs:ls', async (_event, path: string) => {
   return { directories: await fileSystemService.listDirectories(path) }
@@ -190,7 +205,7 @@ ipcMain.handle('desktops:list', () => {
   return databaseService.getDesktops()
 })
 
-ipcMain.handle('desktops:save', (_event, desktop: { id: string; name: string; color?: string }) => {
+ipcMain.handle('desktops:save', (_event, desktop: { id: string; name: string; color?: string; path?: string }) => {
   console.log('[Main] Handling desktops:save:', desktop)
   databaseService.saveDesktop(desktop)
   return { success: true }

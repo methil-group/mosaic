@@ -20,6 +20,7 @@ export interface DesktopRecord {
   id: string;
   name: string;
   color?: string;
+  path: string;
   created_at: string;
 }
 
@@ -78,6 +79,7 @@ export class DatabaseService {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         color TEXT,
+        path TEXT DEFAULT '',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -112,6 +114,13 @@ export class DatabaseService {
         this.db.prepare('ALTER TABLE agents ADD COLUMN desktop_id TEXT').run();
         // Move all existing agents to default desktop
         this.db.prepare('UPDATE agents SET desktop_id = ?').run('default');
+      }
+
+      // Migration for desktops
+      const desktopTableInfo = this.db.prepare('PRAGMA table_info(desktops)').all() as any[];
+      const desktopColumns = desktopTableInfo.map(c => c.name);
+      if (!desktopColumns.includes('path')) {
+        this.db.prepare('ALTER TABLE desktops ADD COLUMN path TEXT DEFAULT ""').run();
       }
     } catch (error) {
       console.error('Failed to migrate agents table:', error);
@@ -172,11 +181,11 @@ export class DatabaseService {
     return row || null;
   }
 
-  public saveDesktop(desktop: { id: string; name: string; color?: string }): void {
+  public saveDesktop(desktop: { id: string; name: string; color?: string; path?: string }): void {
     this.db.prepare(`
-      INSERT OR REPLACE INTO desktops (id, name, color, created_at)
-      VALUES (?, ?, ?, COALESCE((SELECT created_at FROM desktops WHERE id = ?), CURRENT_TIMESTAMP))
-    `).run(desktop.id, desktop.name, desktop.color || null, desktop.id);
+      INSERT OR REPLACE INTO desktops (id, name, color, path, created_at)
+      VALUES (?, ?, ?, ?, COALESCE((SELECT created_at FROM desktops WHERE id = ?), CURRENT_TIMESTAMP))
+    `).run(desktop.id, desktop.name, desktop.color || null, desktop.path || '', desktop.id);
   }
 
   public deleteDesktop(id: string): void {

@@ -4,11 +4,15 @@ import { useAgentStore } from '~/stores/agent'
 import { Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Home, ArrowUp, RefreshCw } from 'lucide-vue-next'
 
 const props = defineProps<{
-    instanceId: string
+    instanceId?: string,
+    title?: string,
+    subtitle?: string
 }>()
 
+const emit = defineEmits(['select', 'cancel'])
+
 const store = useAgentStore()
-const instance = computed(() => store.instances[props.instanceId])
+const instance = computed(() => props.instanceId ? store.instances[props.instanceId] : null)
 
 interface FolderEntry {
     name: string
@@ -23,7 +27,6 @@ const directories = ref<string[]>([])
 const selectedFolder = ref<string | null>(null)
 const isLoading = ref(false)
 const error = ref<string | null>(null)
-const expandedFolders = ref<Set<string>>(new Set())
 
 // Load directories for current path
 const loadDirectories = async (path: string) => {
@@ -31,7 +34,7 @@ const loadDirectories = async (path: string) => {
     error.value = null
     try {
         const result = await store.listDirectories(path)
-        directories.value = result.filter(d => !d.startsWith('.'))
+        directories.value = result.filter(d => !d.startsWith('.')).sort((a, b) => a.localeCompare(b))
         currentPath.value = path
         selectedFolder.value = path
     } catch (e) {
@@ -44,9 +47,8 @@ const loadDirectories = async (path: string) => {
 
 // Navigate into a folder
 const navigateTo = (folderName: string) => {
-    const newPath = currentPath.value.endsWith('/')
-        ? `${currentPath.value}${folderName}`
-        : `${currentPath.value}/${folderName}`
+    const separator = (currentPath.value === '/' || currentPath.value.endsWith('/')) ? '' : '/'
+    const newPath = `${currentPath.value}${separator}${folderName}`
     loadDirectories(newPath)
 }
 
@@ -55,13 +57,23 @@ const navigateUp = () => {
     const path = currentPath.value
     if (path === '~' || path === '/') return
 
+    // Special case for home relative paths
+    if (path === '~') return
+
     const lastSlash = path.lastIndexOf('/')
     if (lastSlash > 0) {
         loadDirectories(path.substring(0, lastSlash))
     } else if (lastSlash === 0) {
         loadDirectories('/')
     } else if (path.startsWith('~')) {
-        loadDirectories('~')
+        // If it's something like ~/Documents
+        const homeParts = path.split('/')
+        if (homeParts.length > 1) {
+            homeParts.pop()
+            loadDirectories(homeParts.join('/'))
+        } else {
+            loadDirectories('~')
+        }
     }
 }
 
@@ -70,12 +82,15 @@ const navigateHome = () => {
     loadDirectories('~')
 }
 
-// Select current folder and create agent
-const createAgent = () => {
-    if (!selectedFolder.value || !instance.value) return
-
-    // Set the workspace - this triggers the chat UI to show
-    instance.value.currentWorkspace = selectedFolder.value
+// Select current folder
+const handleSelect = () => {
+    if (!selectedFolder.value) return
+    
+    if (instance.value) {
+        instance.value.currentWorkspace = selectedFolder.value
+    }
+    
+    emit('select', selectedFolder.value)
 }
 
 // Initialize
@@ -85,7 +100,7 @@ onMounted(() => {
 
 // Format path for display
 const displayPath = computed(() => {
-    return currentPath.value.replace(/^~/, '~')
+    return currentPath.value
 })
 </script>
 
