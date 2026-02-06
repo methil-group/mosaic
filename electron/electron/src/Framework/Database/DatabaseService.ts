@@ -49,6 +49,11 @@ export class DatabaseService {
     this.init();
   }
 
+  public getDatabasePath(): string {
+    const userDataPath = app.getPath('userData');
+    return path.join(userDataPath, 'mosaic.sqlite');
+  }
+
   private init() {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS settings (
@@ -84,11 +89,6 @@ export class DatabaseService {
       )
     `);
 
-    // Ensure at least one desktop exists
-    const defaultDesktop = this.db.prepare('SELECT id FROM desktops WHERE id = ?').get('default');
-    if (!defaultDesktop) {
-      this.db.prepare('INSERT INTO desktops (id, name, color) VALUES (?, ?, ?)').run('default', 'Main Desktop', '#6366f1');
-    }
 
     // Migration: Add missing columns if they don't exist
     try {
@@ -112,8 +112,6 @@ export class DatabaseService {
       }
       if (!columns.includes('desktop_id')) {
         this.db.prepare('ALTER TABLE agents ADD COLUMN desktop_id TEXT').run();
-        // Move all existing agents to default desktop
-        this.db.prepare('UPDATE agents SET desktop_id = ?').run('default');
       }
 
       // Migration for desktops
@@ -168,7 +166,7 @@ export class DatabaseService {
     this.db.prepare(`
       INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, color, icon, description, video, lottie, desktop_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
-    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.color || null, agent.icon || null, agent.description || null, agent.video || null, agent.lottie || null, agent.desktop_id || 'default', agent.id);
+    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.color || null, agent.icon || null, agent.description || null, agent.video || null, agent.lottie || null, agent.desktop_id || null, agent.id);
   }
 
   // Desktop methods
@@ -189,9 +187,8 @@ export class DatabaseService {
   }
 
   public deleteDesktop(id: string): void {
-    // We might want to move agents to default or delete them. 
-    // For now, let's keep them and mark them as without desktop (or move to default)
-    this.db.prepare('UPDATE agents SET desktop_id = ? WHERE desktop_id = ?').run('default', id);
+    // For now, let's keep them and mark them as without desktop
+    this.db.prepare('UPDATE agents SET desktop_id = ? WHERE desktop_id = ?').run(null, id);
     this.db.prepare('DELETE FROM desktops WHERE id = ?').run(id);
   }
 

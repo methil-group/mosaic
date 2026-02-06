@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import path, { dirname as dirname$1, join as join$1 } from "path";
 import { fileURLToPath } from "url";
+import fs$1 from "fs";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { join, dirname } from "node:path";
@@ -9,7 +10,6 @@ import * as fs from "node:fs/promises";
 import axios from "axios";
 import * as dotenv from "dotenv";
 import Database from "better-sqlite3";
-import fs$1 from "fs";
 import __cjs_mod__ from "node:module";
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
@@ -690,6 +690,10 @@ class DatabaseService {
     this.db = new Database(dbPath);
     this.init();
   }
+  getDatabasePath() {
+    const userDataPath = app.getPath("userData");
+    return path.join(userDataPath, "mosaic.sqlite");
+  }
   init() {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS settings (
@@ -722,10 +726,6 @@ class DatabaseService {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    const defaultDesktop = this.db.prepare("SELECT id FROM desktops WHERE id = ?").get("default");
-    if (!defaultDesktop) {
-      this.db.prepare("INSERT INTO desktops (id, name, color) VALUES (?, ?, ?)").run("default", "Main Desktop", "#6366f1");
-    }
     try {
       const tableInfo = this.db.prepare("PRAGMA table_info(agents)").all();
       const columns = tableInfo.map((c) => c.name);
@@ -746,7 +746,6 @@ class DatabaseService {
       }
       if (!columns.includes("desktop_id")) {
         this.db.prepare("ALTER TABLE agents ADD COLUMN desktop_id TEXT").run();
-        this.db.prepare("UPDATE agents SET desktop_id = ?").run("default");
       }
       const desktopTableInfo = this.db.prepare("PRAGMA table_info(desktops)").all();
       const desktopColumns = desktopTableInfo.map((c) => c.name);
@@ -792,7 +791,7 @@ class DatabaseService {
     this.db.prepare(`
       INSERT OR REPLACE INTO agents (id, name, workspace, model, is_visible, color, icon, description, video, lottie, desktop_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))
-    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.color || null, agent.icon || null, agent.description || null, agent.video || null, agent.lottie || null, agent.desktop_id || "default", agent.id);
+    `).run(agent.id, agent.name, agent.workspace, agent.model, isVisible, agent.color || null, agent.icon || null, agent.description || null, agent.video || null, agent.lottie || null, agent.desktop_id || null, agent.id);
   }
   // Desktop methods
   getDesktops() {
@@ -809,7 +808,7 @@ class DatabaseService {
     `).run(desktop.id, desktop.name, desktop.color || null, desktop.path || "", desktop.id);
   }
   deleteDesktop(id) {
-    this.db.prepare("UPDATE agents SET desktop_id = ? WHERE desktop_id = ?").run("default", id);
+    this.db.prepare("UPDATE agents SET desktop_id = ? WHERE desktop_id = ?").run(null, id);
     this.db.prepare("DELETE FROM desktops WHERE id = ?").run(id);
   }
   updateAgentVisibility(id, isVisible) {
@@ -1006,4 +1005,21 @@ ipcMain.handle("messages:update", (_event, { id, content }) => {
 ipcMain.handle("messages:clearForAgent", (_event, agentId) => {
   databaseService.deleteMessagesForAgent(agentId);
   return { success: true };
+});
+ipcMain.handle("app:resetData", async () => {
+  console.log("[Main] Handling app:resetData - Resetting all data...");
+  try {
+    const dbPath = databaseService.getDatabasePath();
+    databaseService.close();
+    if (fs$1.existsSync(dbPath)) {
+      fs$1.unlinkSync(dbPath);
+      console.log("[Main] Database file deleted:", dbPath);
+    }
+    app.relaunch();
+    app.exit(0);
+    return { success: true };
+  } catch (error) {
+    console.error("[Main] Failed to reset data:", error);
+    return { success: false, error: error.message };
+  }
 });

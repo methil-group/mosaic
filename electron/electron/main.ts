@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { is } from '@electron-toolkit/utils'
+import fs from 'fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 import { Agent } from './src/Core/Agent'
@@ -235,5 +236,31 @@ ipcMain.handle('messages:update', (_event, { id, content }: { id: number; conten
 ipcMain.handle('messages:clearForAgent', (_event, agentId: string) => {
   databaseService.deleteMessagesForAgent(agentId)
   return { success: true }
+})
+
+// Data Reset Handler
+ipcMain.handle('app:resetData', async () => {
+  console.log('[Main] Handling app:resetData - Resetting all data...')
+  try {
+    const dbPath = databaseService.getDatabasePath()
+    
+    // 1. Close the database connection
+    databaseService.close()
+    
+    // 2. Delete the database file
+    if (fs.existsSync(dbPath)) {
+      fs.unlinkSync(dbPath)
+      console.log('[Main] Database file deleted:', dbPath)
+    }
+    
+    // 3. Relaunch the application
+    app.relaunch()
+    app.exit(0)
+    
+    return { success: true }
+  } catch (error: any) {
+    console.error('[Main] Failed to reset data:', error)
+    return { success: false, error: error.message }
+  }
 })
 

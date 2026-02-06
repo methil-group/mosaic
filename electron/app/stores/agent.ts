@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { useUserStore } from './user'
-import { AGENTS_REPO, type AgentConfig } from '~/constants/agents'
+import { COMPONENTS, type AgentComponent } from '~/src/Core/Data/components'
 
 export type AgentEvent =
   | { type: 'token', data: string }
@@ -33,7 +33,6 @@ export interface InstanceState {
   icon?: string
   description?: string
   persona?: string
-  video?: string
   lottie?: string
   workspaceId: string
 }
@@ -111,8 +110,8 @@ export const useAgentStore = defineStore('agent', {
         : Math.random().toString(36).substring(7)
       
       // Filter for agents with Lottie animations
-      const lottieAgents = AGENTS_REPO.filter(a => !!a.lottie)
-      const pool = lottieAgents.length > 0 ? lottieAgents : AGENTS_REPO
+      const lottieAgents = COMPONENTS.filter(a => !!a.lottie)
+      const pool = lottieAgents.length > 0 ? lottieAgents : COMPONENTS
 
       const agent = pool[Math.floor(Math.random() * pool.length)]
       if (!agent) return
@@ -133,7 +132,6 @@ export const useAgentStore = defineStore('agent', {
         icon: agent.icon,
         description: agent.description,
         persona: agent.systemPrompt,
-        video: agent.video,
         lottie: agent.lottie,
         workspaceId: this.activeWorkspaceId as string
       }
@@ -150,7 +148,7 @@ export const useAgentStore = defineStore('agent', {
           color: agent.color,
           icon: agent.icon,
           description: agent.description,
-          desktop_id: this.activeWorkspaceId || 'default'
+          desktop_id: this.activeWorkspaceId
         })
       }
       
@@ -361,7 +359,7 @@ export const useAgentStore = defineStore('agent', {
             this.workspaceIds.push(w.id)
           }
           if (this.workspaceIds.length > 0 && !this.activeWorkspaceId) {
-            this.activeWorkspaceId = 'default'
+            this.activeWorkspaceId = this.workspaceIds[0] || null
           }
         }
       } catch (e) {
@@ -387,11 +385,10 @@ export const useAgentStore = defineStore('agent', {
     },
 
     async removeWorkspace(id: string) {
-      if (id === 'default') return
       delete this.workspaces[id]
       this.workspaceIds = this.workspaceIds.filter(i => i !== id)
       if (this.activeWorkspaceId === id) {
-        this.activeWorkspaceId = 'default'
+        this.activeWorkspaceId = this.workspaceIds.length > 0 ? (this.workspaceIds[0] || null) : null
       }
       if ((window as any).electron) {
         await (window as any).electron.ipcRenderer.invoke('desktops:delete', id)
@@ -458,7 +455,7 @@ export const useAgentStore = defineStore('agent', {
             const messages = await (window as any).electron.ipcRenderer.invoke('messages:list', agent.id)
             
             // Try to find matching config for persona/icon if not in DB
-            const config = AGENTS_REPO.find(a => a.name === agent.name)
+            const config = COMPONENTS.find(a => a.name === agent.name)
 
             this.instances[agent.id] = {
               id: agent.id,
@@ -480,9 +477,8 @@ export const useAgentStore = defineStore('agent', {
               icon: agent.icon || config?.icon,
               description: agent.description || config?.description,
               persona: config?.systemPrompt,
-              video: config?.video,
               lottie: config?.lottie,
-              workspaceId: agent.desktop_id || 'default'
+              workspaceId: agent.desktop_id || (this.workspaceIds.length > 0 ? this.workspaceIds[0] : null)
             }
             this.instanceIds.push(agent.id)
           }

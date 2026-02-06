@@ -103,19 +103,62 @@
                 </div>
             </div>
 
+            <!-- Danger Zone -->
+            <div class="space-y-8 mt-24 mb-24">
+                <div class="border-t border-gray-200 pt-24">
+                    <h2 class="text-xs font-black uppercase tracking-widest text-red-600 mb-1">Danger Zone</h2>
+                    <p class="text-[10px] uppercase tracking-wider text-gray-400">Irreversible actions on your local
+                        data</p>
+                </div>
+
+                <div class="max-w-xl p-6 rounded-2xl border border-red-100 bg-red-50/30 space-y-4">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                            <Trash2 class="w-5 h-5" />
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-black uppercase tracking-tight text-gray-900 mb-1">Reset All Data</h3>
+                            <p class="text-xs text-gray-500 mb-4 leading-relaxed">
+                                This will permanently delete your SQLite database, clearing all agents, sessions, and
+                                local settings. The application will relaunch immediately.
+                            </p>
+                            
+                            <div class="flex flex-col gap-2">
+                                <button v-if="!showResetConfirm" @click="showResetConfirm = true"
+                                    class="w-full px-6 py-3 rounded-xl bg-white border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all">
+                                    Delete Every Data
+                                </button>
+                                
+                                <div v-else class="flex gap-2">
+                                    <button @click="resetAllData"
+                                        class="flex-1 px-6 py-3 rounded-xl bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all">
+                                        Confirm Deletion
+                                    </button>
+                                    <button @click="showResetConfirm = false"
+                                        class="px-6 py-3 rounded-xl bg-gray-200 text-gray-700 text-[10px] font-black uppercase tracking-widest hover:bg-gray-300 transition-all">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { useAgentStore } from '~/stores/agent'
-import { Globe, Check } from 'lucide-vue-next'
+import { Globe, Check, Trash2 } from 'lucide-vue-next'
 import { computed, ref, onMounted } from 'vue'
 
 const store = useAgentStore()
 const openRouterKey = ref('')
 const isSavingKey = ref(false)
 const saveStatus = ref<'idle' | 'success'>('idle')
+const showResetConfirm = ref(false)
 
 onMounted(async () => {
     const key = await store.getSetting('openrouter_api_key')
@@ -141,4 +184,10 @@ const availableModelsForDefault = computed(() => {
     const provider = store.availableProviders.find(p => p.id === store.defaultProviderId)
     return provider ? provider.models : []
 })
+
+const resetAllData = async () => {
+    if ((window as any).electron) {
+        await (window as any).electron.ipcRenderer.invoke('app:resetData')
+    }
+}
 </script>
