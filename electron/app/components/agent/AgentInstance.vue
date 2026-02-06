@@ -112,7 +112,8 @@
                                 :result="getMessageParts(msg).checklist" />
 
                             <!-- Final Content -->
-                            <div v-html="formatCleanContent(getMessageParts(msg).finalContent)"></div>
+                            <div class="markdown-content"
+                                v-html="formatCleanContent(getMessageParts(msg).finalContent)"></div>
 
                             <!-- Processing Indicator (Dot Pulse) -->
                             <div v-if="instance.isProcessing && idx === instance.messages.length - 1 && !getMessageParts(msg).finalContent"
@@ -134,12 +135,12 @@
                                 <div class="flex items-center gap-1">
                                     <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">In</span>
                                     <span class="text-[9px] font-mono text-gray-500">{{ msg.usage.prompt_tokens
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div class="flex items-center gap-1">
                                     <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Out</span>
                                     <span class="text-[9px] font-mono text-gray-500">{{ msg.usage.completion_tokens
-                                        }}</span>
+                                    }}</span>
                                 </div>
                                 <div class="flex items-center gap-1">
                                     <span
@@ -229,12 +230,50 @@ const getIconComponent = (iconName?: string) => {
     return (LucideIcons as any)[name] || Sparkles
 }
 
+import hljs from 'highlight.js'
+
 const md = new MarkdownIt({
     html: true,
     linkify: true,
     typographer: true,
-    breaks: true
+    breaks: true,
 })
+
+md.set({
+    highlight: function (str, lang) {
+        if (lang && hljs.getLanguage(lang)) {
+            try {
+                return hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+            } catch (__) { }
+        }
+        return md.utils.escapeHtml(str);
+    }
+})
+
+md.renderer.rules.fence = function (tokens, idx, options, env, self) {
+    const token = tokens[idx];
+    const info = token.info ? md.utils.unescapeAll(token.info).trim() : '';
+    const langName = info.split(/\s+/g)[0] || '';
+
+    let highlighted;
+    if (options.highlight) {
+        highlighted = options.highlight(token.content, langName) || md.utils.escapeHtml(token.content);
+    } else {
+        highlighted = md.utils.escapeHtml(token.content);
+    }
+
+    return `<div class="code-window">
+        <div class="code-header">
+            <div class="window-controls">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+            </div>
+            <span class="lang-label">${langName || 'text'}</span>
+        </div>
+        <pre class="hljs"><code>${highlighted}</code></pre>
+    </div>`;
+};
 
 onMounted(() => {
     scrollToBottom()
@@ -291,7 +330,8 @@ const getMessageParts = (msg: any) => {
     }
 
     // Pattern 2: manage_todos tool call
-    const todoEvent = events.find((e: any) => e.type === 'tool_started' && e.name === 'manage_todos');
+    // We reverse the events to get the LAST/LATEST checklist update
+    const todoEvent = [...events].reverse().find((e: any) => e.type === 'tool_started' && e.name === 'manage_todos');
     if (todoEvent && (todoEvent as any).parameters) {
         try {
             // Check if parameters is a string JSON or object

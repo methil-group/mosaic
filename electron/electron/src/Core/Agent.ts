@@ -68,10 +68,10 @@ export class Agent {
         }
 
         const stepResult = await this.runStep(signal);
-        const contentWithoutTool = stepResult.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim();
         
-        if (contentWithoutTool) {
-          accumulatedAssistantContent.push(contentWithoutTool);
+        // We accumulate the FULL content (including tool calls) for the final answer logic
+        if (stepResult.content) {
+          accumulatedAssistantContent.push(stepResult.content);
         }
 
         if (stepResult.toolCall) {
@@ -99,10 +99,9 @@ export class Agent {
               const result = await tool.execute(parameters, this.workspace);
               this.onEvent({ type: 'tool_finished', name, result });
               
-              // Push context to history
-              if (contentWithoutTool) {
-                this.messages.push({ role: 'assistant', content: contentWithoutTool });
-              }
+              // Push context to history - ALWAYS push the full content nicely
+              this.messages.push({ role: 'assistant', content: stepResult.content });
+              
               // Push the tool result
               this.messages.push({ role: 'user', content: PromptBuilder.formatToolResult(name, result) });
               console.log(`[Agent v2] Tool finished: ${name}. Result length: ${result.length}`);
@@ -136,19 +135,19 @@ export class Agent {
             /i (will|shall|am going to|need to) (check|read|look|examine|explore)/i,
           ];
           
-          const isIntentStatement = intentPhrases.some(pattern => pattern.test(contentWithoutTool));
+          const isIntentStatement = intentPhrases.some(pattern => pattern.test(stepResult.content));
           
           if (isIntentStatement) {
             console.log('[Agent v2] Detected intent statement without tool call, nudging...');
             // Push the intent as assistant message
-            this.messages.push({ role: 'assistant', content: contentWithoutTool });
+            this.messages.push({ role: 'assistant', content: stepResult.content });
             // Add a nudge to actually call the tool
             this.messages.push({ 
               role: 'user', 
               content: 'You said you would do something but didn\'t call a tool. Please call the appropriate tool now to complete the action you described.' 
             });
             // Continue the loop
-          } else if (!contentWithoutTool || contentWithoutTool.length < 5) {
+          } else if (!stepResult.content || stepResult.content.length < 5) {
             // Empty or very short response - but maybe we already have content?
             if (accumulatedAssistantContent.length > 0) {
               const finalFullContent = Array.from(new Set(accumulatedAssistantContent)).join('\n\n');
@@ -176,7 +175,7 @@ export class Agent {
             }
           } else {
             console.log('[Agent v2] Final answer received');
-            const finalFullContent = Array.from(new Set(accumulatedAssistantContent.concat([contentWithoutTool]))).join('\n\n');
+            const finalFullContent = Array.from(new Set(accumulatedAssistantContent.concat([stepResult.content]))).join('\n\n');
             this.onEvent({ type: 'final_answer', data: finalFullContent });
             loop = false;
           }
@@ -211,42 +210,7 @@ export class Agent {
       this.llm.streamChat(this.model, this.messages, {
         onToken: (token) => {
           if (this.stopped || (signal && signal.aborted)) return;
-
-          accumulated += token;
-          
-          // Find the safe portion to emit (everything before any potential <tool_call>)
-          const toolCallStart = accumulated.indexOf('<tool_call>');
-          
-          if (toolCallStart === -1) {
-            // No tool call found yet - but be careful about partial matches
-            // Check if the end of accumulated could be the start of <tool_call>
-            let safeEnd = accumulated.length;
-            const potentialStarts = ['<', '<t', '<to', '<too', '<tool', '<tool_', '<tool_c', '<tool_ca', '<tool_cal', '<tool_call'];
-            
-            for (const prefix of potentialStarts) {
-              if (accumulated.endsWith(prefix)) {
-                safeEnd = accumulated.length - prefix.length;
-                break;
-              }
-            }
-            
-            // Emit the safe portion
-            if (safeEnd > emittedLength) {
-              const toEmit = accumulated.substring(emittedLength, safeEnd);
-              this.onEvent({ type: 'token', data: toEmit });
-              emittedLength = safeEnd;
-            }
-          } else if (toolCallStart > emittedLength) {
-            // Tool call found - emit everything before it
-            const toEmit = accumulated.substring(emittedLength, toolCallStart);
-            if (toEmit) {
-              this.onEvent({ type: 'token', data: toEmit });
-            }
-            emittedLength = accumulated.length; // Don't emit anything more
-          } else {
-            // We're inside a tool call, don't emit
-            emittedLength = accumulated.length;
-          }
+          this.onEvent({ type: 'token', data: token });
         },
         onError: (error) => {
           if (signal) signal.removeEventListener('abort', onAbort);

@@ -6,6 +6,7 @@
 
 <style>
 @import "~/assets/css/mosaic.css";
+@import "highlight.js/styles/atom-one-dark.css";
 
 /* Page transition - fade with subtle slide */
 .page-enter-active,

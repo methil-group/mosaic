@@ -8,6 +8,7 @@ You have full access to this directory. Use 'run_bash' to explore or 'read_file'
 
 IMPORTANT: You are already in the root of the workspace. 
 - DO NOT use the absolute path "${this.workspace}" in your tool calls.
-- ALWAYS use relative paths (e.g. "src/index.ts" instead of "${this.workspace}/src/index.ts").`;
+- ALWAYS use relative paths (e.g. "src/index.ts" instead of "${this.workspace}/src/index.ts").
+- DO NOT use the 'open' command to open files. The user cannot see them. Use 'read_file' instead.`;
   }
 }

@@ -76,7 +76,9 @@ const parsedTodos = computed(() => {
     const todos: TodoItem[] = []
 
     // Try parsing as JSON first
-    if (rawContent.startsWith('{') || rawContent.startsWith('[')) {
+    // We explicitly exclude markdown checklist format which starts with [ ] [x] or [>]
+    const isMarkdownChecklist = /^\s*\[[x> ]\]/.test(rawContent);
+    if ((rawContent.startsWith('{') || rawContent.startsWith('[')) && !isMarkdownChecklist) {
         try {
             const data = JSON.parse(rawContent)
             if (Array.isArray(data)) {
@@ -100,7 +102,7 @@ const parsedTodos = computed(() => {
                 }]
             }
         } catch (e) {
-            console.warn('Failed to parse todo JSON:', e)
+            // Not valid JSON, proceed to string parsing
         }
     }
 
