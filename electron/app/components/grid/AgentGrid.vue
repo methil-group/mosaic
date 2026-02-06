@@ -1,5 +1,5 @@
 <template>
-    <div ref="gridContainer" v-if="limitedIds.length > 0" class="flex-1 w-full h-full overflow-hidden relative" :class="{
+    <div ref="gridContainer" class="flex-1 w-full h-full overflow-hidden relative" :class="{
         'pointer-events-none': isPreview,
         'bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px]': !isPreview
     }">

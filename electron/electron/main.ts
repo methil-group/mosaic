@@ -104,6 +104,15 @@ ipcMain.handle('fs:files', async (_event, path: string) => {
   return { files: await fileSystemService.listFiles(path) }
 })
 
+ipcMain.handle('fs:mkdir', async (_event, { path, folderName }) => {
+  try {
+    await fileSystemService.createDirectory(path, folderName)
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+})
+
 ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id, user_name, history, persona }) => {
   console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}, Persona present: ${!!persona}`)
   const agent = new Agent(

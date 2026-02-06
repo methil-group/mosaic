@@ -46,6 +46,11 @@
                         title="Refresh">
                         <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
                     </button>
+                    <button @click="startFolderCreation"
+                        class="p-2.5 rounded-xl bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 text-gray-500 hover:text-indigo-600 shadow-sm hover:shadow transition-all"
+                        title="New Folder">
+                        <Plus class="w-4 h-4" />
+                    </button>
                 </div>
                 <div
                     class="flex-1 px-4 py-2.5 bg-gray-50 rounded-xl border border-gray-100 text-[11px] font-mono text-gray-500 truncate shadow-inner">
@@ -78,6 +83,20 @@
             </div>
 
             <div v-else class="grid grid-cols-1 gap-1">
+                <!-- New Folder Input -->
+                <div v-if="isCreatingFolder" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-indigo-50/30 border border-indigo-200 animate-in fade-in slide-in-from-top-2">
+                    <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center border border-indigo-100">
+                        <Folder class="w-4 h-4 text-indigo-500" />
+                    </div>
+                    <input v-model="newFolderName" ref="newFolderInput" placeholder="Nom du dossier..." 
+                        @keydown.enter="handleCreateFolder" @keydown.esc="cancelFolderCreation"
+                        class="flex-1 bg-transparent border-none text-xs font-bold text-indigo-900 placeholder:text-indigo-300 focus:ring-0 outline-none" />
+                    <div class="flex gap-1">
+                        <button @click="handleCreateFolder" class="p-1 px-2 text-[10px] font-black uppercase text-indigo-600 hover:bg-indigo-100/50 rounded-lg">CRÉER</button>
+                        <button @click="cancelFolderCreation" class="p-1 px-2 text-[10px] font-black uppercase text-gray-400 hover:bg-gray-100 rounded-lg">ANNULER</button>
+                    </div>
+                </div>
+
                 <button v-for="dir in directories" :key="dir" @click="navigateTo(dir)"
                     class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-indigo-50/50 text-left transition-all group border border-transparent hover:border-indigo-100">
                     <div
@@ -146,10 +165,17 @@ const selectedFolder = ref<string | null>(null)
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 
+// Folder creation state
+const isCreatingFolder = ref(false)
+const newFolderName = ref('')
+const newFolderInput = ref<HTMLInputElement | null>(null)
+
 // Load directories for current path
 const loadDirectories = async (path: string) => {
     isLoading.value = true
     error.value = null
+    isCreatingFolder.value = false // Close creation UI on navigation
+    newFolderName.value = ''
     try {
         const result = await store.listDirectories(path)
         directories.value = result.filter(d => !d.startsWith('.')).sort((a, b) => a.localeCompare(b))
@@ -209,6 +235,38 @@ const handleSelect = () => {
     }
 
     emit('select', selectedFolder.value)
+}
+
+// Folder creation logic
+const startFolderCreation = () => {
+    isCreatingFolder.value = true
+    newFolderName.value = ''
+    setTimeout(() => {
+        newFolderInput.value?.focus()
+    }, 100)
+}
+
+const cancelFolderCreation = () => {
+    isCreatingFolder.value = false
+    newFolderName.value = ''
+}
+
+const handleCreateFolder = async () => {
+    if (!newFolderName.value) return
+    
+    try {
+        if ((window as any).api?.createDirectory) {
+            await (window as any).api.createDirectory(currentPath.value, newFolderName.value)
+            await loadDirectories(currentPath.value)
+            isCreatingFolder.value = false
+            newFolderName.value = ''
+        } else {
+            throw new Error('API not available')
+        }
+    } catch (e: any) {
+        error.value = `Erreur: ${e.message}`
+        console.error(e)
+    }
 }
 
 // Initialize

@@ -3,6 +3,17 @@ import { join } from 'node:path';
 import * as os from 'node:os';
 
 export class FileSystemService {
+  async createDirectory(path: string, folderName: string): Promise<void> {
+    const fullPath = this.expandPath(path);
+    const newDirPath = join(fullPath, folderName);
+    try {
+      await fs.mkdir(newDirPath, { recursive: true });
+    } catch (e) {
+      console.error('Failed to create directory', e);
+      throw e;
+    }
+  }
+
   private expandPath(path: string): string {
     if (path.startsWith('~/')) {
       return join(os.homedir(), path.slice(2));

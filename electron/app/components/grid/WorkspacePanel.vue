@@ -40,28 +40,30 @@
 
       <div
         class="flex-1 min-h-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px] p-4 relative">
-        <AgentGrid v-if="store.activeWorkspaceId" :workspace-id="store.activeWorkspaceId" />
+        <template v-if="store.activeWorkspaceId">
+          <AgentGrid v-if="visibleInstances.length > 0" :workspace-id="store.activeWorkspaceId" />
 
-        <!-- Empty State -->
-        <div v-else-if="visibleInstances.length === 0"
-          class="h-full flex flex-col items-center justify-center bg-gray-50 gap-6 opacity-60 select-none">
-          <div class="relative">
-            <div
-              class="w-16 h-16 rounded-2xl border border-gray-200 flex items-center justify-center bg-white animate-pulse shadow-sm">
-              <LayoutGrid class="w-8 h-8 text-gray-300" />
+          <!-- Empty State -->
+          <div v-else
+            class="h-full flex flex-col items-center justify-center bg-gray-50 gap-6 opacity-60 select-none">
+            <div class="relative">
+              <div
+                class="w-16 h-16 rounded-2xl border border-gray-200 flex items-center justify-center bg-white animate-pulse shadow-sm">
+                <LayoutGrid class="w-8 h-8 text-gray-300" />
+              </div>
             </div>
+            <div class="text-center space-y-2">
+              <h2 class="text-xs font-black tracking-[0.3em] uppercase text-gray-900">Mosaic Grid Empty</h2>
+              <p class="text-[9px] font-bold tracking-widest uppercase text-gray-400">Deploy an agent from the sidebar
+                or
+                workspaces</p>
+            </div>
+            <button @click="store.createInstance()"
+              class="mt-4 px-6 py-2.5 rounded-full border border-gray-300 hover:border-gray-500 bg-white hover:bg-gray-50 transition-all text-[9px] font-black uppercase tracking-[0.2em] text-gray-900 shadow-sm">
+              Initialize Primary Unit
+            </button>
           </div>
-          <div class="text-center space-y-2">
-            <h2 class="text-xs font-black tracking-[0.3em] uppercase text-gray-900">Mosaic Grid Empty</h2>
-            <p class="text-[9px] font-bold tracking-widest uppercase text-gray-400">Deploy an agent from the sidebar
-              or
-              workspaces</p>
-          </div>
-          <button @click="store.createInstance()"
-            class="mt-4 px-6 py-2.5 rounded-full border border-gray-300 hover:border-gray-500 bg-white hover:bg-gray-50 transition-all text-[9px] font-black uppercase tracking-[0.2em] text-gray-900 shadow-sm">
-            Initialize Primary Unit
-          </button>
-        </div>
+        </template>
       </div>
     </div>
   </div>

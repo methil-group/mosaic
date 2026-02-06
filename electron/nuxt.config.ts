@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   ssr: false,
   app: {
     head: {
-      title: 'Mosaic Agent',
+      title: 'Mosaic',
       meta: [
         { name: 'description', content: 'AI Agent Interface' }
       ]

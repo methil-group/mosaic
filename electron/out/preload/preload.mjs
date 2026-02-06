@@ -82,6 +82,7 @@ const api = {
   streamAgent: (params) => ipcRenderer.invoke("agent:stream", params),
   listDirectories: (path) => ipcRenderer.invoke("fs:ls", path),
   fetchFiles: (path) => ipcRenderer.invoke("fs:files", path),
+  createDirectory: (path, folderName) => ipcRenderer.invoke("fs:mkdir", { path, folderName }),
   // Event listeners for streaming
   onAgentEvent: (callback) => {
     const listener = (_event, data) => callback(data);

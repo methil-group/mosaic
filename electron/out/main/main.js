@@ -597,6 +597,16 @@ class OpenRouter extends AbstractLLM {
   }
 }
 class FileSystemService {
+  async createDirectory(path2, folderName) {
+    const fullPath = this.expandPath(path2);
+    const newDirPath = join(fullPath, folderName);
+    try {
+      await fs.mkdir(newDirPath, { recursive: true });
+    } catch (e) {
+      console.error("Failed to create directory", e);
+      throw e;
+    }
+  }
   expandPath(path2) {
     if (path2.startsWith("~/")) {
       return join(os.homedir(), path2.slice(2));
@@ -901,6 +911,14 @@ ipcMain.handle("fs:ls", async (_event, path2) => {
 });
 ipcMain.handle("fs:files", async (_event, path2) => {
   return { files: await fileSystemService.listFiles(path2) };
+});
+ipcMain.handle("fs:mkdir", async (_event, { path: path2, folderName }) => {
+  try {
+    await fileSystemService.createDirectory(path2, folderName);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });
 ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id, user_name, history, persona }) => {
   console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}, Persona present: ${!!persona}`);
