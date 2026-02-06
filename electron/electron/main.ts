@@ -7,6 +7,7 @@ import fs from 'fs'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 import { Agent } from './src/Core/Agent'
 import { OpenRouter } from './src/Core/LLM/OpenRouter'
+import { LMStudio } from './src/Core/LLM/LMStudio'
 import { FileSystemService } from './src/Framework/FileSystem/FileSystemService'
 import { WorkspaceService } from './src/Framework/Workspace/WorkspaceService'
 import * as dotenv from 'dotenv'
@@ -74,6 +75,18 @@ const workspaceService = new WorkspaceService()
 // Initialize LLM provider with API key from database (if exists)
 const storedApiKey = databaseService.getSetting('openrouter_api_key')
 const llmProvider = new OpenRouter(storedApiKey || '')
+const lmStudioProvider = new LMStudio()
+
+// Model to Provider Mapping
+const modelToProvider = new Map<string, any>()
+const defaultOpenRouterModels = [
+    { id: 'qwen/qwen3-coder-next', name: 'Qwen 3 Coder Next' },
+    { id: 'qwen/qwen3-vl-8b-thinking', name: 'Qwen 3 VL 8B Thinking' },
+    { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
+    { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
+    { id: 'stepfun/step-3.5-flash:free', name: 'Step 3.5 Flash' },
+]
+defaultOpenRouterModels.forEach(m => modelToProvider.set(m.id, llmProvider))
 
 console.log('[Main] Services initialized')
 console.log('[Main] API Key from DB present:', !!storedApiKey)
@@ -129,8 +142,10 @@ ipcMain.handle('agent:stream', async (event, { instanceId, user_prompt, workspac
   }
 
   const controller = new AbortController()
+  const provider = modelToProvider.get(model_id) || llmProvider
+  
   const agent = new Agent(
-    llmProvider,
+    provider,
     model_id,
     workspace,
     user_name,
@@ -175,20 +190,28 @@ ipcMain.handle('agent:stop', (_event, instanceId: string) => {
   return { success: false, message: 'No active agent found for this instance' }
 })
 
-// Provider list (hardcoded for now to match old backend)
-ipcMain.handle('providers:get', () => {
+// Provider list
+ipcMain.handle('providers:get', async () => {
+  // 1. Fetch LM Studio Models
+  const lmStudioModels = await lmStudioProvider.fetchModels();
+  const lmStudioProviderData = {
+      id: 'lmstudio',
+      name: 'LM Studio (Local)',
+      models: lmStudioModels.map(m => ({ id: m.id, name: m.id }))
+  }
+
+  // Update Map
+  lmStudioModels.forEach(m => modelToProvider.set(m.id, lmStudioProvider))
+  defaultOpenRouterModels.forEach(m => modelToProvider.set(m.id, llmProvider))
+
   return {
     providers: [{
       id: 'openrouter',
       name: 'OpenRouter',
-      models: [
-        { id: 'qwen/qwen3-coder-next', name: 'Qwen 3 Coder Next' },
-        { id: 'qwen/qwen3-vl-8b-thinking', name: 'Qwen 3 VL 8B Thinking' },
-        { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek 3.2' },
-        { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
-        { id: 'stepfun/step-3.5-flash:free', name: 'Step 3.5 Flash' },
-      ]
-    }]
+      models: defaultOpenRouterModels
+    },
+    lmStudioProviderData
+    ]
   }
 })
 

@@ -355,9 +355,8 @@ class Agent {
           break;
         }
         const stepResult = await this.runStep(signal);
-        const contentWithoutTool = stepResult.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
-        if (contentWithoutTool) {
-          accumulatedAssistantContent.push(contentWithoutTool);
+        if (stepResult.content) {
+          accumulatedAssistantContent.push(stepResult.content);
         }
         if (stepResult.toolCall) {
           const { name, parameters } = stepResult.toolCall;
@@ -379,9 +378,7 @@ class Agent {
             try {
               const result = await tool.execute(parameters, this.workspace);
               this.onEvent({ type: "tool_finished", name, result });
-              if (contentWithoutTool) {
-                this.messages.push({ role: "assistant", content: contentWithoutTool });
-              }
+              this.messages.push({ role: "assistant", content: stepResult.content });
               this.messages.push({ role: "user", content: PromptBuilder.formatToolResult(name, result) });
               console.log(`[Agent v2] Tool finished: ${name}. Result length: ${result.length}`);
               toolRetryCount = 0;
@@ -411,15 +408,15 @@ class Agent {
             /let me (check|read|look|examine|explore|see)/i,
             /i (will|shall|am going to|need to) (check|read|look|examine|explore)/i
           ];
-          const isIntentStatement = intentPhrases.some((pattern) => pattern.test(contentWithoutTool));
+          const isIntentStatement = intentPhrases.some((pattern) => pattern.test(stepResult.content));
           if (isIntentStatement) {
             console.log("[Agent v2] Detected intent statement without tool call, nudging...");
-            this.messages.push({ role: "assistant", content: contentWithoutTool });
+            this.messages.push({ role: "assistant", content: stepResult.content });
             this.messages.push({
               role: "user",
               content: "You said you would do something but didn't call a tool. Please call the appropriate tool now to complete the action you described."
             });
-          } else if (!contentWithoutTool || contentWithoutTool.length < 5) {
+          } else if (!stepResult.content || stepResult.content.length < 5) {
             if (accumulatedAssistantContent.length > 0) {
               const finalFullContent = Array.from(new Set(accumulatedAssistantContent)).join("\n\n");
               if (finalFullContent.length < 50 && totalSteps > 2) {
@@ -442,7 +439,7 @@ class Agent {
             }
           } else {
             console.log("[Agent v2] Final answer received");
-            const finalFullContent = Array.from(new Set(accumulatedAssistantContent.concat([contentWithoutTool]))).join("\n\n");
+            const finalFullContent = Array.from(new Set(accumulatedAssistantContent.concat([stepResult.content]))).join("\n\n");
             this.onEvent({ type: "final_answer", data: finalFullContent });
             loop = false;
           }
@@ -460,8 +457,6 @@ class Agent {
   async runStep(signal) {
     console.log("[Agent] Running step...");
     return new Promise((resolve, reject) => {
-      let accumulated = "";
-      let emittedLength = 0;
       const onAbort = () => {
         console.log("[Agent] runStep aborted");
         reject(new Error("Aborted"));
@@ -473,31 +468,7 @@ class Agent {
       this.llm.streamChat(this.model, this.messages, {
         onToken: (token) => {
           if (this.stopped || signal && signal.aborted) return;
-          accumulated += token;
-          const toolCallStart = accumulated.indexOf("<tool_call>");
-          if (toolCallStart === -1) {
-            let safeEnd = accumulated.length;
-            const potentialStarts = ["<", "<t", "<to", "<too", "<tool", "<tool_", "<tool_c", "<tool_ca", "<tool_cal", "<tool_call"];
-            for (const prefix of potentialStarts) {
-              if (accumulated.endsWith(prefix)) {
-                safeEnd = accumulated.length - prefix.length;
-                break;
-              }
-            }
-            if (safeEnd > emittedLength) {
-              const toEmit = accumulated.substring(emittedLength, safeEnd);
-              this.onEvent({ type: "token", data: toEmit });
-              emittedLength = safeEnd;
-            }
-          } else if (toolCallStart > emittedLength) {
-            const toEmit = accumulated.substring(emittedLength, toolCallStart);
-            if (toEmit) {
-              this.onEvent({ type: "token", data: toEmit });
-            }
-            emittedLength = accumulated.length;
-          } else {
-            emittedLength = accumulated.length;
-          }
+          this.onEvent({ type: "token", data: token });
         },
         onError: (error) => {
           if (signal) signal.removeEventListener("abort", onAbort);
@@ -621,6 +592,84 @@ class OpenRouter extends AbstractLLM {
         return;
       }
       callbacks.onError(`API Request failed: ${errorMessage}`);
+    }
+  }
+}
+class LMStudio extends AbstractLLM {
+  constructor() {
+    super();
+    this.baseUrl = "http://localhost:1234/v1";
+  }
+  async fetchModels() {
+    try {
+      const response = await axios.get(`${this.baseUrl}/models`, {
+        timeout: 2e3
+        // Short timeout to check if running
+      });
+      if (response.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      return [];
+    } catch (error) {
+      return [];
+    }
+  }
+  async streamChat(model, messages, callbacks, signal) {
+    console.log(`[LMStudio] Starting stream chat for model: ${model}`);
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/chat/completions`,
+        {
+          model,
+          messages,
+          stream: true
+        },
+        {
+          headers: {
+            "Content-Type": "application/json"
+          },
+          responseType: "stream",
+          signal
+        }
+      );
+      let accumulated = "";
+      let buffer = "";
+      response.data.on("data", (chunk) => {
+        buffer += chunk.toString();
+        let lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+          if (trimmedLine.startsWith("data: ")) {
+            const data = trimmedLine.slice(6);
+            if (data === "[DONE]") {
+              console.log("[LMStudio] Stream finished [DONE]");
+              callbacks.onComplete(accumulated);
+              return;
+            }
+            try {
+              const json = JSON.parse(data);
+              const token = json.choices[0]?.delta?.content || "";
+              if (token) {
+                accumulated += token;
+                callbacks.onToken(token);
+              }
+            } catch (e) {
+              console.warn("[LMStudio] Failed to parse JSON:", data);
+            }
+          }
+        }
+      });
+      response.data.on("error", (err) => {
+        callbacks.onError(err.message);
+      });
+    } catch (error) {
+      console.error("[LMStudio] API Error:", error.message);
+      if (error.name === "CanceledError" || error.message === "canceled") {
+        return;
+      }
+      callbacks.onError(`LM Studio Request failed: ${error.message}. Is LM Studio running on port 1234?`);
     }
   }
 }
@@ -933,6 +982,16 @@ const fileSystemService = new FileSystemService();
 const workspaceService = new WorkspaceService();
 const storedApiKey = databaseService.getSetting("openrouter_api_key");
 const llmProvider = new OpenRouter(storedApiKey || "");
+const lmStudioProvider = new LMStudio();
+const modelToProvider = /* @__PURE__ */ new Map();
+const defaultOpenRouterModels = [
+  { id: "qwen/qwen3-coder-next", name: "Qwen 3 Coder Next" },
+  { id: "qwen/qwen3-vl-8b-thinking", name: "Qwen 3 VL 8B Thinking" },
+  { id: "deepseek/deepseek-v3.2", name: "DeepSeek 3.2" },
+  { id: "mistralai/devstral-2512", name: "Devstral 2512" },
+  { id: "stepfun/step-3.5-flash:free", name: "Step 3.5 Flash" }
+];
+defaultOpenRouterModels.forEach((m) => modelToProvider.set(m.id, llmProvider));
 console.log("[Main] Services initialized");
 console.log("[Main] API Key from DB present:", !!storedApiKey);
 const activeAgents = /* @__PURE__ */ new Map();
@@ -973,8 +1032,9 @@ ipcMain.handle("agent:stream", async (event, { instanceId, user_prompt, workspac
     activeAgents.delete(instanceId);
   }
   const controller = new AbortController();
+  const provider = modelToProvider.get(model_id) || llmProvider;
   const agent = new Agent(
-    llmProvider,
+    provider,
     model_id,
     workspace,
     user_name,
@@ -1013,19 +1073,24 @@ ipcMain.handle("agent:stop", (_event, instanceId) => {
   }
   return { success: false, message: "No active agent found for this instance" };
 });
-ipcMain.handle("providers:get", () => {
+ipcMain.handle("providers:get", async () => {
+  const lmStudioModels = await lmStudioProvider.fetchModels();
+  const lmStudioProviderData = {
+    id: "lmstudio",
+    name: "LM Studio (Local)",
+    models: lmStudioModels.map((m) => ({ id: m.id, name: m.id }))
+  };
+  lmStudioModels.forEach((m) => modelToProvider.set(m.id, lmStudioProvider));
+  defaultOpenRouterModels.forEach((m) => modelToProvider.set(m.id, llmProvider));
   return {
-    providers: [{
-      id: "openrouter",
-      name: "OpenRouter",
-      models: [
-        { id: "qwen/qwen3-coder-next", name: "Qwen 3 Coder Next" },
-        { id: "qwen/qwen3-vl-8b-thinking", name: "Qwen 3 VL 8B Thinking" },
-        { id: "deepseek/deepseek-v3.2", name: "DeepSeek 3.2" },
-        { id: "mistralai/devstral-2512", name: "Devstral 2512" },
-        { id: "stepfun/step-3.5-flash:free", name: "Step 3.5 Flash" }
-      ]
-    }]
+    providers: [
+      {
+        id: "openrouter",
+        name: "OpenRouter",
+        models: defaultOpenRouterModels
+      },
+      lmStudioProviderData
+    ]
   };
 });
 ipcMain.handle("workspaces:get", async () => {
