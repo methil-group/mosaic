@@ -1,0 +1,19 @@
+    Checking tauri v2.10.2
+   Compiling app v0.1.0 (/Users/ethew/Documents/Github/methil-vibe/electron/src-tauri)
+    Checking tauri-plugin-log v2.8.0
+    Checking tauri-plugin-fs v2.4.5
+    Checking tauri-plugin-sql v2.3.2
+    Checking tauri-plugin-shell v2.3.5
+error: unexpected closing delimiter: `}`
+   --> src/main.rs:242:1
+    |
+194 |         .setup(|app| {
+    |                      - this opening brace...
+...
+216 |         })
+    |         - ...matches this closing brace
+...
+242 | }
+    | ^ unexpected closing delimiter
+
+error: could not compile `app` (bin "app") due to 1 previous error

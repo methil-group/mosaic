@@ -135,12 +135,12 @@
                                 <div class="flex items-center gap-1">
                                     <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">In</span>
                                     <span class="text-[9px] font-mono text-gray-500">{{ msg.usage.prompt_tokens
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div class="flex items-center gap-1">
                                     <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Out</span>
                                     <span class="text-[9px] font-mono text-gray-500">{{ msg.usage.completion_tokens
-                                    }}</span>
+                                        }}</span>
                                 </div>
                                 <div class="flex items-center gap-1">
                                     <span
@@ -230,7 +230,31 @@ const getIconComponent = (iconName?: string) => {
     return (LucideIcons as any)[name] || Sparkles
 }
 
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import python from 'highlight.js/lib/languages/python';
+import bash from 'highlight.js/lib/languages/bash';
+import json from 'highlight.js/lib/languages/json';
+import xml from 'highlight.js/lib/languages/xml';
+import css from 'highlight.js/lib/languages/css';
+import sql from 'highlight.js/lib/languages/sql';
+import java from 'highlight.js/lib/languages/java';
+import kotlin from 'highlight.js/lib/languages/kotlin';
+import swift from 'highlight.js/lib/languages/swift';
+
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('typescript', typescript);
+hljs.registerLanguage('python', python);
+hljs.registerLanguage('bash', bash);
+hljs.registerLanguage('json', json);
+hljs.registerLanguage('html', xml);
+hljs.registerLanguage('xml', xml);
+hljs.registerLanguage('css', css);
+hljs.registerLanguage('sql', sql);
+hljs.registerLanguage('java', java);
+hljs.registerLanguage('kotlin', kotlin);
+hljs.registerLanguage('swift', swift);
 
 const md = new MarkdownIt({
     html: true,

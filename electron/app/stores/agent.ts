@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { defineStore } from 'pinia'
 import { useUserStore } from './user'
 import { COMPONENTS, type AgentComponent } from '~/src/Core/Data/components'
@@ -147,19 +149,17 @@ export const useAgentStore = defineStore('agent', {
       this.instanceIds.push(id)
       
       // Persist to SQLite
-      if ((window as any).electron) {
-        await (window as any).electron.ipcRenderer.invoke('agents:save', {
-          id,
-          name,
-          workspace: workspacePath,
-          model: this.defaultModelId,
-          is_visible: true,
-          color: agent.color,
-          icon: agent.icon,
-          description: agent.description,
-          desktop_id: this.activeWorkspaceId
-        })
-      }
+      await invoke('agents_save', {
+        id,
+        name,
+        workspace: workspacePath,
+        model: this.defaultModelId,
+        is_visible: true,
+        color: agent.color,
+        icon: agent.icon,
+        description: agent.description,
+        desktop_id: this.activeWorkspaceId
+      })
       
       return id
     },
@@ -169,9 +169,7 @@ export const useAgentStore = defineStore('agent', {
       this.instanceIds = this.instanceIds.filter(i => i !== id)
       
       // Delete from SQLite
-      if ((window as any).electron) {
-        await (window as any).electron.ipcRenderer.invoke('agents:delete', id)
-      }
+      await invoke('agents_delete', { id })
     },
 
     async toggleVisibility(id: string) {
@@ -180,9 +178,7 @@ export const useAgentStore = defineStore('agent', {
         instance.isVisible = !instance.isVisible
         
         // Update in SQLite
-        if ((window as any).electron) {
-          await (window as any).electron.ipcRenderer.invoke('agents:updateVisibility', { id, isVisible: instance.isVisible })
-        }
+        await invoke('agents_update_visibility', { id, isVisible: instance.isVisible })
       }
     },
 
@@ -200,14 +196,12 @@ export const useAgentStore = defineStore('agent', {
       instance.messages.push(userMessage)
       
       // Persist user message to SQLite
-      if ((window as any).electron) {
-        const result = await (window as any).electron.ipcRenderer.invoke('messages:add', {
-          agentId: instanceId,
-          role: 'user',
-          content: prompt
-        })
-        userMessage.id = result.id
-      }
+      const result: any = await invoke('messages_add', {
+        agentId: instanceId,
+        role: 'user',
+        content: prompt
+      })
+      userMessage.id = result.id
 
       const assistantMessage: Message = {
         role: 'assistant',
@@ -219,46 +213,41 @@ export const useAgentStore = defineStore('agent', {
       instance.messages.push(assistantMessage)
       
       // Persist assistant message placeholder to SQLite
-      if ((window as any).electron) {
-        const result = await (window as any).electron.ipcRenderer.invoke('messages:add', {
-          agentId: instanceId,
-          role: 'assistant',
-          content: '',
-          model: instance.currentModel
-        })
-        assistantMessage.id = result.id
-      }
+      const assistResult: any = await invoke('messages_add', {
+        agentId: instanceId,
+        role: 'assistant',
+        content: '',
+        model: instance.currentModel
+      })
+      assistantMessage.id = assistResult.id
 
       try {
         const userStore = useUserStore()
         
-        // Use Electron IPC for streaming
-        if ((window as any).api) {
-          const removeListener = (window as any).api.onAgentEvent((event: any) => {
-            if (event.instanceId === instanceId) {
-              this.handleEvent(instanceId, event)
-            }
-          })
+        // Listen for agent events
+        const unlisten = await listen('agent-event', (event: any) => {
+          const { instanceId: evtInstanceId, event: agentEvent } = event.payload;
+          if (evtInstanceId === instanceId) {
+            this.handleEvent(instanceId, agentEvent)
+          }
+        })
 
-          instance.abortController = new AbortController()
+        instance.abortController = new AbortController()
 
-          await (window as any).api.streamAgent({
-            instanceId,
-            user_prompt: prompt,
-            workspace: instance.currentWorkspace,
-            model_id: instance.currentModel,
-            user_name: userStore.userName || 'User',
-            history: instance.messages.slice(0, -2).map(m => ({ 
-              role: m.role, 
-              content: m.content 
-            })),
-            persona: instance.persona
-          })
+        await invoke('agent_stream', {
+          instanceId,
+          userPrompt: prompt,
+          workspace: instance.currentWorkspace,
+          modelId: instance.currentModel,
+          userName: userStore.userName || 'User',
+          history: instance.messages.slice(0, -2).map(m => ({ 
+            role: m.role, 
+            content: m.content 
+          })),
+          persona: instance.persona
+        })
 
-          removeListener()
-        } else {
-          throw new Error('Electron API not available')
-        }
+        unlisten()
       } catch (error: any) {
         console.error('Agent error:', error)
         assistantMessage.content += `\n\n[Error: ${error.message || error}]`
@@ -268,14 +257,14 @@ export const useAgentStore = defineStore('agent', {
         instance.abortController = null
         
         // Update assistant message in SQLite with final content and events
-        if ((window as any).electron && assistantMessage.id) {
+        if (assistantMessage.id) {
           // Add a user-friendly indicator if stopped
           if (instance.isStoppedManually) {
             assistantMessage.content += "\n\n*(Message stopped by user)*"
             instance.isStoppedManually = false
           }
 
-          await (window as any).electron.ipcRenderer.invoke('messages:update', {
+          await invoke('messages_update', {
             id: assistantMessage.id,
             content: assistantMessage.content,
             events: assistantMessage.events ? JSON.stringify(assistantMessage.events) : null
@@ -298,7 +287,7 @@ export const useAgentStore = defineStore('agent', {
         }
         
         if ((window as any).api) {
-          await (window as any).api.stopAgent(instanceId)
+        await invoke('stop_agent', { instanceId })
         }
         
         instance.isStoppedManually = true
@@ -341,18 +330,14 @@ export const useAgentStore = defineStore('agent', {
         this.instances[instanceId].messages = []
         
         // Clear messages in SQLite
-        if ((window as any).electron) {
-          await (window as any).electron.ipcRenderer.invoke('messages:clearForAgent', instanceId)
-        }
+        await invoke('messages_clear_for_agent', { instanceId })
       }
     },
 
     async listDirectories(path: string): Promise<string[]> {
       try {
-        if ((window as any).api) {
-          const data = await (window as any).api.listDirectories(path)
-          return data.directories || []
-        }
+        const data: any = await invoke('list_directories', { path })
+        return data.directories || []
         return []
       } catch (e) {
         console.error('Failed to list directories', e)
@@ -364,12 +349,10 @@ export const useAgentStore = defineStore('agent', {
       if (this.filesCache[path]) return this.filesCache[path]
       
       try {
-        if ((window as any).api) {
-          const data = await (window as any).api.fetchFiles(path)
-          const files = data.files || []
-          this.filesCache[path] = files
-          return files
-        }
+        const data: any = await invoke('fetch_files', { path })
+        const files = data.files || []
+        this.filesCache[path] = files
+        return files
         return []
       } catch (e) {
         console.error('Failed to fetch files', e)
@@ -386,19 +369,15 @@ export const useAgentStore = defineStore('agent', {
     // Workspace Actions
     async loadWorkspaces() {
       try {
-        if ((window as any).electron) {
-          console.log('[AgentStore] Loading workspaces...')
-          const workspaces = await (window as any).electron.ipcRenderer.invoke('desktops:list')
-          console.log('[AgentStore] Workspaces loaded:', workspaces)
-          this.workspaces = {}
-          this.workspaceIds = []
-          for (const w of workspaces) {
-            this.workspaces[w.id] = w
-            this.workspaceIds.push(w.id)
-          }
-          if (this.workspaceIds.length > 0 && !this.activeWorkspaceId) {
-            this.activeWorkspaceId = this.workspaceIds[0] || null
-          }
+        const workspaces: any = await invoke('desktops_list')
+        this.workspaces = {}
+        this.workspaceIds = []
+        for (const w of workspaces) {
+          this.workspaces[w.id] = w
+          this.workspaceIds.push(w.id)
+        }
+        if (this.workspaceIds.length > 0 && !this.activeWorkspaceId) {
+          this.activeWorkspaceId = this.workspaceIds[0] || null
         }
       } catch (e) {
         console.error('[AgentStore] Failed to load workspaces', e)
@@ -413,13 +392,7 @@ export const useAgentStore = defineStore('agent', {
         this.workspaceIds.push(workspace.id)
       }
       
-      if ((window as any).electron) {
-        try {
-          await (window as any).electron.ipcRenderer.invoke('desktops:save', workspace)
-        } catch (e) {
-          console.error('[AgentStore] Failed to save workspace to DB:', e)
-        }
-      }
+      await invoke('desktops_save', { desktop: workspace })
     },
 
     async removeWorkspace(id: string) {
@@ -428,9 +401,7 @@ export const useAgentStore = defineStore('agent', {
       if (this.activeWorkspaceId === id) {
         this.activeWorkspaceId = this.workspaceIds.length > 0 ? (this.workspaceIds[0] || null) : null
       }
-      if ((window as any).electron) {
-        await (window as any).electron.ipcRenderer.invoke('desktops:delete', id)
-      }
+      await invoke('desktops_delete', { id })
     },
 
     setActiveWorkspace(id: string | null) {
@@ -449,9 +420,7 @@ export const useAgentStore = defineStore('agent', {
 
     async getSetting(key: string): Promise<string | null> {
       try {
-        if ((window as any).electron) {
-          return await (window as any).electron.ipcRenderer.invoke('settings:get', key)
-        }
+        return await invoke('settings_get', { key })
         return null
       } catch (e) {
         console.error(`Failed to get setting: ${key}`, e)
@@ -461,10 +430,8 @@ export const useAgentStore = defineStore('agent', {
 
     async setSetting(key: string, value: string): Promise<boolean> {
       try {
-        if ((window as any).electron) {
-          await (window as any).electron.ipcRenderer.invoke('settings:set', { key, value })
-          return true
-        }
+        await invoke('settings_set', { key, value })
+        return true
         return false
       } catch (e) {
         console.error(`Failed to set setting: ${key}`, e)
@@ -474,10 +441,8 @@ export const useAgentStore = defineStore('agent', {
 
     async fetchProviders() {
       try {
-        if ((window as any).electron) {
-          const data = await (window as any).electron.ipcRenderer.invoke('providers:get')
-          this.availableProviders = data.providers || []
-        }
+        const data: any = await invoke('providers_get')
+        this.availableProviders = data.providers || []
       } catch (e) {
         console.error('Failed to fetch providers', e)
       }
@@ -485,48 +450,46 @@ export const useAgentStore = defineStore('agent', {
 
     async loadAgents() {
       try {
-        if ((window as any).electron) {
-          const agents = await (window as any).electron.ipcRenderer.invoke('agents:list')
+        const agents: any = await invoke('get_agents')
+        
+        for (const agent of agents) {
+          // Load messages for each agent
+          const messages: any = await invoke('messages_list', { agentId: agent.id })
           
-          for (const agent of agents) {
-            // Load messages for each agent
-            const messages = await (window as any).electron.ipcRenderer.invoke('messages:list', agent.id)
-            
-            // Try to find matching config for persona/icon if not in DB
-            const config = COMPONENTS.find(a => a.name === agent.name)
+          // Try to find matching config for persona/icon if not in DB
+          const config = COMPONENTS.find(a => a.name === agent.name)
 
-            this.instances[agent.id] = {
-              id: agent.id,
-              name: agent.name,
-              messages: messages.map((m: any) => ({
-                id: m.id,
-                role: m.role,
-                content: m.content,
-                model: m.model,
-                events: m.events ? JSON.parse(m.events) : []
-              })),
-              isProcessing: false,
-              currentWorkspace: agent.workspace,
-              currentModel: agent.model,
-              isVisible: agent.is_visible === 1,
-              colSpan: 1,
-              messageQueue: [],
-              abortController: null,
-              color: agent.color || config?.color,
-              icon: agent.icon || config?.icon,
-              description: agent.description || config?.description,
-              persona: config?.systemPrompt,
-              lottie: config?.lottie,
-              video: config?.video,
-              workspaceId: agent.desktop_id || (this.workspaceIds.length > 0 ? this.workspaceIds[0] : null)
-            }
-            this.instanceIds.push(agent.id)
+          this.instances[agent.id] = {
+            id: agent.id,
+            name: agent.name,
+            messages: messages.map((m: any) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              model: m.model,
+              events: m.events ? JSON.parse(m.events) : []
+            })),
+            isProcessing: false,
+            currentWorkspace: agent.workspace,
+            currentModel: agent.model,
+            isVisible: agent.is_visible === 1,
+            colSpan: 1,
+            messageQueue: [],
+            abortController: null,
+            color: agent.color || config?.color,
+            icon: agent.icon || config?.icon,
+            description: agent.description || config?.description,
+            persona: config?.systemPrompt,
+            lottie: config?.lottie,
+            video: config?.video,
+            workspaceId: agent.desktop_id || (this.workspaceIds.length > 0 ? this.workspaceIds[0] : null)
           }
-          
-          await this.loadWorkspaces()
-          
-          console.log(`[AgentStore] Loaded ${agents.length} agents from SQLite`)
+          this.instanceIds.push(agent.id)
         }
+          
+        await this.loadWorkspaces()
+        
+        console.log(`[AgentStore] Loaded ${agents.length} agents from SQLite`)
       } catch (e) {
         console.error('Failed to load agents from SQLite', e)
       }
@@ -541,15 +504,13 @@ export const useAgentStore = defineStore('agent', {
       if (updates.model !== undefined) instance.currentModel = updates.model
       
       // Persist to SQLite
-      if ((window as any).electron) {
-        await (window as any).electron.ipcRenderer.invoke('agents:save', {
-          id: instanceId,
-          name: instance.name,
-          workspace: instance.currentWorkspace,
-          model: instance.currentModel,
-          is_visible: instance.isVisible
-        })
-      }
+      await invoke('agents_save', {
+        id: instanceId,
+        name: instance.name,
+        workspace: instance.currentWorkspace,
+        model: instance.currentModel,
+        is_visible: instance.isVisible
+      })
     }
   }
 })

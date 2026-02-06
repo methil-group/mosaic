@@ -14,7 +14,9 @@
     "electron:build": "npm run generate && electron-vite build",
     "electron:preview": "electron-vite preview",
     "electron:package:mac": "npm run electron:build && electron-builder --mac",
-    "electron:package:win": "npm run electron:build && electron-builder --win"
+    "electron:package:win": "npm run electron:build && electron-builder --win",
+    "tauri:dev": "npm run generate && tauri dev",
+    "tauri:build": "npm run generate && tauri build"
   },
   "build": {
     "appId": "com.mosaic",
@@ -37,6 +39,7 @@
   "dependencies": {
     "@nuxtjs/tailwindcss": "^6.14.0",
     "@pinia/nuxt": "^0.11.3",
+    "@tauri-apps/api": "^2.10.1",
     "@types/highlight.js": "^9.12.4",
     "@types/markdown-it": "^14.1.2",
     "axios": "^1.13.4",

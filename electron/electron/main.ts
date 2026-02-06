@@ -52,6 +52,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  initializeServices()
   createWindow()
 
   app.on('activate', function () {
@@ -68,14 +69,12 @@ app.on('window-all-closed', () => {
 })
 
 // Backend Services
-const databaseService = new DatabaseService()
-const fileSystemService = new FileSystemService()
-const workspaceService = new WorkspaceService()
-
-// Initialize LLM provider with API key from database (if exists)
-const storedApiKey = databaseService.getSetting('openrouter_api_key')
-const llmProvider = new OpenRouter(storedApiKey || '')
-const lmStudioProvider = new LMStudio()
+// Backend Services (Lazy Loaded)
+let databaseService: DatabaseService
+let fileSystemService: FileSystemService
+let workspaceService: WorkspaceService
+let llmProvider: OpenRouter
+let lmStudioProvider: LMStudio
 
 // Model to Provider Mapping
 const modelToProvider = new Map<string, any>()
@@ -86,10 +85,26 @@ const defaultOpenRouterModels = [
     { id: 'mistralai/devstral-2512', name: 'Devstral 2512' },
     { id: 'stepfun/step-3.5-flash:free', name: 'Step 3.5 Flash' },
 ]
-defaultOpenRouterModels.forEach(m => modelToProvider.set(m.id, llmProvider))
 
-console.log('[Main] Services initialized')
-console.log('[Main] API Key from DB present:', !!storedApiKey)
+const initializeServices = () => {
+    if (databaseService) return; // Already initialized
+
+    console.log('[Main] Initializing backend services...')
+    databaseService = new DatabaseService()
+    fileSystemService = new FileSystemService()
+    workspaceService = new WorkspaceService()
+    
+    // Initialize LLM provider with API key from database (if exists)
+    const storedApiKey = databaseService.getSetting('openrouter_api_key')
+    llmProvider = new OpenRouter(storedApiKey || '')
+    lmStudioProvider = new LMStudio()
+    
+    // Initialize Model Map
+    defaultOpenRouterModels.forEach(m => modelToProvider.set(m.id, llmProvider))
+    
+    console.log('[Main] Services initialized')
+    console.log('[Main] API Key from DB present:', !!storedApiKey)
+}
 
 // Agent Run Registry
 const activeAgents = new Map<string, { agent: Agent, controller: AbortController }>()
