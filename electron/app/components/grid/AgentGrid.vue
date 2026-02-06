@@ -52,8 +52,8 @@ const visibleInstances = computed(() => {
 })
 
 const { tilePositions, resizeHandles, limitedIds, getTileStyle, getHandleStyle, updateSplitRatio, swapTiles } = useTileLayout(visibleInstances, {
-    margin: props.isPreview ? 0 : undefined,
-    gap: props.isPreview ? 0 : undefined
+    margin: props.isPreview ? 4 : 0,
+    gap: props.isPreview ? 4 : 1
 })
 
 // Drag state managed locally

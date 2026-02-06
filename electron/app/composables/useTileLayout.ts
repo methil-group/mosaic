@@ -79,18 +79,24 @@ export function nodeToPositions(
   const { direction, ratio, children } = node
 
   if (direction === 'horizontal') {
-    const firstWidth = width * ratio - gap / 2
-    const secondWidth = width * (1 - ratio) - gap / 2
+    // Math: Subtract the gap from the available width, split the remainder by ratio.
+    const availableContentWidth = width - gap
+    const firstWidth = availableContentWidth * ratio
+    const secondWidth = availableContentWidth * (1 - ratio)
+    
     return [
       ...nodeToPositions(children[0], left, top, firstWidth, height, gap),
-      ...nodeToPositions(children[1], left + width * ratio + gap / 2, top, secondWidth, height, gap)
+      ...nodeToPositions(children[1], left + firstWidth + gap, top, secondWidth, height, gap)
     ]
   } else {
-    const firstHeight = height * ratio - gap / 2
-    const secondHeight = height * (1 - ratio) - gap / 2
+    // Same for vertical
+    const availableContentHeight = height - gap
+    const firstHeight = availableContentHeight * ratio
+    const secondHeight = availableContentHeight * (1 - ratio)
+    
     return [
       ...nodeToPositions(children[0], left, top, width, firstHeight, gap),
-      ...nodeToPositions(children[1], left, top + height * ratio + gap / 2, width, secondHeight, gap)
+      ...nodeToPositions(children[1], left, top + firstHeight + gap, width, secondHeight, gap)
     ]
   }
 }
@@ -358,7 +364,10 @@ function updateRatioAtPath(node: LayoutNode, path: number[], newRatio: number): 
  * Vue composable for managing tile layout with resize support
  * Uses Pinia store for persistence across navigation
  */
-export function useTileLayout(visibleIds: Ref<string[]> | ComputedRef<string[]>, options: LayoutOptions = {}) {
+export function useTileLayout(
+  visibleIds: Ref<string[]> | ComputedRef<string[]>, 
+  options: LayoutOptions = {}) {
+    
   const store = useAgentStore()
   
   const currentMargin = options.margin !== undefined ? options.margin : MARGIN
