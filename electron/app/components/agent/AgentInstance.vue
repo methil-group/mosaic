@@ -252,12 +252,13 @@ md.set({
 
 md.renderer.rules.fence = function (tokens, idx, options, env, self) {
     const token = tokens[idx];
+    if (!token) return '';
     const info = token.info ? md.utils.unescapeAll(token.info).trim() : '';
     const langName = info.split(/\s+/g)[0] || '';
 
     let highlighted;
     if (options.highlight) {
-        highlighted = options.highlight(token.content, langName) || md.utils.escapeHtml(token.content);
+        highlighted = options.highlight(token.content, langName, '') || md.utils.escapeHtml(token.content);
     } else {
         highlighted = md.utils.escapeHtml(token.content);
     }
@@ -311,7 +312,9 @@ const formatContent = (content: string) => {
 
 const formatCleanContent = (content: string) => {
     if (!content) return '';
-    return md.render(content.trim());
+    return md.render(content
+        .replace(/\[Error: Tool error:[\s\S]*?\]/g, '') // Remove tool error messages
+        .trim());
 }
 
 const getMessageParts = (msg: any) => {
@@ -351,7 +354,7 @@ const getMessageParts = (msg: any) => {
     const processItems: any[] = [];
     let finalContent = cleanContent;
 
-    if (hasTools(events)) {
+    if (hasTools(events, cleanContent)) {
         // Find all tool calls in the content
         // We use a regex that matches the opening and closing tag, capturing the content around them
         const parts = cleanContent.split(/(<tool_call>[\s\S]*?<\/tool_call>)/g);
@@ -449,8 +452,8 @@ const copyToClipboard = async (text: string, idx: number) => {
 const toggleActions = (key: string) => { expandedActions.value[key] = !expandedActions.value[key] }
 const toggleRaw = (idx: number) => { showRaw.value[idx] = !showRaw.value[idx] }
 
-const hasTools = (events: AgentEvent[]) => {
-    return events.some(e => e.type === 'tool_started' || e.type === 'tool_finished');
+const hasTools = (events: AgentEvent[], content: string = '') => {
+    return events.some(e => e.type === 'tool_started' || e.type === 'tool_finished') || content.includes('<tool_call>');
 }
 
 const findResult = (events: AgentEvent[], toolName: string, startIndex: number) => {

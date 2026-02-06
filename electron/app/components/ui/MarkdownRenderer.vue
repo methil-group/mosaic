@@ -32,12 +32,13 @@ md.set({
 
 md.renderer.rules.fence = function (tokens, idx, options, env, self) {
     const token = tokens[idx];
+    if (!token) return '';
     const info = token.info ? md.utils.unescapeAll(token.info).trim() : '';
     const langName = info.split(/\s+/g)[0] || '';
 
     let highlighted;
     if (options.highlight) {
-        highlighted = options.highlight(token.content, langName) || md.utils.escapeHtml(token.content);
+        highlighted = options.highlight(token.content, langName, '') || md.utils.escapeHtml(token.content);
     } else {
         highlighted = md.utils.escapeHtml(token.content);
     }
