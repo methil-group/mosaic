@@ -44,9 +44,16 @@ pub struct DbService {
 
 impl DbService {
     pub async fn new(db_path: PathBuf) -> Result<Self, String> {
-        let db_url = format!("sqlite:{}", db_path.to_str().ok_or("Invalid path")?);
+        let db_str = db_path.to_str().ok_or("Invalid path")?.to_string();
+        println!("[DbService] Initializing database at: {}", db_str);
+
+        let options = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(db_path)
+            .create_if_missing(true);
         
-        let pool = SqlitePool::connect(&db_url).await.map_err(|e| e.to_string())?;
+        let pool = SqlitePool::connect_with(options).await.map_err(|e| {
+            format!("Failed to connect to SQLite at {}: {}", db_str, e)
+        })?;
         
         let service = Self { pool };
         service.init().await?;

@@ -15,8 +15,8 @@
     "electron:preview": "electron-vite preview",
     "electron:package:mac": "npm run electron:build && electron-builder --mac",
     "electron:package:win": "npm run electron:build && electron-builder --win",
-    "tauri:dev": "npm run generate && tauri dev",
-    "tauri:build": "npm run generate && tauri build"
+    "tauri:dev": "npm run generate && npx tauri dev",
+    "tauri:build": "npm run generate && npx tauri build"
   },
   "build": {
     "appId": "com.mosaic",
@@ -58,6 +58,7 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@electron/rebuild": "^4.0.3",
+    "@tauri-apps/cli": "^2.10.0",
     "@types/better-sqlite3": "^7.6.13",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",

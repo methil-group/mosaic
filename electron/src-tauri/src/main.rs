@@ -197,10 +197,20 @@ fn main() {
             
             // Initialize Database
             tauri::async_runtime::block_on(async move {
-                let db_path = app_handle.path().app_data_dir()
-                    .unwrap_or_else(|_| std::env::current_dir().unwrap())
-                    .join("mosaic.sqlite");
+                let app_dir = app_handle.path().app_data_dir()
+                    .unwrap_or_else(|_| std::env::current_dir().unwrap());
                 
+                println!("[Main] Resolved App Data Directory: {:?}", app_dir);
+
+                // Ensure the directory exists
+                if !app_dir.exists() {
+                    println!("[Main] Creating App Data Directory...");
+                    std::fs::create_dir_all(&app_dir).expect("Failed to create app data directory");
+                }
+
+                let db_path = app_dir.join("mosaic.sqlite");
+                println!("[Main] Full Database Path: {:?}", db_path);
+
                 let db = db::DbService::new(db_path).await.expect("Failed to init DB");
                 let tools = core::tools::get_default_tools();
                 
