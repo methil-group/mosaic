@@ -1,4 +1,4 @@
-import { computed, watch, type Ref, type ComputedRef } from 'vue'
+import { computed, watch, unref, type Ref, type ComputedRef } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 
 /**
@@ -21,19 +21,26 @@ export interface SplitNode {
 export type LayoutNode = TileNode | SplitNode
 
 export interface LayoutOptions {
+  marginX?: number
+  marginY?: number
+  gapX?: number
+  gapY?: number
+  containerWidth?: number | Ref<number> | ComputedRef<number>
+  containerHeight?: number | Ref<number> | ComputedRef<number>
+  // Legacy for compatibility if needed
   margin?: number
   gap?: number
 }
 
 /**
- * Tile position as percentages for smooth animation
+ * Tile position as pixels (or percentages if container dims not provided)
  */
 export interface TilePosition {
   id: string
-  left: number   // percentage
-  top: number    // percentage
-  width: number  // percentage
-  height: number // percentage
+  left: number   // pixels or %
+  top: number    // pixels or %
+  width: number  // pixels or %
+  height: number // pixels or %
 }
 
 /**
@@ -64,7 +71,8 @@ export function nodeToPositions(
   top: number,
   width: number,
   height: number,
-  gap: number = GAP
+  gapX: number,
+  gapY: number
 ): TilePosition[] {
   if (node.type === 'tile') {
     return [{
@@ -80,23 +88,23 @@ export function nodeToPositions(
 
   if (direction === 'horizontal') {
     // Math: Subtract the gap from the available width, split the remainder by ratio.
-    const availableContentWidth = width - gap
+    const availableContentWidth = width - gapX
     const firstWidth = availableContentWidth * ratio
     const secondWidth = availableContentWidth * (1 - ratio)
     
     return [
-      ...nodeToPositions(children[0], left, top, firstWidth, height, gap),
-      ...nodeToPositions(children[1], left + firstWidth + gap, top, secondWidth, height, gap)
+      ...nodeToPositions(children[0], left, top, firstWidth, height, gapX, gapY),
+      ...nodeToPositions(children[1], left + firstWidth + gapX, top, secondWidth, height, gapX, gapY)
     ]
   } else {
     // Same for vertical
-    const availableContentHeight = height - gap
+    const availableContentHeight = height - gapY
     const firstHeight = availableContentHeight * ratio
     const secondHeight = availableContentHeight * (1 - ratio)
     
     return [
-      ...nodeToPositions(children[0], left, top, width, firstHeight, gap),
-      ...nodeToPositions(children[1], left, top + firstHeight + gap, width, secondHeight, gap)
+      ...nodeToPositions(children[0], left, top, width, firstHeight, gapX, gapY),
+      ...nodeToPositions(children[1], left, top + firstHeight + gapY, width, secondHeight, gapX, gapY)
     ]
   }
 }
@@ -110,7 +118,9 @@ function getResizeHandles(
   top: number,
   width: number,
   height: number,
-  path: number[] = []
+  path: number[] = [],
+  gapX: number,
+  gapY: number
 ): ResizeHandle[] {
   if (node.type === 'tile') return []
 
@@ -119,41 +129,46 @@ function getResizeHandles(
   const handleId = path.length === 0 ? 'handle-root' : `handle-${path.join('-')}`
 
   if (direction === 'horizontal') {
-    const dividerLeft = left + width * ratio
+    const availableContentWidth = width - gapX
+    const firstWidth = availableContentWidth * ratio
+    const secondWidth = availableContentWidth * (1 - ratio)
+
+    const dividerLeft = left + firstWidth + gapX / 2
     handles.push({
       id: handleId,
       direction: 'horizontal',
-      left: dividerLeft - 0.5,
+      left: dividerLeft,
       top: top,
-      width: 1,
+      width: gapX,
       height: height,
       path: [...path]
     })
-    const firstWidth = width * ratio
-    const secondWidth = width * (1 - ratio)
+    
     handles.push(
-      ...getResizeHandles(children[0], left, top, firstWidth, height, [...path, 0]),
-      ...getResizeHandles(children[1], left + firstWidth, top, secondWidth, height, [...path, 1])
+      ...getResizeHandles(children[0], left, top, firstWidth, height, [...path, 0], gapX, gapY),
+      ...getResizeHandles(children[1], left + firstWidth + gapX, top, secondWidth, height, [...path, 1], gapX, gapY)
     )
   } else {
-    const dividerTop = top + height * ratio
+    const availableContentHeight = height - gapY
+    const firstHeight = availableContentHeight * ratio
+    const secondHeight = availableContentHeight * (1 - ratio)
+
+    const dividerTop = top + firstHeight + gapY / 2
     handles.push({
       id: handleId,
       direction: 'vertical',
       left: left,
-      top: dividerTop - 0.5,
+      top: dividerTop,
       width: width,
-      height: 1,
+      height: gapY,
       path: [...path]
     })
-    const firstHeight = height * ratio
-    const secondHeight = height * (1 - ratio)
+    
     handles.push(
-      ...getResizeHandles(children[0], left, top, width, firstHeight, [...path, 0]),
-      ...getResizeHandles(children[1], left, top + firstHeight, width, secondHeight, [...path, 1])
+      ...getResizeHandles(children[0], left, top, width, firstHeight, [...path, 0], gapX, gapY),
+      ...getResizeHandles(children[1], left, top + firstHeight + gapY, width, secondHeight, [...path, 1], gapX, gapY)
     )
   }
-
   return handles
 }
 
@@ -370,8 +385,14 @@ export function useTileLayout(
     
   const store = useAgentStore()
   
-  const currentMargin = options.margin !== undefined ? options.margin : MARGIN
-  const currentGap = options.gap !== undefined ? options.gap : GAP
+  const currentMarginX = options.marginX ?? options.margin ?? MARGIN
+  const currentMarginY = options.marginY ?? options.margin ?? MARGIN
+  const currentGapX = options.gapX ?? options.gap ?? GAP
+  const currentGapY = options.gapY ?? options.gap ?? GAP
+  
+  const containerW = computed(() => unref(options.containerWidth) ?? 100)
+  const containerH = computed(() => unref(options.containerHeight) ?? 100)
+  const isPercent = computed(() => !unref(options.containerWidth))
 
   const getIdsHash = (ids: string[]) => ids.slice(0, MAX_AGENTS).join(',')
   
@@ -400,48 +421,74 @@ export function useTileLayout(
 
   const tilePositions = computed<TilePosition[]>(() => {
     if (!layoutTree.value) return []
-    // Add margin offset
-    const usableSize = 100 - currentMargin * 2
-    return nodeToPositions(layoutTree.value, currentMargin, currentMargin, usableSize, usableSize, currentGap)
+    const usableWidth = containerW.value - currentMarginX * 2
+    const usableHeight = containerH.value - currentMarginY * 2
+    return nodeToPositions(
+      layoutTree.value, 
+      currentMarginX, 
+      currentMarginY, 
+      usableWidth, 
+      usableHeight, 
+      currentGapX, 
+      currentGapY
+    )
   })
 
   const resizeHandles = computed<ResizeHandle[]>(() => {
     if (!layoutTree.value) return []
-    const usableSize = 100 - currentMargin * 2
-    return getResizeHandles(layoutTree.value, currentMargin, currentMargin, usableSize, usableSize)
+    const usableWidth = containerW.value - currentMarginX * 2
+    const usableHeight = containerH.value - currentMarginY * 2
+    // We need to update getResizeHandles to handle gaps correctly
+    return getResizeHandles(
+      layoutTree.value, 
+      currentMarginX, 
+      currentMarginY, 
+      usableWidth, 
+      usableHeight, 
+      [],
+      currentGapX, 
+      currentGapY
+    )
   })
 
   const getTileStyle = (id: string, dragging: boolean = false) => {
     const pos = tilePositions.value.find(p => p.id === id)
     if (!pos) return {}
+    
+    const isPercentVal = isPercent.value
+    const unit = isPercentVal ? '%' : 'px'
+    
     return {
       position: 'absolute' as const,
-      left: `${pos.left}%`,
-      top: `${pos.top}%`,
-      width: `${pos.width}%`,
-      height: `${pos.height}%`,
+      left: `${pos.left}${unit}`,
+      top: `${pos.top}${unit}`,
+      width: `${pos.width}${unit}`,
+      height: `${pos.height}${unit}`,
       transition: dragging ? 'none' : 'left 0.25s ease-out, top 0.25s ease-out, width 0.25s ease-out, height 0.25s ease-out'
     }
   }
 
   const getHandleStyle = (handle: ResizeHandle) => {
     const hitPadding = 8
+    const isPercentVal = isPercent.value
+    const unit = isPercentVal ? '%' : 'px'
+    
     if (handle.direction === 'horizontal') {
       return {
         position: 'absolute' as const,
-        left: `${handle.left}%`,
-        top: `${handle.top}%`,
+        left: `${handle.left}${unit}`,
+        top: `${handle.top}${unit}`,
         width: `${hitPadding * 2}px`,
-        height: `${handle.height}%`,
+        height: `${handle.height}${unit}`,
         transform: 'translateX(-50%)',
         cursor: 'col-resize'
       }
     } else {
       return {
         position: 'absolute' as const,
-        left: `${handle.left}%`,
-        top: `${handle.top}%`,
-        width: `${handle.width}%`,
+        left: `${handle.left}${unit}`,
+        top: `${handle.top}${unit}`,
+        width: `${handle.width}${unit}`,
         height: `${hitPadding * 2}px`,
         transform: 'translateY(-50%)',
         cursor: 'row-resize'

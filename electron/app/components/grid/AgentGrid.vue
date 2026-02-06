@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import AgentInstance from '../agent/AgentInstance.vue'
 import { useTileLayout, type ResizeHandle } from '~/composables/useTileLayout'
@@ -51,9 +51,32 @@ const visibleInstances = computed(() => {
     })
 })
 
+const gridDimensions = reactive({ width: 0, height: 0 })
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+    if (gridContainer.value) {
+        resizeObserver = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                gridDimensions.width = entry.contentRect.width
+                gridDimensions.height = entry.contentRect.height
+            }
+        })
+        resizeObserver.observe(gridContainer.value)
+    }
+})
+
+onUnmounted(() => {
+    resizeObserver?.disconnect()
+})
+
 const { tilePositions, resizeHandles, limitedIds, getTileStyle, getHandleStyle, updateSplitRatio, swapTiles } = useTileLayout(visibleInstances, {
-    margin: props.isPreview ? 4 : 0,
-    gap: props.isPreview ? 4 : 1
+    marginX: props.isPreview ? 16 : 0,
+    marginY: props.isPreview ? 16 : 0,
+    gapX: props.isPreview ? 16 : 8,
+    gapY: props.isPreview ? 16 : 8,
+    containerWidth: computed(() => gridDimensions.width),
+    containerHeight: computed(() => gridDimensions.height)
 })
 
 // Drag state managed locally
