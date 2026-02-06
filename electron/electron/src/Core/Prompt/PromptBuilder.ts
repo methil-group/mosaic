@@ -10,7 +10,8 @@ export class PromptBuilder {
   static createSystemPrompt(tools: Tool[], workspace: string, userName: string, persona?: string): string {
     const parts: PromptPart[] = [
       new IdentityPart(userName),
-      new WorkspaceContextPart(workspace),
+      // May be completely useless in fact
+      // new WorkspaceContextPart(workspace),
       new ToolFormatPart(tools),
       new ChecklistBehaviorPart()
     ];

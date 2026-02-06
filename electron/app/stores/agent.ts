@@ -8,6 +8,7 @@ export type AgentEvent =
   | { type: 'tool_finished', name: string, result: string }
   | { type: 'final_answer', data: string }
   | { type: 'error', message: string }
+  | { type: 'usage', data: string }
 
 export interface Message {
   id?: number // SQLite row id
@@ -16,6 +17,11 @@ export interface Message {
   events?: AgentEvent[]
   isStreaming?: boolean
   model?: string
+  usage?: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  }
 }
 
 export interface InstanceState {
@@ -312,6 +318,14 @@ export const useAgentStore = defineStore('agent', {
 
         if (event.type === 'token') {
           lastMessage.content += event.data
+        } else if (event.type === 'usage') {
+          try {
+            if (event.data) {
+              lastMessage.usage = JSON.parse(event.data);
+            }
+          } catch (e) {
+            console.error('Failed to parse usage data', e);
+          }
         } else if (event.type === 'final_answer') {
           if (event.data && event.data.trim().length > 0) {
             lastMessage.content = event.data

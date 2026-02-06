@@ -271,15 +271,6 @@ EXAMPLE CALL:
 Always inform the user about the current state of the checklist.`;
   }
 }
-class WorkspaceContextPart {
-  constructor(workspace) {
-    this.workspace = workspace;
-  }
-  render() {
-    return `CURRENT WORKSPACE: ${this.workspace}
-You have full access to this directory. Use 'run_bash' to explore or 'read_file' to understand the code.`;
-  }
-}
 class PersonaPart {
   constructor(persona) {
     this.persona = persona;
@@ -294,7 +285,8 @@ class PromptBuilder {
   static createSystemPrompt(tools, workspace, userName, persona) {
     const parts = [
       new IdentityPart(userName),
-      new WorkspaceContextPart(workspace),
+      // May be completely useless in fact
+      // new WorkspaceContextPart(workspace),
       new ToolFormatPart(tools),
       new ChecklistBehaviorPart()
     ];
@@ -354,7 +346,6 @@ class Agent {
       while (loop) {
         if (this.stopped || signal && signal.aborted) {
           console.log("[Agent v2] Loop stopped by user/signal");
-          this.onEvent({ type: "error", message: "Agent execution stopped by user." });
           break;
         }
         totalSteps++;
@@ -458,6 +449,10 @@ class Agent {
         }
       }
     } catch (error) {
+      if (error.message === "Aborted") {
+        console.log("[Agent] Reasoning loop aborted gracefully");
+        return;
+      }
       console.error("[Agent] Logic error in reasoning loop:", error);
       this.onEvent({ type: "error", message: `Fatal error: ${error.message}` });
     }
@@ -513,6 +508,9 @@ class Agent {
           if (signal) signal.removeEventListener("abort", onAbort);
           const toolCall = this.parseToolCall(fullText);
           resolve({ content: fullText, toolCall });
+        },
+        onUsage: (usage) => {
+          this.onEvent({ type: "usage", data: JSON.stringify(usage) });
         }
       }, signal);
     });
@@ -559,7 +557,8 @@ class OpenRouter extends AbstractLLM {
         {
           model,
           messages,
-          stream: true
+          stream: true,
+          stream_options: { include_usage: true }
         },
         {
           headers: {
@@ -590,6 +589,9 @@ class OpenRouter extends AbstractLLM {
             }
             try {
               const json = JSON.parse(data);
+              if (json.usage && callbacks.onUsage) {
+                callbacks.onUsage(json.usage);
+              }
               const token = json.choices[0]?.delta?.content || "";
               if (token) {
                 accumulated += token;
@@ -613,6 +615,10 @@ class OpenRouter extends AbstractLLM {
         } catch (e) {
           errorMessage = "Error parsing API response";
         }
+      }
+      if (error.name === "CanceledError" || error.message === "canceled") {
+        console.log("[OpenRouter] Request canceled by user");
+        return;
       }
       callbacks.onError(`API Request failed: ${errorMessage}`);
     }
@@ -984,7 +990,7 @@ ipcMain.handle("agent:stream", async (event, { instanceId, user_prompt, workspac
     await agent.run(user_prompt, history || [], persona, controller.signal);
     console.log(`[Main] Agent run completed for ${instanceId}`);
   } catch (error) {
-    if (error.name === "AbortError" || error.message === "Aborted") {
+    if (error.name === "AbortError" || error.message === "Aborted" || error.message === "canceled") {
       console.log(`[Main] Agent run for ${instanceId} was aborted`);
     } else {
       console.error(`[Main] Agent run error for ${instanceId}:`, error.message);

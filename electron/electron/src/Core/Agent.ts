@@ -3,7 +3,7 @@ import { PromptBuilder } from './Prompt/PromptBuilder';
 import { AbstractLLM, Message } from './Framework/AbstractLLM';
 
 export interface AgentEvent {
-  type: 'token' | 'tool_started' | 'tool_finished' | 'final_answer' | 'error';
+  type: 'token' | 'tool_started' | 'tool_finished' | 'final_answer' | 'error' | 'usage';
   name?: string;
   parameters?: string;
   result?: string;
@@ -257,6 +257,9 @@ export class Agent {
           if (signal) signal.removeEventListener('abort', onAbort);
           const toolCall = this.parseToolCall(fullText);
           resolve({ content: fullText, toolCall });
+        },
+        onUsage: (usage) => {
+            this.onEvent({ type: 'usage', data: JSON.stringify(usage) });
         }
       }, signal);
     });

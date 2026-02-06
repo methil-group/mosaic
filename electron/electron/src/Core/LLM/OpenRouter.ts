@@ -27,7 +27,8 @@ export class OpenRouter extends AbstractLLM {
         {
           model,
           messages,
-          stream: true
+          stream: true,
+          stream_options: { include_usage: true }
         },
         {
           headers: {
@@ -64,6 +65,12 @@ export class OpenRouter extends AbstractLLM {
             }
             try {
               const json = JSON.parse(data);
+              
+              // Check for usage
+              if (json.usage && callbacks.onUsage) {
+                  callbacks.onUsage(json.usage);
+              }
+
               const token = json.choices[0]?.delta?.content || '';
               if (token) {
                 accumulated += token;

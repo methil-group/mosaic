@@ -100,65 +100,53 @@
                         </div>
                         <div class="px-4 py-2.5 rounded-2xl text-[12px] leading-relaxed relative"
                             :class="msg.role === 'user' ? 'bg-gray-900 text-white' : 'bg-gray-50 border border-gray-100 text-gray-900'">
-                            <!-- Tool Interactions -->
-                            <div v-if="msg.events && hasTools(msg.events)"
-                                class="mb-3 space-y-2 border-b border-gray-200/50 pb-3">
-                                <template v-for="(event, eIdx) in msg.events" :key="eIdx">
-                                    <div v-if="event.type === 'tool_started'"
-                                        class="tool-block rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm transition-all duration-200"
-                                        :class="{ 'ring-1 ring-blue-500/20 shadow-md': expandedActions[idx + '-' + eIdx] }">
-                                        <div @click="toggleActions(idx + '-' + eIdx)"
-                                            class="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors group/tool">
-                                            <div
-                                                class="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center">
-                                                <Terminal class="w-3 h-3 text-blue-600" />
-                                            </div>
-                                            <div class="flex flex-col">
-                                                <span
-                                                    class="text-[9px] font-extrabold text-blue-600 uppercase tracking-wider leading-none mb-0.5">Running
-                                                    tool</span>
-                                                <span class="text-[11px] font-bold text-gray-800 leading-none">{{
-                                                    getEventName(event) }}</span>
-                                            </div>
-                                            <div class="flex-1"></div>
-                                            <div v-if="!findResult(msg.events, getEventName(event), eIdx)"
-                                                class="flex items-center gap-1.5 mr-2">
-                                                <Loader2 class="w-3 h-3 text-blue-500 animate-spin" />
-                                                <span
-                                                    class="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Running</span>
-                                            </div>
-                                            <ChevronDown v-if="!expandedActions[idx + '-' + eIdx]"
-                                                class="w-3.5 h-3.5 text-gray-400 group-hover/tool:text-gray-600 transition-colors" />
-                                            <ChevronUp v-else
-                                                class="w-3.5 h-3.5 text-gray-400 group-hover/tool:text-gray-600 transition-colors" />
-                                        </div>
 
-                                        <div v-if="expandedActions[idx + '-' + eIdx]" class="border-t border-gray-100">
-                                            <div class="px-3 py-2 bg-gray-50/50 border-b border-gray-100">
-                                                <div
-                                                    class="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
-                                                    Parameters</div>
-                                                <pre
-                                                    class="font-mono text-[9px] text-gray-700 whitespace-pre-wrap break-all leading-relaxed">{{ getEventParams(event) }}</pre>
-                                            </div>
 
-                                            <div v-if="findResult(msg.events, getEventName(event), eIdx)"
-                                                class="px-3 py-2 bg-gray-900 border-t border-gray-800">
-                                                <div class="flex items-center justify-between mb-1.5">
-                                                    <div
-                                                        class="text-[8px] font-bold text-gray-500 uppercase tracking-widest">
-                                                        Output</div>
-                                                    <Check class="w-2.5 h-2.5 text-green-500" />
-                                                </div>
-                                                <pre
-                                                    class="font-mono text-[9px] text-green-400/90 whitespace-pre-wrap break-all leading-relaxed max-h-[300px] overflow-y-auto custom-scrollbar">{{ findResult(msg.events, getEventName(event), eIdx) }}</pre>
-                                            </div>
-                                        </div>
+                            <!-- New Process Pane (Thoughts + Tools) -->
+                            <MessageProcess v-if="getMessageParts(msg).processItems.length > 0"
+                                :items="getMessageParts(msg).processItems"
+                                :is-running="instance.isProcessing && idx === instance.messages.length - 1" />
+
+                            <!-- Todo / Checklist Display -->
+                            <TodoDisplay v-if="getMessageParts(msg).checklist"
+                                :result="getMessageParts(msg).checklist" />
+
+                            <!-- Final Content -->
+                            <div v-html="formatCleanContent(getMessageParts(msg).finalContent)"></div>
+
+                            <!-- Processing Indicator (Dot Pulse) -->
+                            <div v-if="instance.isProcessing && idx === instance.messages.length - 1 && !getMessageParts(msg).finalContent"
+                                class="py-2 px-1">
+                                <div class="flex gap-1">
+                                    <div
+                                        class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]">
                                     </div>
-                                </template>
+                                    <div
+                                        class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]">
+                                    </div>
+                                    <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                                </div>
                             </div>
 
-                            <div v-html="formatContent(msg.content)"></div>
+                            <!-- Metrics Footer -->
+                            <div v-if="msg.usage"
+                                class="mt-2 flex justify-end items-center gap-3 border-t border-gray-100/50 pt-2 opacity-60 hover:opacity-100 transition-opacity">
+                                <div class="flex items-center gap-1">
+                                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">In</span>
+                                    <span class="text-[9px] font-mono text-gray-500">{{ msg.usage.prompt_tokens
+                                        }}</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Out</span>
+                                    <span class="text-[9px] font-mono text-gray-500">{{ msg.usage.completion_tokens
+                                        }}</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span
+                                        class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Total</span>
+                                    <span class="text-[9px] font-mono text-blue-500">{{ msg.usage.total_tokens }}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </main>
@@ -179,6 +167,8 @@ import * as LucideIcons from 'lucide-vue-next'
 import AgentInput from './AgentInput.vue'
 import AgentSettingsModal from './AgentSettingsModal.vue'
 import FileExplorer from './FileExplorer.vue'
+import MessageProcess from './MessageProcess.vue'
+import TodoDisplay from './TodoDisplay.vue'
 import MarkdownIt from 'markdown-it'
 
 import { Vue3Lottie } from 'vue3-lottie'
@@ -278,6 +268,128 @@ const formatContent = (content: string) => {
         .replace(/<tool_result>[\s\S]*$/g, '');
     cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
     return md.render(cleaned);
+}
+
+const formatCleanContent = (content: string) => {
+    if (!content) return '';
+    return md.render(content.trim());
+}
+
+const getMessageParts = (msg: any) => {
+    const content = msg.content || '';
+    const events = msg.events || [];
+
+    // 1. Extract Checklists
+    let checklist = '';
+    let cleanContent = content;
+
+    // Pattern 1: JSON checklist in content
+    const jsonMatch = cleanContent.match(/\{"checklist":\s*"([\s\S]*?)"\}/);
+    if (jsonMatch) {
+        checklist = jsonMatch[1]; // The inner string
+        cleanContent = cleanContent.replace(jsonMatch[0], '');
+    }
+
+    // Pattern 2: manage_todos tool call
+    const todoEvent = events.find((e: any) => e.type === 'tool_started' && e.name === 'manage_todos');
+    if (todoEvent && (todoEvent as any).parameters) {
+        try {
+            // Check if parameters is a string JSON or object
+            let params = (todoEvent as any).parameters;
+            if (typeof params === 'string') {
+                params = JSON.parse(params);
+            }
+            if (params.checklist) {
+                checklist = params.checklist;
+            }
+        } catch (e) {
+            console.warn('Failed to parse manage_todos params', e);
+        }
+    }
+
+    // 2. Split Process vs Final
+    const processItems: any[] = [];
+    let finalContent = cleanContent;
+
+    if (hasTools(events)) {
+        // Find all tool calls in the content
+        // We use a regex that matches the opening and closing tag, capturing the content around them
+        const parts = cleanContent.split(/(<tool_call>[\s\S]*?<\/tool_call>)/g);
+
+        // Find the index of the LAST tool call part.
+        let lastToolIndex = -1;
+        for (let i = parts.length - 1; i >= 0; i--) {
+            if (parts[i].includes('<tool_call>')) {
+                lastToolIndex = i;
+                break;
+            }
+        }
+
+        if (lastToolIndex !== -1) {
+            let toolCount = 0;
+
+            for (let i = 0; i <= lastToolIndex; i++) {
+                const part = parts[i];
+                if (!part.trim()) continue;
+
+                if (part.includes('<tool_call>')) {
+                    // Try to match with event
+                    const toolEvents = events.filter((e: any) => e.type === 'tool_started');
+                    const event: any = toolEvents[toolCount];
+                    toolCount++;
+
+                    const item: any = {
+                        type: 'tool',
+                        name: 'Unknown Tool',
+                        params: '',
+                        status: 'running',
+                        result: null
+                    };
+
+                    if (event) {
+                        item.name = event.name || 'Tool';
+                        item.params = event.parameters || '';
+
+                        // Find result
+                        const evtIdx = events.indexOf(event);
+                        const result = findResult(events, event.name, evtIdx);
+                        if (result) {
+                            item.status = 'done';
+                            item.result = result;
+                        }
+                    } else {
+                        // Fallback using regex on XML if event not found yet
+                        const nameMatch = part.match(/"name":\s*"([^"]*)"/);
+                        if (nameMatch) item.name = nameMatch[1];
+                        item.params = part.replace(/<\/?tool_call>/g, '');
+                    }
+
+                    if (item.name !== 'manage_todos') {
+                        processItems.push(item);
+                    }
+                } else {
+                    // It's text (thought)
+                    // Remove tool_result tags from thoughts if any
+                    const text = part.replace(/<tool_result>[\s\S]*?<\/tool_result>/g, '').trim();
+                    if (text) {
+                        processItems.push({ type: 'text', content: text });
+                    }
+                }
+            }
+
+            // The remainder is everything after.
+            finalContent = parts.slice(lastToolIndex + 1).join('').trim();
+        }
+    }
+
+    // Clean final content of artifacts
+    finalContent = finalContent
+        .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+        .replace(/<tool_result>[\s\S]*?<\/tool_result>/g, '')
+        .replace(/<\/tool_call>/g, '') // Cleanup stray tags
+        .trim();
+
+    return { processItems, checklist, finalContent };
 }
 
 const copyToClipboard = async (text: string, idx: number) => {

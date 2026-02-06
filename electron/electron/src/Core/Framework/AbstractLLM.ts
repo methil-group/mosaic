@@ -7,6 +7,7 @@ export interface StreamCallbacks {
   onToken: (token: string) => void;
   onError: (error: string) => void;
   onComplete: (fullText: string) => void;
+  onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void;
 }
 
 export abstract class AbstractLLM {
