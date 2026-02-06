@@ -78,6 +78,9 @@ const llmProvider = new OpenRouter(storedApiKey || '')
 console.log('[Main] Services initialized')
 console.log('[Main] API Key from DB present:', !!storedApiKey)
 
+// Agent Run Registry
+const activeAgents = new Map<string, { agent: Agent, controller: AbortController }>()
+
 // IPC Handlers
 ipcMain.handle('ping', () => 'pong')
 
@@ -113,8 +116,19 @@ ipcMain.handle('fs:mkdir', async (_event, { path, folderName }) => {
   }
 })
 
-ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id, user_name, history, persona }) => {
-  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}, Persona present: ${!!persona}`)
+ipcMain.handle('agent:stream', async (event, { instanceId, user_prompt, workspace, model_id, user_name, history, persona }) => {
+  console.log(`[Main] agent:stream received for ${instanceId}. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}`)
+  
+  // Abort existing run for this instance if any
+  if (activeAgents.has(instanceId)) {
+    console.log(`[Main] Aborting existing run for ${instanceId}`)
+    const { agent, controller } = activeAgents.get(instanceId)!
+    agent.stop()
+    controller.abort()
+    activeAgents.delete(instanceId)
+  }
+
+  const controller = new AbortController()
   const agent = new Agent(
     llmProvider,
     model_id,
@@ -123,19 +137,42 @@ ipcMain.handle('agent:stream', async (event, { user_prompt, workspace, model_id,
     (agentEvent) => {
       // Send event back to the renderer window that initiated the request
       if (agentEvent.type !== 'token') {
-        console.log(`[Main] Agent event: ${agentEvent.type}`, agentEvent.name || agentEvent.message || '')
+        console.log(`[Main] Agent event for ${instanceId}: ${agentEvent.type}`, agentEvent.name || agentEvent.message || '')
       }
-      event.sender.send('agent:event', agentEvent)
+      event.sender.send('agent:event', { instanceId, ...agentEvent })
     }
   )
 
+  activeAgents.set(instanceId, { agent, controller })
+
   try {
-    await agent.run(user_prompt, history || [], persona)
-    console.log('[Main] Agent run completed')
+    await agent.run(user_prompt, history || [], persona, controller.signal)
+    console.log(`[Main] Agent run completed for ${instanceId}`)
   } catch (error: any) {
-    console.error('[Main] Agent run error:', error.message)
-    event.sender.send('agent:event', { type: 'error', message: error.message })
+    if (error.name === 'AbortError' || error.message === 'Aborted' || error.message === 'canceled') {
+      console.log(`[Main] Agent run for ${instanceId} was aborted`);
+    } else {
+      console.error(`[Main] Agent run error for ${instanceId}:`, error.message);
+      event.sender.send('agent:event', { instanceId, type: 'error', message: error.message });
+    }
+  } finally {
+    // Only remove if it's the same run we started
+    if (activeAgents.get(instanceId)?.controller === controller) {
+      activeAgents.delete(instanceId)
+    }
   }
+})
+
+ipcMain.handle('agent:stop', (_event, instanceId: string) => {
+  console.log(`[Main] Received agent:stop for ${instanceId}`)
+  const active = activeAgents.get(instanceId)
+  if (active) {
+    active.agent.stop()
+    active.controller.abort()
+    activeAgents.delete(instanceId)
+    return { success: true }
+  }
+  return { success: false, message: 'No active agent found for this instance' }
 })
 
 // Provider list (hardcoded for now to match old backend)
@@ -232,13 +269,13 @@ ipcMain.handle('messages:list', (_event, agentId: string) => {
   return databaseService.getMessages(agentId)
 })
 
-ipcMain.handle('messages:add', (_event, { agentId, role, content, model }: { agentId: string; role: string; content: string; model?: string }) => {
-  const id = databaseService.addMessage(agentId, role, content, model)
+ipcMain.handle('messages:add', (_event, { agentId, role, content, model, events }: { agentId: string; role: string; content: string; model?: string; events?: string }) => {
+  const id = databaseService.addMessage(agentId, role, content, model, events)
   return { id }
 })
 
-ipcMain.handle('messages:update', (_event, { id, content }: { id: number; content: string }) => {
-  databaseService.updateMessage(id, content)
+ipcMain.handle('messages:update', (_event, { id, content, events }: { id: number; content: string; events?: string }) => {
+  databaseService.updateMessage(id, content, events)
   return { success: true }
 })
 

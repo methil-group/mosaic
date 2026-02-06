@@ -324,19 +324,24 @@ class Agent {
     this.userName = userName;
     this.onEvent = onEvent;
     this.messages = [];
+    this.stopped = false;
     this.tools = getTools();
   }
-  async run(userPrompt, history = [], persona) {
+  stop() {
+    this.stopped = true;
+    console.log("[Agent] Stop requested");
+  }
+  async run(userPrompt, history = [], persona, signal) {
     const systemPrompt = PromptBuilder.createSystemPrompt(this.tools, this.workspace, this.userName, persona);
     this.messages = [
       { role: "system", content: systemPrompt },
       ...history,
       { role: "user", content: userPrompt }
     ];
-    await this.reasoningLoop();
+    await this.reasoningLoop(signal);
     console.log("[Agent] Run finished");
   }
-  async reasoningLoop() {
+  async reasoningLoop(signal) {
     console.log("[Agent v2] Starting reasoning loop");
     let loop = true;
     let toolRetryCount = 0;
@@ -347,13 +352,18 @@ class Agent {
     let lastToolCallFingerprint = "";
     try {
       while (loop) {
+        if (this.stopped || signal && signal.aborted) {
+          console.log("[Agent v2] Loop stopped by user/signal");
+          this.onEvent({ type: "error", message: "Agent execution stopped by user." });
+          break;
+        }
         totalSteps++;
         if (totalSteps > maxSteps) {
           console.error("[Agent v2] Max steps reached, stopping.");
           this.onEvent({ type: "error", message: "Maximum reasoning steps exceeded." });
           break;
         }
-        const stepResult = await this.runStep();
+        const stepResult = await this.runStep(signal);
         const contentWithoutTool = stepResult.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
         if (contentWithoutTool) {
           accumulatedAssistantContent.push(contentWithoutTool);
@@ -452,13 +462,22 @@ class Agent {
       this.onEvent({ type: "error", message: `Fatal error: ${error.message}` });
     }
   }
-  async runStep() {
+  async runStep(signal) {
     console.log("[Agent] Running step...");
     return new Promise((resolve, reject) => {
       let accumulated = "";
       let emittedLength = 0;
+      const onAbort = () => {
+        console.log("[Agent] runStep aborted");
+        reject(new Error("Aborted"));
+      };
+      if (signal) {
+        if (signal.aborted) return reject(new Error("Aborted"));
+        signal.addEventListener("abort", onAbort);
+      }
       this.llm.streamChat(this.model, this.messages, {
         onToken: (token) => {
+          if (this.stopped || signal && signal.aborted) return;
           accumulated += token;
           const toolCallStart = accumulated.indexOf("<tool_call>");
           if (toolCallStart === -1) {
@@ -486,14 +505,16 @@ class Agent {
           }
         },
         onError: (error) => {
+          if (signal) signal.removeEventListener("abort", onAbort);
           this.onEvent({ type: "error", message: error });
           reject(new Error(error));
         },
         onComplete: (fullText) => {
+          if (signal) signal.removeEventListener("abort", onAbort);
           const toolCall = this.parseToolCall(fullText);
           resolve({ content: fullText, toolCall });
         }
-      });
+      }, signal);
     });
   }
   parseToolCall(content) {
@@ -526,7 +547,7 @@ class OpenRouter extends AbstractLLM {
   updateApiKey(newKey) {
     this.apiKey = newKey;
   }
-  async streamChat(model, messages, callbacks) {
+  async streamChat(model, messages, callbacks, signal) {
     if (!this.apiKey) {
       callbacks.onError("OpenRouter API Key not found");
       return;
@@ -547,7 +568,8 @@ class OpenRouter extends AbstractLLM {
             "HTTP-Referer": "https://github.com/methil-mods/mosaic",
             "X-Title": "Mosaic"
           },
-          responseType: "stream"
+          responseType: "stream",
+          signal
         }
       );
       let accumulated = "";
@@ -772,10 +794,20 @@ class DatabaseService {
         role TEXT NOT NULL,
         content TEXT NOT NULL,
         model TEXT,
+        events TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
       )
     `);
+    try {
+      const messageTableInfo = this.db.prepare("PRAGMA table_info(messages)").all();
+      const messageColumns = messageTableInfo.map((c) => c.name);
+      if (!messageColumns.includes("events")) {
+        this.db.prepare("ALTER TABLE messages ADD COLUMN events TEXT").run();
+      }
+    } catch (error) {
+      console.error("Failed to migrate messages table:", error);
+    }
   }
   // Settings methods
   getSetting(key) {
@@ -831,12 +863,16 @@ class DatabaseService {
   getMessages(agentId) {
     return this.db.prepare("SELECT * FROM messages WHERE agent_id = ? ORDER BY created_at ASC").all(agentId);
   }
-  addMessage(agentId, role, content, model) {
-    const result = this.db.prepare("INSERT INTO messages (agent_id, role, content, model) VALUES (?, ?, ?, ?)").run(agentId, role, content, model || null);
+  addMessage(agentId, role, content, model, events) {
+    const result = this.db.prepare("INSERT INTO messages (agent_id, role, content, model, events) VALUES (?, ?, ?, ?, ?)").run(agentId, role, content, model || null, events || null);
     return result.lastInsertRowid;
   }
-  updateMessage(id, content) {
-    this.db.prepare("UPDATE messages SET content = ? WHERE id = ?").run(content, id);
+  updateMessage(id, content, events) {
+    if (events !== void 0) {
+      this.db.prepare("UPDATE messages SET content = ?, events = ? WHERE id = ?").run(content, events, id);
+    } else {
+      this.db.prepare("UPDATE messages SET content = ? WHERE id = ?").run(content, id);
+    }
   }
   deleteMessagesForAgent(agentId) {
     this.db.prepare("DELETE FROM messages WHERE agent_id = ?").run(agentId);
@@ -893,6 +929,7 @@ const storedApiKey = databaseService.getSetting("openrouter_api_key");
 const llmProvider = new OpenRouter(storedApiKey || "");
 console.log("[Main] Services initialized");
 console.log("[Main] API Key from DB present:", !!storedApiKey);
+const activeAgents = /* @__PURE__ */ new Map();
 ipcMain.handle("ping", () => "pong");
 ipcMain.handle("dialog:openDirectory", async (event) => {
   const browserWindow = BrowserWindow.fromWebContents(event.sender);
@@ -920,8 +957,16 @@ ipcMain.handle("fs:mkdir", async (_event, { path: path2, folderName }) => {
     return { success: false, error: error.message };
   }
 });
-ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id, user_name, history, persona }) => {
-  console.log(`[Main] agent:stream received. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}, Persona present: ${!!persona}`);
+ipcMain.handle("agent:stream", async (event, { instanceId, user_prompt, workspace, model_id, user_name, history, persona }) => {
+  console.log(`[Main] agent:stream received for ${instanceId}. Prompt: "${user_prompt.substring(0, 50)}...", Model: ${model_id}`);
+  if (activeAgents.has(instanceId)) {
+    console.log(`[Main] Aborting existing run for ${instanceId}`);
+    const { agent: agent2, controller: controller2 } = activeAgents.get(instanceId);
+    agent2.stop();
+    controller2.abort();
+    activeAgents.delete(instanceId);
+  }
+  const controller = new AbortController();
   const agent = new Agent(
     llmProvider,
     model_id,
@@ -929,18 +974,38 @@ ipcMain.handle("agent:stream", async (event, { user_prompt, workspace, model_id,
     user_name,
     (agentEvent) => {
       if (agentEvent.type !== "token") {
-        console.log(`[Main] Agent event: ${agentEvent.type}`, agentEvent.name || agentEvent.message || "");
+        console.log(`[Main] Agent event for ${instanceId}: ${agentEvent.type}`, agentEvent.name || agentEvent.message || "");
       }
-      event.sender.send("agent:event", agentEvent);
+      event.sender.send("agent:event", { instanceId, ...agentEvent });
     }
   );
+  activeAgents.set(instanceId, { agent, controller });
   try {
-    await agent.run(user_prompt, history || [], persona);
-    console.log("[Main] Agent run completed");
+    await agent.run(user_prompt, history || [], persona, controller.signal);
+    console.log(`[Main] Agent run completed for ${instanceId}`);
   } catch (error) {
-    console.error("[Main] Agent run error:", error.message);
-    event.sender.send("agent:event", { type: "error", message: error.message });
+    if (error.name === "AbortError" || error.message === "Aborted") {
+      console.log(`[Main] Agent run for ${instanceId} was aborted`);
+    } else {
+      console.error(`[Main] Agent run error for ${instanceId}:`, error.message);
+      event.sender.send("agent:event", { instanceId, type: "error", message: error.message });
+    }
+  } finally {
+    if (activeAgents.get(instanceId)?.controller === controller) {
+      activeAgents.delete(instanceId);
+    }
   }
+});
+ipcMain.handle("agent:stop", (_event, instanceId) => {
+  console.log(`[Main] Received agent:stop for ${instanceId}`);
+  const active = activeAgents.get(instanceId);
+  if (active) {
+    active.agent.stop();
+    active.controller.abort();
+    activeAgents.delete(instanceId);
+    return { success: true };
+  }
+  return { success: false, message: "No active agent found for this instance" };
 });
 ipcMain.handle("providers:get", () => {
   return {
@@ -1012,12 +1077,12 @@ ipcMain.handle("desktops:delete", (_event, id) => {
 ipcMain.handle("messages:list", (_event, agentId) => {
   return databaseService.getMessages(agentId);
 });
-ipcMain.handle("messages:add", (_event, { agentId, role, content, model }) => {
-  const id = databaseService.addMessage(agentId, role, content, model);
+ipcMain.handle("messages:add", (_event, { agentId, role, content, model, events }) => {
+  const id = databaseService.addMessage(agentId, role, content, model, events);
   return { id };
 });
-ipcMain.handle("messages:update", (_event, { id, content }) => {
-  databaseService.updateMessage(id, content);
+ipcMain.handle("messages:update", (_event, { id, content, events }) => {
+  databaseService.updateMessage(id, content, events);
   return { success: true };
 });
 ipcMain.handle("messages:clearForAgent", (_event, agentId) => {

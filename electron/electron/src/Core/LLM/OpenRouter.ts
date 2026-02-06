@@ -14,7 +14,7 @@ export class OpenRouter extends AbstractLLM {
     this.apiKey = newKey;
   }
 
-  async streamChat(model: string, messages: Message[], callbacks: StreamCallbacks): Promise<void> {
+  async streamChat(model: string, messages: Message[], callbacks: StreamCallbacks, signal?: AbortSignal): Promise<void> {
     if (!this.apiKey) {
       callbacks.onError('OpenRouter API Key not found');
       return;
@@ -36,7 +36,8 @@ export class OpenRouter extends AbstractLLM {
             'HTTP-Referer': 'https://github.com/methil-mods/mosaic',
             'X-Title': 'Mosaic'
           },
-          responseType: 'stream'
+          responseType: 'stream',
+          signal
         }
       );
 
@@ -95,6 +96,11 @@ export class OpenRouter extends AbstractLLM {
         }
       }
       
+      if (error.name === 'CanceledError' || error.message === 'canceled') {
+        console.log('[OpenRouter] Request canceled by user');
+        return;
+      }
+
       callbacks.onError(`API Request failed: ${errorMessage}`);
     }
   }

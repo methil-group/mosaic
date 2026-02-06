@@ -8,6 +8,7 @@ const api = {
   listDirectories: (path: string) => ipcRenderer.invoke('fs:ls', path),
   fetchFiles: (path: string) => ipcRenderer.invoke('fs:files', path),
   createDirectory: (path: string, folderName: string) => ipcRenderer.invoke('fs:mkdir', { path, folderName }),
+  stopAgent: (instanceId: string) => ipcRenderer.invoke('agent:stop', instanceId),
   
   // Event listeners for streaming
   onAgentEvent: (callback: (event: any) => void) => {

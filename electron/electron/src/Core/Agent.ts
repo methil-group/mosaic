@@ -14,6 +14,7 @@ export interface AgentEvent {
 export class Agent {
   private messages: Message[] = [];
   private tools: Tool[];
+  private stopped: boolean = false;
 
   constructor(
     private llm: AbstractLLM,
@@ -25,18 +26,23 @@ export class Agent {
     this.tools = getTools();
   }
 
-  async run(userPrompt: string, history: Message[] = [], persona?: string): Promise<void> {
+  public stop(): void {
+    this.stopped = true;
+    console.log('[Agent] Stop requested');
+  }
+
+  async run(userPrompt: string, history: Message[] = [], persona?: string, signal?: AbortSignal): Promise<void> {
     const systemPrompt = PromptBuilder.createSystemPrompt(this.tools, this.workspace, this.userName, persona);
     this.messages = [
       { role: 'system', content: systemPrompt },
       ...history,
       { role: 'user', content: userPrompt }
     ];
-    await this.reasoningLoop();
+    await this.reasoningLoop(signal);
     console.log('[Agent] Run finished');
   }
 
-  private async reasoningLoop(): Promise<void> {
+  private async reasoningLoop(signal?: AbortSignal): Promise<void> {
     console.log('[Agent v2] Starting reasoning loop');
     let loop = true;
     let toolRetryCount = 0;
@@ -48,6 +54,12 @@ export class Agent {
 
     try {
       while (loop) {
+        if (this.stopped || (signal && signal.aborted)) {
+          console.log('[Agent v2] Loop stopped by user/signal');
+          // No error event here, just finish
+          break;
+        }
+
         totalSteps++;
         if (totalSteps > maxSteps) {
           console.error('[Agent v2] Max steps reached, stopping.');
@@ -55,7 +67,7 @@ export class Agent {
           break;
         }
 
-        const stepResult = await this.runStep();
+        const stepResult = await this.runStep(signal);
         const contentWithoutTool = stepResult.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim();
         
         if (contentWithoutTool) {
@@ -171,19 +183,35 @@ export class Agent {
         }
       }
     } catch (error: any) {
+      if (error.message === 'Aborted') {
+        console.log('[Agent] Reasoning loop aborted gracefully');
+        return;
+      }
       console.error('[Agent] Logic error in reasoning loop:', error);
       this.onEvent({ type: 'error', message: `Fatal error: ${error.message}` });
     }
   }
 
-  private async runStep(): Promise<{ content: string; toolCall?: { name: string; parameters: any } }> {
+  private async runStep(signal?: AbortSignal): Promise<{ content: string; toolCall?: { name: string; parameters: any } }> {
     console.log('[Agent] Running step...');
     return new Promise((resolve, reject) => {
       let accumulated = "";
       let emittedLength = 0; // Track how much we've already emitted
 
+      const onAbort = () => {
+        console.log('[Agent] runStep aborted');
+        reject(new Error('Aborted'));
+      };
+      
+      if (signal) {
+        if (signal.aborted) return reject(new Error('Aborted'));
+        signal.addEventListener('abort', onAbort);
+      }
+
       this.llm.streamChat(this.model, this.messages, {
         onToken: (token) => {
+          if (this.stopped || (signal && signal.aborted)) return;
+
           accumulated += token;
           
           // Find the safe portion to emit (everything before any potential <tool_call>)
@@ -221,14 +249,16 @@ export class Agent {
           }
         },
         onError: (error) => {
+          if (signal) signal.removeEventListener('abort', onAbort);
           this.onEvent({ type: 'error', message: error });
           reject(new Error(error));
         },
         onComplete: (fullText) => {
+          if (signal) signal.removeEventListener('abort', onAbort);
           const toolCall = this.parseToolCall(fullText);
           resolve({ content: fullText, toolCall });
         }
-      });
+      }, signal);
     });
   }
 

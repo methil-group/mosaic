@@ -10,5 +10,5 @@ export interface StreamCallbacks {
 }
 
 export abstract class AbstractLLM {
-  abstract streamChat(model: string, messages: Message[], callbacks: StreamCallbacks): Promise<void>;
+  abstract streamChat(model: string, messages: Message[], callbacks: StreamCallbacks, signal?: AbortSignal): Promise<void>;
 }

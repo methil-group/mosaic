@@ -30,6 +30,7 @@ export interface MessageRecord {
   role: string;
   content: string;
   model?: string;
+  events?: string; // JSON string
   created_at: string;
 }
 
@@ -131,10 +132,22 @@ export class DatabaseService {
         role TEXT NOT NULL,
         content TEXT NOT NULL,
         model TEXT,
+        events TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
       )
     `);
+
+    // Migration for messages table
+    try {
+      const messageTableInfo = this.db.prepare('PRAGMA table_info(messages)').all() as any[];
+      const messageColumns = messageTableInfo.map(c => c.name);
+      if (!messageColumns.includes('events')) {
+        this.db.prepare('ALTER TABLE messages ADD COLUMN events TEXT').run();
+      }
+    } catch (error) {
+      console.error('Failed to migrate messages table:', error);
+    }
   }
 
   // Settings methods
@@ -205,13 +218,17 @@ export class DatabaseService {
     return this.db.prepare('SELECT * FROM messages WHERE agent_id = ? ORDER BY created_at ASC').all(agentId) as MessageRecord[];
   }
 
-  public addMessage(agentId: string, role: string, content: string, model?: string): number {
-    const result = this.db.prepare('INSERT INTO messages (agent_id, role, content, model) VALUES (?, ?, ?, ?)').run(agentId, role, content, model || null);
+  public addMessage(agentId: string, role: string, content: string, model?: string, events?: string): number {
+    const result = this.db.prepare('INSERT INTO messages (agent_id, role, content, model, events) VALUES (?, ?, ?, ?, ?)').run(agentId, role, content, model || null, events || null);
     return result.lastInsertRowid as number;
   }
 
-  public updateMessage(id: number, content: string): void {
-    this.db.prepare('UPDATE messages SET content = ? WHERE id = ?').run(content, id);
+  public updateMessage(id: number, content: string, events?: string): void {
+    if (events !== undefined) {
+      this.db.prepare('UPDATE messages SET content = ?, events = ? WHERE id = ?').run(content, events, id);
+    } else {
+      this.db.prepare('UPDATE messages SET content = ? WHERE id = ?').run(content, id);
+    }
   }
 
   public deleteMessagesForAgent(agentId: string): void {

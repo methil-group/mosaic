@@ -98,8 +98,66 @@
                             <span class="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{{ msg.role ===
                                 'user' ? 'User' : instance.name }}</span>
                         </div>
-                        <div class="px-4 py-2.5 rounded-2xl text-[12px] leading-relaxed"
+                        <div class="px-4 py-2.5 rounded-2xl text-[12px] leading-relaxed relative"
                             :class="msg.role === 'user' ? 'bg-gray-900 text-white' : 'bg-gray-50 border border-gray-100 text-gray-900'">
+                            <!-- Tool Interactions -->
+                            <div v-if="msg.events && hasTools(msg.events)"
+                                class="mb-3 space-y-2 border-b border-gray-200/50 pb-3">
+                                <template v-for="(event, eIdx) in msg.events" :key="eIdx">
+                                    <div v-if="event.type === 'tool_started'"
+                                        class="tool-block rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm transition-all duration-200"
+                                        :class="{ 'ring-1 ring-blue-500/20 shadow-md': expandedActions[idx + '-' + eIdx] }">
+                                        <div @click="toggleActions(idx + '-' + eIdx)"
+                                            class="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors group/tool">
+                                            <div
+                                                class="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center">
+                                                <Terminal class="w-3 h-3 text-blue-600" />
+                                            </div>
+                                            <div class="flex flex-col">
+                                                <span
+                                                    class="text-[9px] font-extrabold text-blue-600 uppercase tracking-wider leading-none mb-0.5">Running
+                                                    tool</span>
+                                                <span class="text-[11px] font-bold text-gray-800 leading-none">{{
+                                                    getEventName(event) }}</span>
+                                            </div>
+                                            <div class="flex-1"></div>
+                                            <div v-if="!findResult(msg.events, getEventName(event), eIdx)"
+                                                class="flex items-center gap-1.5 mr-2">
+                                                <Loader2 class="w-3 h-3 text-blue-500 animate-spin" />
+                                                <span
+                                                    class="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Running</span>
+                                            </div>
+                                            <ChevronDown v-if="!expandedActions[idx + '-' + eIdx]"
+                                                class="w-3.5 h-3.5 text-gray-400 group-hover/tool:text-gray-600 transition-colors" />
+                                            <ChevronUp v-else
+                                                class="w-3.5 h-3.5 text-gray-400 group-hover/tool:text-gray-600 transition-colors" />
+                                        </div>
+
+                                        <div v-if="expandedActions[idx + '-' + eIdx]" class="border-t border-gray-100">
+                                            <div class="px-3 py-2 bg-gray-50/50 border-b border-gray-100">
+                                                <div
+                                                    class="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                                                    Parameters</div>
+                                                <pre
+                                                    class="font-mono text-[9px] text-gray-700 whitespace-pre-wrap break-all leading-relaxed">{{ getEventParams(event) }}</pre>
+                                            </div>
+
+                                            <div v-if="findResult(msg.events, getEventName(event), eIdx)"
+                                                class="px-3 py-2 bg-gray-900 border-t border-gray-800">
+                                                <div class="flex items-center justify-between mb-1.5">
+                                                    <div
+                                                        class="text-[8px] font-bold text-gray-500 uppercase tracking-widest">
+                                                        Output</div>
+                                                    <Check class="w-2.5 h-2.5 text-green-500" />
+                                                </div>
+                                                <pre
+                                                    class="font-mono text-[9px] text-green-400/90 whitespace-pre-wrap break-all leading-relaxed max-h-[300px] overflow-y-auto custom-scrollbar">{{ findResult(msg.events, getEventName(event), eIdx) }}</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
                             <div v-html="formatContent(msg.content)"></div>
                         </div>
                     </div>
@@ -114,9 +172,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch, computed } from 'vue'
-import { useAgentStore } from '~/stores/agent'
+import { useAgentStore, type AgentEvent } from '~/stores/agent'
 import { useVideoCache } from '~/composables/useVideoCache'
-import { Bot, User, Terminal, Loader2, Sparkles, Trash2, Copy, Check, Settings, ChevronDown, EyeOff, X, Monitor, Code } from 'lucide-vue-next'
+import { Bot, User, Terminal, Loader2, Sparkles, Trash2, Copy, Check, Settings, ChevronDown, ChevronUp, EyeOff, X, Monitor, Code } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import AgentInput from './AgentInput.vue'
 import AgentSettingsModal from './AgentSettingsModal.vue'
@@ -141,7 +199,7 @@ const videoSource = computed(() => getVideoUrl(instance.value?.video))
 const lottieAnimation = computed(() => instance.value?.lottie)
 
 const scrollContainer = ref<HTMLElement | null>(null)
-const expandedActions = ref<Record<number, boolean>>({})
+const expandedActions = ref<Record<string, boolean>>({})
 const copiedIdx = ref<number | null>(null)
 const isSettingsOpen = ref(false)
 const panelRef = ref<HTMLElement | null>(null)
@@ -236,8 +294,25 @@ const copyToClipboard = async (text: string, idx: number) => {
     }, 2000);
 }
 
-const toggleActions = (idx: number) => { expandedActions.value[idx] = !expandedActions.value[idx] }
+const toggleActions = (key: string) => { expandedActions.value[key] = !expandedActions.value[key] }
 const toggleRaw = (idx: number) => { showRaw.value[idx] = !showRaw.value[idx] }
+
+const hasTools = (events: AgentEvent[]) => {
+    return events.some(e => e.type === 'tool_started' || e.type === 'tool_finished');
+}
+
+const findResult = (events: AgentEvent[], toolName: string, startIndex: number) => {
+    for (let i = startIndex + 1; i < events.length; i++) {
+        const event = events[i];
+        if (event && event.type === 'tool_finished' && (event as any).name === toolName) {
+            return (event as any).result;
+        }
+    }
+    return null;
+}
+
+const getEventName = (event: AgentEvent) => (event as any).name || ''
+const getEventParams = (event: AgentEvent) => (event as any).parameters || ''
 
 const scrollToBottom = async () => {
     await nextTick()
@@ -313,6 +388,19 @@ watch(() => instance.value?.messages[instance.value?.messages.length - 1]?.conte
 .chat-area::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.05);
     border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 /* Chip Styles (Simplified for Grid Preview) */

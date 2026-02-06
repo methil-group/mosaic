@@ -34,7 +34,9 @@ export interface InstanceState {
   description?: string
   persona?: string
   lottie?: string
+  video?: string
   workspaceId: string
+  isStoppedManually?: boolean
 }
 
 export interface Workspace {
@@ -133,6 +135,7 @@ export const useAgentStore = defineStore('agent', {
         description: agent.description,
         persona: agent.systemPrompt,
         lottie: agent.lottie,
+        video: agent.video,
         workspaceId: this.activeWorkspaceId as string
       }
       this.instanceIds.push(id)
@@ -226,10 +229,15 @@ export const useAgentStore = defineStore('agent', {
         // Use Electron IPC for streaming
         if ((window as any).api) {
           const removeListener = (window as any).api.onAgentEvent((event: any) => {
-            this.handleEvent(instanceId, event)
+            if (event.instanceId === instanceId) {
+              this.handleEvent(instanceId, event)
+            }
           })
 
+          instance.abortController = new AbortController()
+
           await (window as any).api.streamAgent({
+            instanceId,
             user_prompt: prompt,
             workspace: instance.currentWorkspace,
             model_id: instance.currentModel,
@@ -253,11 +261,18 @@ export const useAgentStore = defineStore('agent', {
         assistantMessage.isStreaming = false
         instance.abortController = null
         
-        // Update assistant message in SQLite with final content
+        // Update assistant message in SQLite with final content and events
         if ((window as any).electron && assistantMessage.id) {
+          // Add a user-friendly indicator if stopped
+          if (instance.isStoppedManually) {
+            assistantMessage.content += "\n\n*(Message stopped by user)*"
+            instance.isStoppedManually = false
+          }
+
           await (window as any).electron.ipcRenderer.invoke('messages:update', {
             id: assistantMessage.id,
-            content: assistantMessage.content
+            content: assistantMessage.content,
+            events: assistantMessage.events ? JSON.stringify(assistantMessage.events) : null
           })
         }
 
@@ -269,11 +284,20 @@ export const useAgentStore = defineStore('agent', {
       }
     },
 
-    stopProcessing(instanceId: string) {
+    async stopProcessing(instanceId: string) {
       const instance = this.instances[instanceId]
-      if (instance && instance.abortController) {
-        instance.abortController.abort()
+      if (instance) {
+        if (instance.abortController) {
+          instance.abortController.abort()
+        }
+        
+        if ((window as any).api) {
+          await (window as any).api.stopAgent(instanceId)
+        }
+        
+        instance.isStoppedManually = true
         instance.isProcessing = false
+        instance.abortController = null
       }
     },
 
@@ -464,7 +488,8 @@ export const useAgentStore = defineStore('agent', {
                 id: m.id,
                 role: m.role,
                 content: m.content,
-                model: m.model
+                model: m.model,
+                events: m.events ? JSON.parse(m.events) : []
               })),
               isProcessing: false,
               currentWorkspace: agent.workspace,
@@ -478,6 +503,7 @@ export const useAgentStore = defineStore('agent', {
               description: agent.description || config?.description,
               persona: config?.systemPrompt,
               lottie: config?.lottie,
+              video: config?.video,
               workspaceId: agent.desktop_id || (this.workspaceIds.length > 0 ? this.workspaceIds[0] : null)
             }
             this.instanceIds.push(agent.id)
