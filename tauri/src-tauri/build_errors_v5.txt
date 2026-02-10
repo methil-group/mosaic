@@ -1,0 +1,79 @@
+    Checking app v0.1.0 (/Users/ethew/Documents/Github/methil-vibe/electron/src-tauri)
+warning: variant `Complete` is never constructed
+  --> src/llm/mod.rs:24:5
+   |
+21 | pub enum LlmEvent {
+   |          -------- variant in this enum
+...
+24 |     Complete { content: String },
+   |     ^^^^^^^^
+   |
+   = note: `LlmEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: method `render` is never used
+ --> src/core/prompt.rs:4:8
+  |
+3 | pub trait PromptPart {
+  |           ---------- method in this trait
+4 |     fn render(&self) -> String;
+  |        ^^^^^^
+
+warning: struct `PromptBuilder` is never constructed
+  --> src/core/prompt.rs:78:12
+   |
+78 | pub struct PromptBuilder;
+   |            ^^^^^^^^^^^^^
+
+warning: associated functions `create_system_prompt` and `format_tool_result` are never used
+   --> src/core/prompt.rs:81:12
+    |
+80  | impl PromptBuilder {
+    | ------------------ associated functions in this implementation
+81  |     pub fn create_system_prompt(tools: &[Box<dyn Tool>], _workspace: &str, user_name: &str, persona: Option<String>) -> String {
+    |            ^^^^^^^^^^^^^^^^^^^^
+...
+102 |     pub fn format_tool_result(name: &str, result: &str) -> String {
+    |            ^^^^^^^^^^^^^^^^^^
+
+warning: method `execute` is never used
+ --> src/core/tools.rs:9:14
+  |
+5 | pub trait Tool: Send + Sync {
+  |           ---- method in this trait
+...
+9 |     async fn execute(&self, params: HashMap<String, String>, workspace: &str) -> Result<String, String>;
+  |              ^^^^^^^
+
+warning: methods `get_tools` and `find` are never used
+  --> src/core/tools.rs:25:12
+   |
+16 | impl ToolRegistry {
+   | ----------------- methods in this implementation
+...
+25 |     pub fn get_tools(&self) -> &Vec<Box<dyn Tool>> {
+   |            ^^^^^^^^^
+...
+29 |     pub fn find(&self, name: &str) -> Option<&Box<dyn Tool>> {
+   |            ^^^^
+
+warning: associated function `create_directory` is never used
+  --> src/framework/fs.rs:31:12
+   |
+6  | impl FileSystemService {
+   | ---------------------- associated function in this implementation
+...
+31 |     pub fn create_directory(path: &str, name: &str) -> Result<(), String> {
+   |            ^^^^^^^^^^^^^^^^
+
+warning: field `tools` is never read
+  --> src/state.rs:10:9
+   |
+8  | pub struct AppState {
+   |            -------- field in this struct
+9  |     pub db: Arc<DbService>,
+10 |     pub tools: Arc<ToolRegistry>,
+   |         ^^^^^
+
+warning: `app` (bin "app") generated 8 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.26s
