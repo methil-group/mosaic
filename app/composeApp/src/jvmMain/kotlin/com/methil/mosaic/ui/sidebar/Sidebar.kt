@@ -8,9 +8,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathFillType
@@ -166,7 +174,7 @@ fun Sidebar(
         SidebarItem(
             icon = WorkspacesIcon,
             label = "Workspaces",
-            selected = currentPage == Page.WORKSPACES,
+            selected = currentPage == Page.WORKSPACES || currentPage == Page.WORKSPACE_DETAIL,
             onClick = { onPageSelected(Page.WORKSPACES) }
         )
 
@@ -192,6 +200,7 @@ fun Sidebar(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun SidebarItem(
     icon: ImageVector,
@@ -199,14 +208,27 @@ private fun SidebarItem(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val bgColor = if (selected) Accent.copy(alpha = 0.12f) else Color.Transparent
-    val iconTint = if (selected) Accent else TextMuted
+    var isHovered by remember { mutableStateOf(false) }
+
+    val bgColor = when {
+        selected -> Accent.copy(alpha = 0.12f)
+        isHovered -> Color.White.copy(alpha = 0.06f)
+        else -> Color.Transparent
+    }
+    val iconTint = when {
+        selected -> Accent
+        isHovered -> TextSecondary
+        else -> TextMuted
+    }
 
     Box(
         modifier = Modifier
             .size(40.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(bgColor)
+            .pointerHoverIcon(PointerIcon.Hand)
+            .onPointerEvent(PointerEventType.Enter) { isHovered = true }
+            .onPointerEvent(PointerEventType.Exit) { isHovered = false }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,

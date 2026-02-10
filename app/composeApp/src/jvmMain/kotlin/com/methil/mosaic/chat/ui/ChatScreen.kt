@@ -4,68 +4,50 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.IconButton
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.TextFieldDefaults
-import androidx.compose.material.*
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 import com.methil.mosaic.chat.viewmodel.ChatViewModel
+import com.methil.mosaic.ui.theme.Dark15
+import com.methil.mosaic.ui.theme.TextMuted
+import com.methil.mosaic.ui.theme.TextPrimary
 
-val SendIcon: ImageVector
-    get() {
-        if (_send != null) return _send!!
-        _send = ImageVector.Builder(
-            name = "Send",
-            defaultWidth = 24.0.dp,
-            defaultHeight = 24.0.dp,
-            viewportWidth = 24.0f,
-            viewportHeight = 24.0f
-        ).apply {
-            path(
-                fill = SolidColor(Color.Black),
-                fillAlpha = 1.0f,
-                stroke = null,
-                strokeAlpha = 1.0f,
-                strokeLineWidth = 1.0f,
-                strokeLineCap = StrokeCap.Butt,
-                strokeLineJoin = StrokeJoin.Miter,
-                strokeLineMiter = 1.0f,
-                pathFillType = PathFillType.NonZero
-            ) {
-                moveTo(2.01f, 21.0f)
-                lineTo(23.0f, 12.0f)
-                lineTo(2.01f, 3.0f)
-                lineTo(2.0f, 10.0f)
-                lineTo(17.0f, 12.0f)
-                lineTo(2.0f, 14.0f)
-                close()
-            }
-        }.build()
-        return _send!!
-    }
+val SendIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "Send",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).apply {
+        path(
+            fill = SolidColor(Color.White),
+            pathFillType = PathFillType.NonZero
+        ) {
+            moveTo(2.01f, 21f)
+            lineTo(23f, 12f)
+            lineTo(2.01f, 3f)
+            lineTo(2f, 10f)
+            lineTo(17f, 12f)
+            lineTo(2f, 14f)
+            close()
+        }
+    }.build()
+}
 
-private var _send: ImageVector? = null
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(viewModel: ChatViewModel = remember { ChatViewModel() }) {
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    // Scroll to bottom when new messages arrive
     LaunchedEffect(viewModel.messages.size) {
         if (viewModel.messages.isNotEmpty()) {
             listState.animateScrollToItem(viewModel.messages.size - 1)
@@ -75,7 +57,7 @@ fun ChatScreen(viewModel: ChatViewModel = remember { ChatViewModel() }) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(24.dp)
     ) {
         // Chat History
         LazyColumn(
@@ -94,24 +76,34 @@ fun ChatScreen(viewModel: ChatViewModel = remember { ChatViewModel() }) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp),
+                .padding(top = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextField(
                 value = inputText,
                 onValueChange = { inputText = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Tapez votre message...") },
+                placeholder = {
+                    Text(
+                        "Type a message...",
+                        color = TextMuted
+                    )
+                },
                 maxLines = 3,
-                colors = TextFieldDefaults.textFieldColors(
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedContainerColor = Dark15,
+                    unfocusedContainerColor = Dark15,
                     focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
+                    unfocusedIndicatorColor = Color.Transparent,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 ),
-                shape = MaterialTheme.shapes.medium
+                shape = RoundedCornerShape(12.dp)
             )
-            
+
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             IconButton(
                 onClick = {
                     if (inputText.isNotBlank()) {
@@ -121,10 +113,11 @@ fun ChatScreen(viewModel: ChatViewModel = remember { ChatViewModel() }) {
                 },
                 enabled = inputText.isNotBlank(),
                 colors = IconButtonDefaults.iconButtonColors(
-                    contentColor = MaterialTheme.colors.primary
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    disabledContentColor = TextMuted
                 )
             ) {
-                Icon(SendIcon, contentDescription = "Envoyer")
+                Icon(SendIcon, contentDescription = "Send")
             }
         }
     }
