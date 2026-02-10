@@ -8,6 +8,9 @@ import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,7 +104,6 @@ fun ChatScreen(viewModel: ChatViewModel = remember { ChatViewModel() }) {
                 placeholder = { Text("Tapez votre message...") },
                 maxLines = 3,
                 colors = TextFieldDefaults.textFieldColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent
                 ),
@@ -119,7 +121,7 @@ fun ChatScreen(viewModel: ChatViewModel = remember { ChatViewModel() }) {
                 },
                 enabled = inputText.isNotBlank(),
                 colors = IconButtonDefaults.iconButtonColors(
-                    contentColor = MaterialTheme.colorScheme.primary
+                    contentColor = MaterialTheme.colors.primary
                 )
             ) {
                 Icon(SendIcon, contentDescription = "Envoyer")
