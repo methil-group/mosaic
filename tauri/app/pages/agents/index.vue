@@ -94,11 +94,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, defineAsyncComponent } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import * as LucideIcons from 'lucide-vue-next'
 import { Bot, Plus, Search, Trash2, Cpu, Activity, LayoutGrid, Sparkles } from 'lucide-vue-next'
-import { Vue3Lottie } from 'vue3-lottie'
+
+const Vue3Lottie = defineAsyncComponent(() =>
+  import('vue3-lottie').then(m => m.Vue3Lottie)
+)
 
 const store = useAgentStore()
 const searchQuery = ref('')

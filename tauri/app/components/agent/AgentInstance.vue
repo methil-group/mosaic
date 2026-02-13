@@ -160,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch, computed } from 'vue'
+import { ref, onMounted, nextTick, watch, computed, defineAsyncComponent } from 'vue'
 import { useAgentStore, type AgentEvent } from '~/stores/agent'
 import { useVideoCache } from '~/composables/useVideoCache'
 import { Bot, User, Terminal, Loader2, Sparkles, Trash2, Copy, Check, Settings, ChevronDown, ChevronUp, EyeOff, X, Monitor, Code } from 'lucide-vue-next'
@@ -172,7 +172,9 @@ import MessageProcess from './MessageProcess.vue'
 import TodoDisplay from './TodoDisplay.vue'
 import MarkdownIt from 'markdown-it'
 
-import { Vue3Lottie } from 'vue3-lottie'
+const Vue3Lottie = defineAsyncComponent(() =>
+  import('vue3-lottie').then(m => m.Vue3Lottie)
+)
 
 const props = defineProps<{
     instanceId: string,
