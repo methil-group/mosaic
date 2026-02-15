@@ -15,6 +15,7 @@ import { onMounted } from 'vue'
 const store = useAgentStore()
 
 onMounted(async () => {
+    await store.loadWorkspaces()
     await store.loadAgents()
     await store.fetchProviders()
 })

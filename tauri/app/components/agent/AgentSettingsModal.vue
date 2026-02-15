@@ -116,18 +116,20 @@
 
                                     <div class="grid grid-cols-1 gap-2">
                                         <button v-for="provider in store.availableProviders" :key="provider.id"
-                                            class="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left bg-gray-900 border-gray-900 text-white">
-                                            <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                                                <Globe class="w-4 h-4 text-gray-900" />
+                                            class="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left"
+                                            :class="isProviderActive(provider.id) ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-900 opacity-60 pointer-events-none'">
+                                            <div class="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                                                :class="isProviderActive(provider.id) ? 'bg-white' : 'bg-gray-100'">
+                                                <Globe class="w-4 h-4" :class="isProviderActive(provider.id) ? 'text-gray-900' : 'text-gray-400'" />
                                             </div>
                                             <div class="flex-1">
                                                 <div class="flex items-center justify-between">
                                                     <span class="text-xs font-black uppercase tracking-tight">{{
                                                         provider.name }}</span>
-                                                    <Check class="w-3 h-3" />
+                                                    <Check v-if="isProviderActive(provider.id)" class="w-3 h-3" />
                                                 </div>
                                                 <span
-                                                    class="text-[9px] font-mono opacity-60 uppercase tracking-widest">Active</span>
+                                                    class="text-[9px] font-mono opacity-60 uppercase tracking-widest">{{ isProviderActive(provider.id) ? 'Active' : 'Available' }}</span>
                                             </div>
                                         </button>
                                     </div>
@@ -252,6 +254,13 @@ const closeWorkspaceMenu = () => {
 
 const selectModel = (modelId: string) => {
     store.updateInstanceModel(props.instanceId, modelId)
+}
+
+const isProviderActive = (providerId: string) => {
+    if (!instance.value) return false
+    const provider = store.availableProviders.find(p => p.id === providerId)
+    if (!provider) return false
+    return provider.models.some(m => m.id === instance.value?.currentModel)
 }
 
 watch(() => instance.value?.currentWorkspace, () => {

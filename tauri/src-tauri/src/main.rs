@@ -89,10 +89,23 @@ async fn stop_agent(state: State<'_, Arc<AppState>>, instance_id: String) -> Res
 
 
 #[tauri::command]
-async fn agents_save(state: State<'_, Arc<AppState>>, id: String, name: String, workspace: String, model: String, is_visible: bool, color: Option<String>, icon: Option<String>, description: Option<String>, desktop_id: Option<String>) -> Result<(), String> {
+async fn agents_save(
+    state: State<'_, Arc<AppState>>, 
+    id: String, 
+    name: String, 
+    workspace: String, 
+    model: String, 
+    is_visible: bool, 
+    color: Option<String>, 
+    icon: Option<String>, 
+    description: Option<String>, 
+    desktop_id: Option<String>,
+    video: Option<String>,
+    lottie: Option<String>
+) -> Result<(), String> {
     state.db.save_agent(db::AgentRecord {
         id, name, workspace, model, is_visible, color, icon, description, desktop_id,
-        video: None, lottie: None, created_at: "".to_string()
+        video, lottie, created_at: "".to_string()
     }).await
 }
 

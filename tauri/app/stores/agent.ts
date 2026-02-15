@@ -158,7 +158,9 @@ export const useAgentStore = defineStore('agent', {
         color: agent.color,
         icon: agent.icon,
         description: agent.description,
-        desktop_id: this.activeWorkspaceId
+        desktop_id: this.activeWorkspaceId,
+        video: agent.video,
+        lottie: agent.lottie
       })
 
       return id
@@ -453,6 +455,10 @@ export const useAgentStore = defineStore('agent', {
       try {
         const agents: any = await invoke('get_agents')
 
+        // Clear existing state to avoid duplicates
+        this.instances = {}
+        this.instanceIds = []
+
         for (const agent of agents) {
           // Load messages for each agent
           const messages: any = await invoke('messages_list', { agentId: agent.id })
@@ -487,8 +493,6 @@ export const useAgentStore = defineStore('agent', {
           }
           this.instanceIds.push(agent.id)
         }
-
-        await this.loadWorkspaces()
 
         console.log(`[AgentStore] Loaded ${agents.length} agents from SQLite`)
       } catch (e) {
