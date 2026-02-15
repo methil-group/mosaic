@@ -47,6 +47,7 @@ async fn agent_stream(
         model_id,
         workspace,
         user_name,
+        core::tools::get_default_tools(),
     ));
 
     // 3. Store agent

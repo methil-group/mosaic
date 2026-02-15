@@ -17,7 +17,7 @@ const store = useAgentStore()
 onMounted(async () => {
     await store.loadWorkspaces()
     await store.loadAgents()
-    await store.fetchProviders()
+    store.startProviderPolling()
 })
 </script>
 

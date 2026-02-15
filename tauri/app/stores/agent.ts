@@ -447,8 +447,17 @@ export const useAgentStore = defineStore('agent', {
         const data: any = await invoke('providers_get')
         this.availableProviders = data.providers || []
       } catch (e) {
-        console.error('Failed to fetch providers', e)
+        // Handle silently as this is polled
       }
+    },
+
+    startProviderPolling() {
+      // Fetch immediately
+      this.fetchProviders()
+      // Then every 10 seconds
+      setInterval(() => {
+        this.fetchProviders()
+      }, 10000)
     },
 
     async loadAgents() {

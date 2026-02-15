@@ -129,7 +129,10 @@
                                                     <Check v-if="isProviderActive(provider.id)" class="w-3 h-3" />
                                                 </div>
                                                 <span
-                                                    class="text-[9px] font-mono opacity-60 uppercase tracking-widest">{{ isProviderActive(provider.id) ? 'Active' : 'Available' }}</span>
+                                                    class="text-[9px] font-mono opacity-60 uppercase tracking-widest">{{ 
+                                                        isProviderActive(provider.id) ? 'Active' : 
+                                                        (provider.models.length > 0 ? 'Available' : 'Offline' ) 
+                                                    }}</span>
                                             </div>
                                         </button>
                                     </div>

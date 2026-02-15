@@ -86,10 +86,34 @@ impl Tool for WriteFileTool {
     }
 }
 
+pub struct ManageTodosTool;
+
+#[async_trait]
+impl Tool for ManageTodosTool {
+    fn name(&self) -> String { "manage_todos".to_string() }
+    fn description(&self) -> String { "Update the current progress checklist.".to_string() }
+    fn parameters(&self) -> String {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "checklist": { "type": "string", "description": "The updated checklist in [ ]/[>]/[x] format." }
+            },
+            "required": ["checklist"]
+        }).to_string()
+    }
+
+    async fn execute(&self, params: HashMap<String, String>, _workspace: &str) -> Result<String, String> {
+        let checklist = params.get("checklist").ok_or("Missing checklist parameter")?;
+        // For now, we just return success as the frontend/agent logic handles the event
+        Ok(format!("Checklist updated: {}", checklist))
+    }
+}
+
 pub fn get_default_tools() -> ToolRegistry {
     let mut registry = ToolRegistry::new();
     registry.register(Box::new(ReadFileTool));
     registry.register(Box::new(WriteFileTool));
+    registry.register(Box::new(ManageTodosTool));
     registry
 }
 
