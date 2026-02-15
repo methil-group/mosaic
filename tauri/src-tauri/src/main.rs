@@ -133,8 +133,10 @@ async fn desktops_list(state: State<'_, Arc<AppState>>) -> Result<Vec<db::Deskto
 }
 
 #[tauri::command]
-async fn desktops_save(state: State<'_, Arc<AppState>>, desktop: db::DesktopRecord) -> Result<(), String> {
-    state.db.save_desktop(desktop).await
+async fn desktops_save(state: State<'_, Arc<AppState>>, id: String, name: String, color: Option<String>, path: String) -> Result<(), String> {
+    state.db.save_desktop(db::DesktopRecord {
+        id, name, color, path, created_at: "".to_string()
+    }).await
 }
 
 #[tauri::command]
@@ -192,7 +194,6 @@ async fn list_directories(app: AppHandle, path: String) -> Result<serde_json::Va
     let dirs = framework::fs::FileSystemService::list_directories(&resolved_path)?;
     Ok(serde_json::json!({ "directories": dirs }))
 }
-
 #[tauri::command]
 async fn fetch_files(app: AppHandle, path: String) -> Result<serde_json::Value, String> {
     let resolved_path = if path == "~" || path.starts_with("~/") {
@@ -208,6 +209,42 @@ async fn fetch_files(app: AppHandle, path: String) -> Result<serde_json::Value, 
 
     let files = framework::fs::FileSystemService::list_files(&resolved_path)?;
     Ok(serde_json::json!({ "files": files }))
+}
+
+#[tauri::command]
+async fn create_directory(app: AppHandle, path: String, name: String) -> Result<(), String> {
+    let resolved_path = if path == "~" || path.starts_with("~/") {
+        let home = app.path().home_dir().map_err(|e| e.to_string())?;
+        if path == "~" {
+            home.to_string_lossy().to_string()
+        } else {
+            home.join(&path[2..]).to_string_lossy().to_string()
+        }
+    } else {
+        path
+    };
+
+    framework::fs::FileSystemService::create_directory(&resolved_path, &name)
+}
+
+#[tauri::command]
+async fn app_reset_data(app: AppHandle, state: State<'_, Arc<AppState>>) -> Result<(), String> {
+    let app_dir = app.path().app_data_dir()
+        .unwrap_or_else(|_| std::env::current_dir().unwrap());
+    
+    let db_path = app_dir.join("mosaic.sqlite");
+    
+    // 1. Close the database connection
+    // Note: Since the pool is in the state and shared, we might need a way to close it
+    // For now, let's just delete the file if possible, or clear tables
+    
+    // Safer approach: Clear all tables
+    state.db.reset_database().await?;
+    
+    // Relaunch the app
+    app.restart();
+    
+    Ok(())
 }
 fn main() {
     tauri::Builder::default()
@@ -266,7 +303,9 @@ fn main() {
             settings_set,
             providers_get,
             list_directories,
-            fetch_files
+            fetch_files,
+            create_directory,
+            app_reset_data
         ])
 
 

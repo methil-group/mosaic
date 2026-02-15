@@ -286,9 +286,7 @@ export const useAgentStore = defineStore('agent', {
           instance.abortController.abort()
         }
 
-        if ((window as any).api) {
-          await invoke('stop_agent', { instanceId })
-        }
+        await invoke('stop_agent', { instanceId })
 
         instance.isStoppedManually = true
         instance.isProcessing = false
@@ -390,7 +388,12 @@ export const useAgentStore = defineStore('agent', {
         this.workspaceIds = [...this.workspaceIds, workspace.id]
       }
 
-      await invoke('desktops_save', { desktop: workspace })
+      await invoke('desktops_save', {
+        id: workspace.id,
+        name: workspace.name,
+        color: workspace.color,
+        path: workspace.path
+      })
     },
 
     async removeWorkspace(id: string) {
