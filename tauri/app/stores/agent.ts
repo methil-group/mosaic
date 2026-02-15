@@ -118,14 +118,14 @@ export const useAgentStore = defineStore('agent', {
       const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
         ? crypto.randomUUID()
         : Math.random().toString(36).substring(7)
-      
+
       // Filter for agents with Lottie animations
       const lottieAgents = COMPONENTS.filter(a => !!a.lottie)
       const pool = lottieAgents.length > 0 ? lottieAgents : COMPONENTS
 
       const agent = pool[Math.floor(Math.random() * pool.length)]
       if (!agent) return
-      
+
       const name = agent.name
       this.instances[id] = {
         id,
@@ -147,7 +147,7 @@ export const useAgentStore = defineStore('agent', {
         workspaceId: this.activeWorkspaceId as string
       }
       this.instanceIds.push(id)
-      
+
       // Persist to SQLite
       await invoke('agents_save', {
         id,
@@ -160,14 +160,14 @@ export const useAgentStore = defineStore('agent', {
         description: agent.description,
         desktop_id: this.activeWorkspaceId
       })
-      
+
       return id
     },
 
     async removeInstance(id: string) {
       delete this.instances[id]
       this.instanceIds = this.instanceIds.filter(i => i !== id)
-      
+
       // Delete from SQLite
       await invoke('agents_delete', { id })
     },
@@ -176,7 +176,7 @@ export const useAgentStore = defineStore('agent', {
       const instance = this.instances[id]
       if (instance) {
         instance.isVisible = !instance.isVisible
-        
+
         // Update in SQLite
         await invoke('agents_update_visibility', { id, isVisible: instance.isVisible })
       }
@@ -194,7 +194,7 @@ export const useAgentStore = defineStore('agent', {
       instance.isProcessing = true
       const userMessage: Message = { role: 'user', content: prompt }
       instance.messages.push(userMessage)
-      
+
       // Persist user message to SQLite
       const result: any = await invoke('messages_add', {
         agentId: instanceId,
@@ -211,7 +211,7 @@ export const useAgentStore = defineStore('agent', {
         model: instance.currentModel
       }
       instance.messages.push(assistantMessage)
-      
+
       // Persist assistant message placeholder to SQLite
       const assistResult: any = await invoke('messages_add', {
         agentId: instanceId,
@@ -223,7 +223,7 @@ export const useAgentStore = defineStore('agent', {
 
       try {
         const userStore = useUserStore()
-        
+
         // Listen for agent events
         const unlisten = await listen('agent-event', (event: any) => {
           const { instanceId: evtInstanceId, event: agentEvent } = event.payload;
@@ -240,9 +240,9 @@ export const useAgentStore = defineStore('agent', {
           workspace: instance.currentWorkspace,
           modelId: instance.currentModel,
           userName: userStore.userName || 'User',
-          history: instance.messages.slice(0, -2).map(m => ({ 
-            role: m.role, 
-            content: m.content 
+          history: instance.messages.slice(0, -2).map(m => ({
+            role: m.role,
+            content: m.content
           })),
           persona: instance.persona
         })
@@ -255,7 +255,7 @@ export const useAgentStore = defineStore('agent', {
         instance.isProcessing = false
         assistantMessage.isStreaming = false
         instance.abortController = null
-        
+
         // Update assistant message in SQLite with final content and events
         if (assistantMessage.id) {
           // Add a user-friendly indicator if stopped
@@ -285,11 +285,11 @@ export const useAgentStore = defineStore('agent', {
         if (instance.abortController) {
           instance.abortController.abort()
         }
-        
+
         if ((window as any).api) {
-        await invoke('stop_agent', { instanceId })
+          await invoke('stop_agent', { instanceId })
         }
-        
+
         instance.isStoppedManually = true
         instance.isProcessing = false
         instance.abortController = null
@@ -328,7 +328,7 @@ export const useAgentStore = defineStore('agent', {
     async clearMemory(instanceId: string) {
       if (this.instances[instanceId]) {
         this.instances[instanceId].messages = []
-        
+
         // Clear messages in SQLite
         await invoke('messages_clear_for_agent', { instanceId })
       }
@@ -338,7 +338,6 @@ export const useAgentStore = defineStore('agent', {
       try {
         const data: any = await invoke('list_directories', { path })
         return data.directories || []
-        return []
       } catch (e) {
         console.error('Failed to list directories', e)
         return []
@@ -347,13 +346,12 @@ export const useAgentStore = defineStore('agent', {
 
     async fetchFiles(path: string): Promise<string[]> {
       if (this.filesCache[path]) return this.filesCache[path]
-      
+
       try {
         const data: any = await invoke('fetch_files', { path })
         const files = data.files || []
         this.filesCache[path] = files
         return files
-        return []
       } catch (e) {
         console.error('Failed to fetch files', e)
         return []
@@ -365,7 +363,7 @@ export const useAgentStore = defineStore('agent', {
         this.instances[instanceId].currentModel = modelId
       }
     },
-    
+
     // Workspace Actions
     async loadWorkspaces() {
       try {
@@ -387,11 +385,11 @@ export const useAgentStore = defineStore('agent', {
     async saveWorkspace(workspace: Workspace) {
       console.log('[AgentStore] Saving workspace:', workspace)
       this.workspaces = { ...this.workspaces, [workspace.id]: workspace }
-      
+
       if (!this.workspaceIds.includes(workspace.id)) {
-        this.workspaceIds.push(workspace.id)
+        this.workspaceIds = [...this.workspaceIds, workspace.id]
       }
-      
+
       await invoke('desktops_save', { desktop: workspace })
     },
 
@@ -451,11 +449,11 @@ export const useAgentStore = defineStore('agent', {
     async loadAgents() {
       try {
         const agents: any = await invoke('get_agents')
-        
+
         for (const agent of agents) {
           // Load messages for each agent
           const messages: any = await invoke('messages_list', { agentId: agent.id })
-          
+
           // Try to find matching config for persona/icon if not in DB
           const config = COMPONENTS.find(a => a.name === agent.name)
 
@@ -486,9 +484,9 @@ export const useAgentStore = defineStore('agent', {
           }
           this.instanceIds.push(agent.id)
         }
-          
+
         await this.loadWorkspaces()
-        
+
         console.log(`[AgentStore] Loaded ${agents.length} agents from SQLite`)
       } catch (e) {
         console.error('Failed to load agents from SQLite', e)
@@ -498,11 +496,11 @@ export const useAgentStore = defineStore('agent', {
     async updateInstance(instanceId: string, updates: Partial<{ name: string; workspace: string; model: string }>) {
       const instance = this.instances[instanceId]
       if (!instance) return
-      
+
       if (updates.name !== undefined) instance.name = updates.name
       if (updates.workspace !== undefined) instance.currentWorkspace = updates.workspace
       if (updates.model !== undefined) instance.currentModel = updates.model
-      
+
       // Persist to SQLite
       await invoke('agents_save', {
         id: instanceId,

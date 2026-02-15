@@ -177,14 +177,36 @@ async fn providers_get(state: State<'_, Arc<AppState>>) -> Result<serde_json::Va
 }
 
 #[tauri::command]
-async fn list_directories(path: String) -> Result<serde_json::Value, String> {
-    let dirs = framework::fs::FileSystemService::list_directories(&path)?;
+async fn list_directories(app: AppHandle, path: String) -> Result<serde_json::Value, String> {
+    let resolved_path = if path == "~" || path.starts_with("~/") {
+        let home = app.path().home_dir().map_err(|e| e.to_string())?;
+        if path == "~" {
+            home.to_string_lossy().to_string()
+        } else {
+            home.join(&path[2..]).to_string_lossy().to_string()
+        }
+    } else {
+        path
+    };
+
+    let dirs = framework::fs::FileSystemService::list_directories(&resolved_path)?;
     Ok(serde_json::json!({ "directories": dirs }))
 }
 
 #[tauri::command]
-async fn fetch_files(path: String) -> Result<serde_json::Value, String> {
-    let files = framework::fs::FileSystemService::list_files(&path)?;
+async fn fetch_files(app: AppHandle, path: String) -> Result<serde_json::Value, String> {
+    let resolved_path = if path == "~" || path.starts_with("~/") {
+        let home = app.path().home_dir().map_err(|e| e.to_string())?;
+        if path == "~" {
+            home.to_string_lossy().to_string()
+        } else {
+            home.join(&path[2..]).to_string_lossy().to_string()
+        }
+    } else {
+        path
+    };
+
+    let files = framework::fs::FileSystemService::list_files(&resolved_path)?;
     Ok(serde_json::json!({ "files": files }))
 }
 fn main() {
