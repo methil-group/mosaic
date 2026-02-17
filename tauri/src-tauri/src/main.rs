@@ -260,6 +260,25 @@ async fn app_reset_data(app: AppHandle, state: State<'_, Arc<AppState>>) -> Resu
     
     Ok(())
 }
+
+fn get_wsl_host_ip() -> Option<String> {
+    // Detection for WSL environment
+    if std::path::Path::new("/proc/sys/fs/binfmt_misc/WSLInterop").exists() || std::env::var("WSL_DISTRO_NAME").is_ok() {
+        // Try to get the host IP from /etc/resolv.conf
+        if let Ok(content) = std::fs::read_to_string("/etc/resolv.conf") {
+            for line in content.lines() {
+                if line.starts_with("nameserver") {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() > 1 {
+                        return Some(parts[1].to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -290,7 +309,17 @@ fn main() {
                 // Providers
                 let api_key = db.get_setting("openrouter_api_key").await.unwrap_or(None).unwrap_or_default();
                 let llm = Arc::new(llm::openrouter::OpenRouter::new(api_key));
-                let lm_studio = Arc::new(llm::lmstudio::LMStudio::new());
+                
+                let lm_studio_base_url = db.get_setting("lm_studio_base_url").await.unwrap_or(None);
+                let base_url = match lm_studio_base_url {
+                    Some(url) if !url.is_empty() => Some(url),
+                    _ => {
+                        // Fallback: Check if we are in WSL and try to find the host IP
+                        get_wsl_host_ip().map(|ip| format!("http://{}:1234/v1", ip))
+                    }
+                };
+                
+                let lm_studio = Arc::new(llm::lmstudio::LMStudio::new(base_url));
                 
                 let state = Arc::new(AppState::new(db, tools, llm, lm_studio));
                 app_handle.manage(state);
