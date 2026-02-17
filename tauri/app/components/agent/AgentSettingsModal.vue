@@ -116,21 +116,56 @@
 
                                     <div class="grid grid-cols-1 gap-2">
                                         <button v-for="provider in store.availableProviders" :key="provider.id"
-                                            class="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left bg-gray-900 border-gray-900 text-white">
-                                            <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                                                <Globe class="w-4 h-4 text-gray-900" />
+                                            class="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left"
+                                            :class="isProviderActive(provider.id) ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-900 opacity-60 pointer-events-none'">
+                                            <div class="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                                                :class="isProviderActive(provider.id) ? 'bg-white' : 'bg-gray-100'">
+                                                <Globe class="w-4 h-4" :class="isProviderActive(provider.id) ? 'text-gray-900' : 'text-gray-400'" />
                                             </div>
                                             <div class="flex-1">
                                                 <div class="flex items-center justify-between">
                                                     <span class="text-xs font-black uppercase tracking-tight">{{
                                                         provider.name }}</span>
-                                                    <Check class="w-3 h-3" />
+                                                    <Check v-if="isProviderActive(provider.id)" class="w-3 h-3" />
                                                 </div>
                                                 <span
-                                                    class="text-[9px] font-mono opacity-60 uppercase tracking-widest">Active</span>
+                                                    class="text-[9px] font-mono opacity-60 uppercase tracking-widest">{{ 
+                                                        isProviderActive(provider.id) ? 'Active' : 
+                                                        (provider.models.length > 0 ? 'Available' : 'Offline' ) 
+                                                    }}</span>
                                             </div>
                                         </button>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Provider-specific Settings Section (New) -->
+                        <div class="px-6 py-4 border-t border-gray-100 bg-white shrink-0">
+                            <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">
+                                Provider Settings</h3>
+                            <div class="grid grid-cols-1 gap-4">
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <label class="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">
+                                            LM Studio Base URL (WSL/Remote)
+                                        </label>
+                                        <span v-if="isWslDetected" class="text-[9px] font-bold text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">
+                                            WSL Detected
+                                        </span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <input v-model="lmStudioUrl"
+                                            class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono text-gray-900 focus:ring-4 focus:ring-gray-100 focus:border-gray-400 transition-all outline-none"
+                                            placeholder="http://localhost:1234/v1" />
+                                        <button @click="saveLmStudioUrl"
+                                            class="px-4 py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all active:scale-95">
+                                            Save
+                                        </button>
+                                    </div>
+                                    <p class="text-[9px] text-gray-400 ml-1">
+                                        Restart app after changing this value. Default is http://localhost:1234/v1.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -149,9 +184,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import { Settings, X, Folder, Check, Globe } from 'lucide-vue-next'
+
+const store = useAgentStore()
+const lmStudioUrl = ref('')
+const isWslDetected = ref(false)
+
+onMounted(async () => {
+    lmStudioUrl.value = await store.getSetting('lm_studio_base_url') || ''
+})
+
+const saveLmStudioUrl = async () => {
+    await store.setSetting('lm_studio_base_url', lmStudioUrl.value)
+}
 
 const props = defineProps<{
     instanceId: string
@@ -162,7 +209,6 @@ const emit = defineEmits<{
     (e: 'update:modelValue', value: boolean): void
 }>()
 
-const store = useAgentStore()
 const instance = computed(() => store.instances[props.instanceId])
 
 const workspaceSuggestions = ref<string[]>([])
@@ -252,6 +298,13 @@ const closeWorkspaceMenu = () => {
 
 const selectModel = (modelId: string) => {
     store.updateInstanceModel(props.instanceId, modelId)
+}
+
+const isProviderActive = (providerId: string) => {
+    if (!instance.value) return false
+    const provider = store.availableProviders.find(p => p.id === providerId)
+    if (!provider) return false
+    return provider.models.some(m => m.id === instance.value?.currentModel)
 }
 
 watch(() => instance.value?.currentWorkspace, () => {

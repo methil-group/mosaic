@@ -301,6 +301,19 @@ impl DbService {
             .execute(&self.pool)
             .await
             .map_err(|e| e.to_string())?;
+        sqlx::query("PRAGMA journal_mode = WAL").execute(&self.pool).await.map_err(|e| e.to_string())?;
+        sqlx::query("PRAGMA synchronous = NORMAL").execute(&self.pool).await.map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
+
+    pub async fn reset_database(&self) -> Result<(), String> {
+        sqlx::query("DROP TABLE IF EXISTS messages").execute(&self.pool).await.map_err(|e| e.to_string())?;
+        sqlx::query("DROP TABLE IF EXISTS desktops").execute(&self.pool).await.map_err(|e| e.to_string())?;
+        sqlx::query("DROP TABLE IF EXISTS agents").execute(&self.pool).await.map_err(|e| e.to_string())?;
+        sqlx::query("DROP TABLE IF EXISTS settings").execute(&self.pool).await.map_err(|e| e.to_string())?;
+        
+        self.init().await?;
         Ok(())
     }
 }

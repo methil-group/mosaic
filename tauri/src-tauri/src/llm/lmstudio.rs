@@ -12,9 +12,9 @@ pub struct LMStudio {
 }
 
 impl LMStudio {
-    pub fn new() -> Self {
+    pub fn new(base_url: Option<String>) -> Self {
         Self {
-            base_url: "http://localhost:1234/v1".to_string(),
+            base_url: base_url.unwrap_or_else(|| "http://localhost:1234/v1".to_string()),
             client: Client::new(),
         }
     }

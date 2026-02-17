@@ -10,7 +10,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "tauri:dev": "npm run generate && npx tauri dev",
-    "tauri:build": "npm run generate && npx tauri build"
+    "tauri:build": "npm run generate && npx tauri build",
+    "tauri:build:select": "node scripts/build.js"
   },
   "dependencies": {
     "@nuxtjs/tailwindcss": "^6.14.0",

@@ -139,6 +139,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import { Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Home, ArrowUp, RefreshCw, X, AlertCircle } from 'lucide-vue-next'
+import { invoke } from '@tauri-apps/api/core'
 
 const props = defineProps<{
     instanceId?: string,
@@ -255,16 +256,15 @@ const handleCreateFolder = async () => {
     if (!newFolderName.value) return
     
     try {
-        if ((window as any).api?.createDirectory) {
-            await (window as any).api.createDirectory(currentPath.value, newFolderName.value)
-            await loadDirectories(currentPath.value)
-            isCreatingFolder.value = false
-            newFolderName.value = ''
-        } else {
-            throw new Error('API not available')
-        }
+        await invoke('create_directory', { 
+            path: currentPath.value, 
+            name: newFolderName.value 
+        })
+        await loadDirectories(currentPath.value)
+        isCreatingFolder.value = false
+        newFolderName.value = ''
     } catch (e: any) {
-        error.value = `Erreur: ${e.message}`
+        error.value = `Erreur: ${e}`
         console.error(e)
     }
 }

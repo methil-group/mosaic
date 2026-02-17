@@ -1,6 +1,9 @@
 use crate::llm::{LlmProvider, Message, LlmEvent};
+use crate::core::tools::{ToolRegistry, Tool};
+use crate::core::prompt::PromptBuilder;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::collections::HashMap;
 use tokio::sync::Mutex;
 use futures_util::StreamExt;
 
@@ -22,6 +25,7 @@ pub struct Agent {
     user_name: String,
     messages: Mutex<Vec<Message>>,
     stopped: Mutex<bool>,
+    tools: ToolRegistry,
 }
 
 impl Agent {
@@ -30,6 +34,7 @@ impl Agent {
         model: String,
         workspace: String,
         user_name: String,
+        tools: ToolRegistry,
     ) -> Self {
         Self {
             llm,
@@ -38,6 +43,7 @@ impl Agent {
             user_name,
             messages: Mutex::new(Vec::new()),
             stopped: Mutex::new(false),
+            tools,
         }
     }
 
@@ -50,11 +56,16 @@ impl Agent {
         &self,
         user_prompt: String,
         history: Vec<Message>,
-        _persona: Option<String>,
+        persona: Option<String>,
         on_event: impl Fn(AgentEvent) + Send + Sync + 'static,
     ) -> Result<(), String> {
-        // Build prompts (simulated for now, would use PromptBuilder port)
-        let system_prompt = format!("You are an AI assistant in workspace {}. User is {}.", self.workspace, self.user_name);
+        // Build prompts using PromptBuilder
+        let system_prompt = PromptBuilder::create_system_prompt(
+            self.tools.get_tools(),
+            &self.workspace,
+            &self.user_name,
+            persona
+        );
         
         {
             let mut msgs = self.messages.lock().await;
@@ -107,18 +118,19 @@ impl Agent {
                 }
             }
 
-            // Parse tool call (simpler XML parsing for now)
-            if let Some(tool_call) = self.parse_tool_call(&full_text) {
-                let name = tool_call.0;
-                let params = tool_call.1;
-                
+            // Parse tool call
+            if let Some((name, params)) = self.parse_tool_call(&full_text) {
                 on_event(AgentEvent::ToolStarted { 
                     name: name.clone(), 
-                    parameters: params.clone() 
+                    parameters: serde_json::to_string(&params).unwrap_or_default()
                 });
 
-                // Tool Execution (TODO: Port Tools logic)
-                let result = format!("Tool {} execution simulated", name);
+                // Tool Execution
+                let result = if let Some(tool) = self.tools.find(&name) {
+                    tool.execute(params, &self.workspace).await.unwrap_or_else(|e| format!("Error: {}", e))
+                } else {
+                    format!("Error: Tool '{}' not found", name)
+                };
                 
                 on_event(AgentEvent::ToolFinished { 
                     name: name.clone(), 
@@ -128,7 +140,9 @@ impl Agent {
                 {
                     let mut msgs = self.messages.lock().await;
                     msgs.push(Message { role: "assistant".to_string(), content: full_text });
-                    msgs.push(Message { role: "user".to_string(), content: format!("Tool result for {}: {}", name, result) });
+                    
+                    let result_msg = PromptBuilder::format_tool_result(&name, &result);
+                    msgs.push(Message { role: "user".to_string(), content: result_msg });
                 }
             } else {
                 on_event(AgentEvent::FinalAnswer { data: full_text.clone() });
@@ -139,7 +153,7 @@ impl Agent {
         Ok(())
     }
 
-    fn parse_tool_call(&self, content: &str) -> Option<(String, String)> {
+    fn parse_tool_call(&self, content: &str) -> Option<(String, HashMap<String, String>)> {
         // Quick and dirty XML parse logic to match TS implementation
         if let Some(start) = content.find("<tool_call>") {
             if let Some(end) = content.find("</tool_call>") {
@@ -147,14 +161,28 @@ impl Agent {
                 let name = if let Some(n_start) = inner.find("<name>") {
                     if let Some(n_end) = inner.find("</name>") {
                         inner[n_start + 6..n_end].trim().to_string()
-                    } else { "unknown".to_string() }
-                } else { "unknown".to_string() };
+                    } else { return None; }
+                } else { return None; };
                 
-                let params = if let Some(p_start) = inner.find("<parameters>") {
+                let mut params = HashMap::new();
+                if let Some(p_start) = inner.find("<parameters>") {
                     if let Some(p_end) = inner.find("</parameters>") {
-                        inner[p_start + 12..p_end].trim().to_string()
-                    } else { "".to_string() }
-                } else { "".to_string() };
+                        let p_inner = &inner[p_start + 12..p_end];
+                        // Extremely simple tag parsing for parameters
+                        let mut current = p_inner;
+                        while let Some(tag_start) = current.find('<') {
+                            if let Some(tag_end) = current[tag_start..].find('>') {
+                                let tag_name = &current[tag_start + 1..tag_start + tag_end];
+                                let close_tag = format!("</{}>", tag_name);
+                                if let Some(val_end) = current.find(&close_tag) {
+                                    let val = &current[tag_start + tag_end + 1..val_end];
+                                    params.insert(tag_name.to_string(), val.trim().to_string());
+                                    current = &current[val_end + close_tag.len()..];
+                                } else { break; }
+                            } else { break; }
+                        }
+                    }
+                }
                 
                 return Some((name, params));
             }

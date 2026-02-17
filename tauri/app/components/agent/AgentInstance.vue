@@ -92,63 +92,13 @@
                         <p class="text-[9px] uppercase font-bold tracking-widest text-center">System Idle<br />{{
                             instance.currentWorkspace }}</p>
                     </div>
-                    <div v-for="(msg, idx) in instance.messages" :key="idx"
-                        :class="msg.role === 'user' ? 'flex flex-col items-end' : 'flex flex-col items-start'">
-                        <div class="flex items-center gap-1.5 mb-1.5 px-1">
-                            <span class="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{{ msg.role ===
-                                'user' ? 'User' : instance.name }}</span>
-                        </div>
-                        <div class="px-4 py-2.5 rounded-2xl text-[12px] leading-relaxed relative"
-                            :class="msg.role === 'user' ? 'bg-gray-900 text-white' : 'bg-gray-50 border border-gray-100 text-gray-900'">
-
-
-                            <!-- New Process Pane (Thoughts + Tools) -->
-                            <MessageProcess v-if="getMessageParts(msg).processItems.length > 0"
-                                :items="getMessageParts(msg).processItems"
-                                :is-running="instance.isProcessing && idx === instance.messages.length - 1" />
-
-                            <!-- Todo / Checklist Display -->
-                            <TodoDisplay v-if="getMessageParts(msg).checklist"
-                                :result="getMessageParts(msg).checklist" />
-
-                            <!-- Final Content -->
-                            <div class="markdown-content"
-                                v-html="formatCleanContent(getMessageParts(msg).finalContent)"></div>
-
-                            <!-- Processing Indicator (Dot Pulse) -->
-                            <div v-if="instance.isProcessing && idx === instance.messages.length - 1 && !getMessageParts(msg).finalContent"
-                                class="py-2 px-1">
-                                <div class="flex gap-1">
-                                    <div
-                                        class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]">
-                                    </div>
-                                    <div
-                                        class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]">
-                                    </div>
-                                    <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                                </div>
-                            </div>
-
-                            <!-- Metrics Footer -->
-                            <div v-if="msg.usage"
-                                class="mt-2 flex justify-end items-center gap-3 border-t border-gray-100/50 pt-2 opacity-60 hover:opacity-100 transition-opacity">
-                                <div class="flex items-center gap-1">
-                                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">In</span>
-                                    <span class="text-[9px] font-mono text-gray-500">{{ msg.usage.prompt_tokens
-                                        }}</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Out</span>
-                                    <span class="text-[9px] font-mono text-gray-500">{{ msg.usage.completion_tokens
-                                        }}</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span
-                                        class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Total</span>
-                                    <span class="text-[9px] font-mono text-blue-500">{{ msg.usage.total_tokens }}</span>
-                                </div>
-                            </div>
-                        </div>
+                    <div v-for="(msg, idx) in instance.messages" :key="idx">
+                        <ChatMessage 
+                            :message="msg" 
+                            :agent-name="instance.name"
+                            :is-processing="instance.isProcessing"
+                            :is-last-message="idx === instance.messages.length - 1"
+                        />
                     </div>
                 </main>
                 <div class="input-container p-4 border-t border-gray-100">
@@ -160,19 +110,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch, computed } from 'vue'
+import { ref, onMounted, nextTick, watch, computed, defineAsyncComponent } from 'vue'
 import { useAgentStore, type AgentEvent } from '~/stores/agent'
 import { useVideoCache } from '~/composables/useVideoCache'
 import { Bot, User, Terminal, Loader2, Sparkles, Trash2, Copy, Check, Settings, ChevronDown, ChevronUp, EyeOff, X, Monitor, Code } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import AgentInput from './AgentInput.vue'
 import AgentSettingsModal from './AgentSettingsModal.vue'
+import ChatMessage from './ChatMessage.vue'
 import FileExplorer from './FileExplorer.vue'
-import MessageProcess from './MessageProcess.vue'
-import TodoDisplay from './TodoDisplay.vue'
-import MarkdownIt from 'markdown-it'
 
-import { Vue3Lottie } from 'vue3-lottie'
+const Vue3Lottie = defineAsyncComponent(() =>
+  import('vue3-lottie').then(m => m.Vue3Lottie)
+)
 
 const props = defineProps<{
     instanceId: string,
@@ -230,75 +180,6 @@ const getIconComponent = (iconName?: string) => {
     return (LucideIcons as any)[name] || Sparkles
 }
 
-import hljs from 'highlight.js/lib/core';
-import javascript from 'highlight.js/lib/languages/javascript';
-import typescript from 'highlight.js/lib/languages/typescript';
-import python from 'highlight.js/lib/languages/python';
-import bash from 'highlight.js/lib/languages/bash';
-import json from 'highlight.js/lib/languages/json';
-import xml from 'highlight.js/lib/languages/xml';
-import css from 'highlight.js/lib/languages/css';
-import sql from 'highlight.js/lib/languages/sql';
-import java from 'highlight.js/lib/languages/java';
-import kotlin from 'highlight.js/lib/languages/kotlin';
-import swift from 'highlight.js/lib/languages/swift';
-
-hljs.registerLanguage('javascript', javascript);
-hljs.registerLanguage('typescript', typescript);
-hljs.registerLanguage('python', python);
-hljs.registerLanguage('bash', bash);
-hljs.registerLanguage('json', json);
-hljs.registerLanguage('html', xml);
-hljs.registerLanguage('xml', xml);
-hljs.registerLanguage('css', css);
-hljs.registerLanguage('sql', sql);
-hljs.registerLanguage('java', java);
-hljs.registerLanguage('kotlin', kotlin);
-hljs.registerLanguage('swift', swift);
-
-const md = new MarkdownIt({
-    html: true,
-    linkify: true,
-    typographer: true,
-    breaks: true,
-})
-
-md.set({
-    highlight: function (str, lang) {
-        if (lang && hljs.getLanguage(lang)) {
-            try {
-                return hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
-            } catch (__) { }
-        }
-        return md.utils.escapeHtml(str);
-    }
-})
-
-md.renderer.rules.fence = function (tokens, idx, options, env, self) {
-    const token = tokens[idx];
-    if (!token) return '';
-    const info = token.info ? md.utils.unescapeAll(token.info).trim() : '';
-    const langName = info.split(/\s+/g)[0] || '';
-
-    let highlighted;
-    if (options.highlight) {
-        highlighted = options.highlight(token.content, langName, '') || md.utils.escapeHtml(token.content);
-    } else {
-        highlighted = md.utils.escapeHtml(token.content);
-    }
-
-    return `<div class="code-window">
-        <div class="code-header">
-            <div class="window-controls">
-                <span class="dot red"></span>
-                <span class="dot yellow"></span>
-                <span class="dot green"></span>
-            </div>
-            <span class="lang-label">${langName || 'text'}</span>
-        </div>
-        <pre class="hljs"><code>${highlighted}</code></pre>
-    </div>`;
-};
 
 onMounted(() => {
     scrollToBottom()
@@ -321,164 +202,6 @@ onMounted(() => {
         ro.observe(panelRef.value)
     }
 })
-
-const formatContent = (content: string) => {
-    if (!content) return '';
-    let cleaned = content
-        .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
-        .replace(/<tool_call>[\s\S]*$/g, '')
-        .replace(/<\/tool_call>/g, '')
-        .replace(/<tool_result>[\s\S]*?<\/tool_result>/g, '')
-        .replace(/<tool_result>[\s\S]*$/g, '');
-    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
-    return md.render(cleaned);
-}
-
-const formatCleanContent = (content: string) => {
-    if (!content) return '';
-    return md.render(content
-        .replace(/\[Error: Tool error:[\s\S]*?\]/g, '') // Remove tool error messages
-        .trim());
-}
-
-const getMessageParts = (msg: any) => {
-    const content = msg.content || '';
-    const events = msg.events || [];
-
-    // 1. Extract Checklists
-    let checklist = '';
-    let cleanContent = content;
-
-    // Pattern 1: JSON checklist in content
-    const jsonMatch = cleanContent.match(/\{"checklist":\s*"([\s\S]*?)"\}/);
-    if (jsonMatch) {
-        checklist = jsonMatch[1]; // The inner string
-        cleanContent = cleanContent.replace(jsonMatch[0], '');
-    }
-
-    // Pattern 2: manage_todos tool call
-    // We reverse the events to get the LAST/LATEST checklist update
-    const todoEvent = [...events].reverse().find((e: any) => e.type === 'tool_started' && e.name === 'manage_todos');
-    if (todoEvent && (todoEvent as any).parameters) {
-        try {
-            // Check if parameters is a string JSON or object
-            let params = (todoEvent as any).parameters;
-            if (typeof params === 'string') {
-                params = JSON.parse(params);
-            }
-            if (params.checklist) {
-                checklist = params.checklist;
-            }
-        } catch (e) {
-            console.warn('Failed to parse manage_todos params', e);
-        }
-    }
-
-    // 2. Split Process vs Final
-    const processItems: any[] = [];
-    let finalContent = cleanContent;
-
-    if (hasTools(events, cleanContent)) {
-        // Find all tool calls in the content
-        // We use a regex that matches the opening and closing tag, capturing the content around them
-        const parts = cleanContent.split(/(<tool_call>[\s\S]*?<\/tool_call>)/g);
-
-        // Find the index of the LAST tool call part.
-        let lastToolIndex = -1;
-        for (let i = parts.length - 1; i >= 0; i--) {
-            if (parts[i].includes('<tool_call>')) {
-                lastToolIndex = i;
-                break;
-            }
-        }
-
-        if (lastToolIndex !== -1) {
-            let toolCount = 0;
-
-            for (let i = 0; i <= lastToolIndex; i++) {
-                const part = parts[i];
-                if (!part.trim()) continue;
-
-                if (part.includes('<tool_call>')) {
-                    // Try to match with event
-                    const toolEvents = events.filter((e: any) => e.type === 'tool_started');
-                    const event: any = toolEvents[toolCount];
-                    toolCount++;
-
-                    const item: any = {
-                        type: 'tool',
-                        name: 'Unknown Tool',
-                        params: '',
-                        status: 'running',
-                        result: null
-                    };
-
-                    if (event) {
-                        item.name = event.name || 'Tool';
-                        item.params = event.parameters || '';
-
-                        // Find result
-                        const evtIdx = events.indexOf(event);
-                        const result = findResult(events, event.name, evtIdx);
-                        if (result) {
-                            item.status = 'done';
-                            item.result = result;
-                        }
-                    } else {
-                        // Fallback using regex on XML if event not found yet
-                        const nameMatch = part.match(/"name":\s*"([^"]*)"/);
-                        if (nameMatch) item.name = nameMatch[1];
-                        item.params = part.replace(/<\/?tool_call>/g, '');
-                    }
-
-                    if (item.name !== 'manage_todos') {
-                        processItems.push(item);
-                    }
-                } else {
-                    // It's text (thought)
-                    // Remove tool_result tags from thoughts if any
-                    const text = part.replace(/<tool_result>[\s\S]*?<\/tool_result>/g, '').trim();
-                    if (text) {
-                        processItems.push({ type: 'text', content: text });
-                    }
-                }
-            }
-
-            // The remainder is everything after.
-            finalContent = parts.slice(lastToolIndex + 1).join('').trim();
-        }
-    }
-
-    // Clean final content of artifacts
-    finalContent = finalContent
-        .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
-        .replace(/<tool_result>[\s\S]*?<\/tool_result>/g, '')
-        .replace(/<\/tool_call>/g, '') // Cleanup stray tags
-        .trim();
-
-    return { processItems, checklist, finalContent };
-}
-
-const copyToClipboard = async (text: string, idx: number) => {
-    const cleaned = text
-        .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
-        .replace(/<tool_result>[\s\S]*?<\/tool_result>/g, '')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-
-    await navigator.clipboard.writeText(cleaned);
-    copiedIdx.value = idx;
-    setTimeout(() => {
-        if (copiedIdx.value === idx) copiedIdx.value = null;
-    }, 2000);
-}
-
-const toggleActions = (key: string) => { expandedActions.value[key] = !expandedActions.value[key] }
-const toggleRaw = (idx: number) => { showRaw.value[idx] = !showRaw.value[idx] }
-
-const hasTools = (events: AgentEvent[], content: string = '') => {
-    return events.some(e => e.type === 'tool_started' || e.type === 'tool_finished') || content.includes('<tool_call>');
-}
 
 const findResult = (events: AgentEvent[], toolName: string, startIndex: number) => {
     for (let i = startIndex + 1; i < events.length; i++) {
