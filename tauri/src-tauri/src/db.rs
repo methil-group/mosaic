@@ -8,6 +8,7 @@ pub struct AgentRecord {
     pub name: String,
     pub workspace: String,
     pub model: String,
+    pub provider: String,
     pub is_visible: bool,
     pub color: Option<String>,
     pub icon: Option<String>,
@@ -15,6 +16,7 @@ pub struct AgentRecord {
     pub video: Option<String>,
     pub lottie: Option<String>,
     pub desktop_id: Option<String>,
+    #[serde(default)]
     pub created_at: String,
 }
 
@@ -24,8 +26,10 @@ pub struct DesktopRecord {
     pub name: String,
     pub color: Option<String>,
     pub path: String,
+    #[serde(default)]
     pub created_at: String,
 }
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MessageRecord {
@@ -75,6 +79,7 @@ impl DbService {
                 name TEXT NOT NULL,
                 workspace TEXT DEFAULT '',
                 model TEXT NOT NULL,
+                provider TEXT NOT NULL DEFAULT 'openrouter',
                 is_visible INTEGER DEFAULT 1,
                 color TEXT,
                 icon TEXT,
@@ -85,6 +90,9 @@ impl DbService {
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )"
         ).execute(&self.pool).await.map_err(|e| e.to_string())?;
+
+        // Migration: ensure provider column exists
+        let _ = sqlx::query("ALTER TABLE agents ADD COLUMN provider TEXT NOT NULL DEFAULT 'openrouter'").execute(&self.pool).await;
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS desktops (
@@ -134,9 +142,37 @@ impl DbService {
     }
 
     // Agents
+    pub async fn get_agent(&self, id: &str) -> Result<Option<AgentRecord>, String> {
+        let row = sqlx::query("SELECT 
+                id, name, workspace, model, provider,
+                is_visible != 0 as is_visible, 
+                color, icon, description, video, lottie, desktop_id, created_at 
+            FROM agents WHERE id = ?")
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        Ok(row.map(|r| AgentRecord {
+            id: r.get("id"),
+            name: r.get("name"),
+            workspace: r.get("workspace"),
+            model: r.get("model"),
+            provider: r.get("provider"),
+            is_visible: r.get::<i32, _>("is_visible") != 0,
+            color: r.get("color"),
+            icon: r.get("icon"),
+            description: r.get("description"),
+            video: r.get("video"),
+            lottie: r.get("lottie"),
+            desktop_id: r.get("desktop_id"),
+            created_at: r.get("created_at"),
+        }))
+    }
+
     pub async fn get_agents(&self) -> Result<Vec<AgentRecord>, String> {
         let rows = sqlx::query("SELECT 
-                id, name, workspace, model, 
+                id, name, workspace, model, provider,
                 is_visible != 0 as is_visible, 
                 color, icon, description, video, lottie, desktop_id, created_at 
             FROM agents ORDER BY created_at DESC")
@@ -149,6 +185,7 @@ impl DbService {
             name: r.get("name"),
             workspace: r.get("workspace"),
             model: r.get("model"),
+            provider: r.get("provider"),
             is_visible: r.get::<i32, _>("is_visible") != 0,
             color: r.get("color"),
             icon: r.get("icon"),
@@ -166,13 +203,14 @@ impl DbService {
     pub async fn save_agent(&self, agent: AgentRecord) -> Result<(), String> {
         sqlx::query(
             "INSERT OR REPLACE INTO agents 
-            (id, name, workspace, model, is_visible, color, icon, description, video, lottie, desktop_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))"
+            (id, name, workspace, model, provider, is_visible, color, icon, description, video, lottie, desktop_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM agents WHERE id = ?), CURRENT_TIMESTAMP))"
         )
         .bind(&agent.id)
         .bind(&agent.name)
         .bind(&agent.workspace)
         .bind(&agent.model)
+        .bind(&agent.provider)
         .bind(agent.is_visible as i32)
         .bind(&agent.color)
         .bind(&agent.icon)

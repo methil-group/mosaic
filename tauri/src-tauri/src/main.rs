@@ -34,11 +34,16 @@ async fn agent_stream(
     history: Vec<crate::llm::Message>,
     persona: Option<String>,
 ) -> Result<(), String> {
-    // 1. Determine provider (simple routing for now)
-    let provider = if model_id.contains("/") {
-        state.llm.clone()
-    } else {
+    // 1. Determine provider
+    let db_agent = state.db.get_agent(&instance_id).await.unwrap_or(None);
+    let provider_id = db_agent.as_ref().map(|a| a.provider.clone()).unwrap_or_else(|| {
+        if model_id.contains("/") { "openrouter".to_string() } else { "lmstudio".to_string() }
+    });
+
+    let provider = if provider_id == "lmstudio" {
         state.lm_studio.clone() as Arc<dyn crate::llm::LlmProvider>
+    } else {
+        state.llm.clone()
     };
 
     // 2. Create agent
@@ -90,11 +95,8 @@ async fn stop_agent(state: State<'_, Arc<AppState>>, instance_id: String) -> Res
 
 
 #[tauri::command]
-async fn agents_save(state: State<'_, Arc<AppState>>, id: String, name: String, workspace: String, model: String, is_visible: bool, color: Option<String>, icon: Option<String>, description: Option<String>, desktop_id: Option<String>) -> Result<(), String> {
-    state.db.save_agent(db::AgentRecord {
-        id, name, workspace, model, is_visible, color, icon, description, desktop_id,
-        video: None, lottie: None, created_at: "".to_string()
-    }).await
+async fn agents_save(state: State<'_, Arc<AppState>>, agent: db::AgentRecord) -> Result<(), String> {
+    state.db.save_agent(agent).await
 }
 
 #[tauri::command]

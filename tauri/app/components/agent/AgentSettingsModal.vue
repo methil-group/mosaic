@@ -93,7 +93,7 @@
                                         Model</label>
                                     <div
                                         class="grid grid-cols-1 gap-1.5 overflow-y-auto pr-2 custom-scrollbar-mini max-h-48">
-                                        <button v-for="model in store.availableModels" :key="model.id"
+                                        <button v-for="model in filteredModels" :key="model.id"
                                             @click="selectModel(model.id)"
                                             class="flex flex-col items-start px-4 py-3 rounded-xl border transition-all text-left group"
                                             :class="instance.currentModel === model.id ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-100'">
@@ -107,7 +107,7 @@
                                         </button>
                                     </div>
                                 </div>
-
+                                
                                 <!-- Provider Selection -->
                                 <div class="space-y-2">
                                     <label
@@ -116,22 +116,22 @@
 
                                     <div class="grid grid-cols-1 gap-2">
                                         <button v-for="provider in store.availableProviders" :key="provider.id"
-                                            class="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left"
-                                            :class="isProviderActive(provider.id) ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-900 opacity-60 pointer-events-none'">
+                                            @click="selectProvider(provider.id)"
+                                            class="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left group"
+                                            :class="selectedProviderId === provider.id ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-100 hover:border-gray-300'">
                                             <div class="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-                                                :class="isProviderActive(provider.id) ? 'bg-white' : 'bg-gray-100'">
-                                                <Globe class="w-4 h-4" :class="isProviderActive(provider.id) ? 'text-gray-900' : 'text-gray-400'" />
+                                                :class="selectedProviderId === provider.id ? 'bg-white' : 'bg-gray-100'">
+                                                <Globe class="w-4 h-4" :class="selectedProviderId === provider.id ? 'text-gray-900' : 'text-gray-400'" />
                                             </div>
                                             <div class="flex-1">
                                                 <div class="flex items-center justify-between">
                                                     <span class="text-xs font-black uppercase tracking-tight">{{
                                                         provider.name }}</span>
-                                                    <Check v-if="isProviderActive(provider.id)" class="w-3 h-3" />
+                                                    <Check v-if="selectedProviderId === provider.id" class="w-3 h-3" />
                                                 </div>
                                                 <span
                                                     class="text-[9px] font-mono opacity-60 uppercase tracking-widest">{{ 
-                                                        isProviderActive(provider.id) ? 'Active' : 
-                                                        (provider.models.length > 0 ? 'Available' : 'Offline' ) 
+                                                        provider.models.length > 0 ? 'Available' : 'Offline' 
                                                     }}</span>
                                             </div>
                                         </button>
@@ -188,18 +188,6 @@ import { ref, watch, computed, onMounted } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import { Settings, X, Folder, Check, Globe } from 'lucide-vue-next'
 
-const store = useAgentStore()
-const lmStudioUrl = ref('')
-const isWslDetected = ref(false)
-
-onMounted(async () => {
-    lmStudioUrl.value = await store.getSetting('lm_studio_base_url') || ''
-})
-
-const saveLmStudioUrl = async () => {
-    await store.setSetting('lm_studio_base_url', lmStudioUrl.value)
-}
-
 const props = defineProps<{
     instanceId: string
     modelValue: boolean
@@ -209,7 +197,54 @@ const emit = defineEmits<{
     (e: 'update:modelValue', value: boolean): void
 }>()
 
+const store = useAgentStore()
+const lmStudioUrl = ref('')
+const isWslDetected = ref(false)
+
+const saveLmStudioUrl = async () => {
+    await store.setSetting('lm_studio_base_url', lmStudioUrl.value)
+}
+
 const instance = computed(() => store.instances[props.instanceId])
+const selectedProviderId = ref('')
+
+const filteredModels = computed(() => {
+    const provider = store.availableProviders.find(p => p.id === selectedProviderId.value)
+    return provider?.models || []
+})
+
+onMounted(async () => {
+    lmStudioUrl.value = await store.getSetting('lm_studio_base_url') || ''
+
+    // Initialize selectedProviderId based on current model
+    if (instance.value) {
+        const currentModelId = instance.value.currentModel
+        const provider = store.availableProviders.find(p => 
+            p.models.some(m => m.id === currentModelId)
+        )
+        if (provider) {
+            selectedProviderId.value = provider.id
+        } else if (store.availableProviders.length > 0) {
+            selectedProviderId.value = store.availableProviders[0].id
+        }
+    }
+})
+
+const selectProvider = (providerId: string) => {
+    selectedProviderId.value = providerId
+    
+    // Auto-select first model if current isn't in new provider
+    const provider = store.availableProviders.find(p => p.id === providerId)
+    if (provider && provider.models.length > 0) {
+        const hasCurrentModel = provider.models.some(m => m.id === instance.value?.currentModel)
+        if (!hasCurrentModel) {
+            selectModel(provider.models[0].id)
+        } else {
+            // Even if model hasn't changed, the provider has.
+            store.updateInstance(props.instanceId, { provider: providerId })
+        }
+    }
+}
 
 const workspaceSuggestions = ref<string[]>([])
 const allSuggestionsForPath = ref<string[]>([])
@@ -221,18 +256,24 @@ const isInputFocused = ref(false)
 const fetchWorkspaceSuggestions = async () => {
     if (!instance.value?.currentWorkspace) return
     const currentPath = instance.value.currentWorkspace
+    const sep = store.pathSeparator
 
     let parentPath = currentPath
     let partial = ''
 
-    if (!currentPath.endsWith('/')) {
-        const lastSlash = currentPath.lastIndexOf('/')
-        if (lastSlash !== -1) {
-            parentPath = currentPath.substring(0, lastSlash + 1)
-            partial = currentPath.substring(lastSlash + 1)
+    if (!currentPath.endsWith(sep)) {
+        const lastSep = currentPath.lastIndexOf(sep)
+        if (lastSep !== -1) {
+            parentPath = currentPath.substring(0, lastSep + 1)
+            partial = currentPath.substring(lastSep + 1)
         } else {
-            parentPath = './'
-            partial = currentPath
+            // Check if it looks like a drive letter start on Windows
+            if (store.pathSeparator === '\\' && currentPath.length <= 2) {
+                 parentPath = currentPath
+            } else {
+                parentPath = './'
+                partial = currentPath
+            }
         }
     }
 
@@ -258,8 +299,9 @@ const handleTab = (event: KeyboardEvent) => {
 
     const dir = workspaceSuggestions.value[selectedIndex.value]
     const current = instance.value!.currentWorkspace
-    const lastSlash = current.lastIndexOf('/')
-    const parent = current.substring(0, lastSlash + 1)
+    const sep = store.pathSeparator
+    const lastSep = current.lastIndexOf(sep)
+    const parent = current.substring(0, lastSep + 1)
     instance.value!.currentWorkspace = `${parent}${dir}`
 }
 
@@ -271,10 +313,11 @@ const handleEnter = (event: KeyboardEvent) => {
         const idx = selectedIndex.value === -1 ? 0 : selectedIndex.value
         const dir = workspaceSuggestions.value[idx]
         const current = instance.value!.currentWorkspace
-        const lastSlash = current.lastIndexOf('/')
-        const parent = current.substring(0, lastSlash + 1)
+        const sep = store.pathSeparator
+        const lastSep = current.lastIndexOf(sep)
+        const parent = current.substring(0, lastSep + 1)
 
-        instance.value!.currentWorkspace = `${parent}${dir}/`
+        instance.value!.currentWorkspace = `${parent}${dir}${sep}`
         isWorkspaceMenuOpen.value = false
         fetchWorkspaceSuggestions()
     }
@@ -283,10 +326,11 @@ const handleEnter = (event: KeyboardEvent) => {
 const selectWorkspaceSuggestion = (dir: string) => {
     if (!instance.value) return
     const current = instance.value.currentWorkspace
-    const lastSlash = current.lastIndexOf('/')
-    const parent = current.substring(0, lastSlash + 1)
+    const sep = store.pathSeparator
+    const lastSep = current.lastIndexOf(sep)
+    const parent = current.substring(0, lastSep + 1)
 
-    instance.value.currentWorkspace = `${parent}${dir}/`
+    instance.value.currentWorkspace = `${parent}${dir}${sep}`
     fetchWorkspaceSuggestions()
 }
 
@@ -297,14 +341,10 @@ const closeWorkspaceMenu = () => {
 }
 
 const selectModel = (modelId: string) => {
-    store.updateInstanceModel(props.instanceId, modelId)
-}
-
-const isProviderActive = (providerId: string) => {
-    if (!instance.value) return false
-    const provider = store.availableProviders.find(p => p.id === providerId)
-    if (!provider) return false
-    return provider.models.some(m => m.id === instance.value?.currentModel)
+    store.updateInstance(props.instanceId, { 
+        model: modelId,
+        provider: selectedProviderId.value 
+    })
 }
 
 watch(() => instance.value?.currentWorkspace, () => {

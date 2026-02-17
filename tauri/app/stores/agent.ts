@@ -33,6 +33,7 @@ export interface InstanceState {
   isProcessing: boolean
   currentWorkspace: string
   currentModel: string
+  currentProvider: string
   isVisible: boolean
   colSpan: number
   messageQueue: string[]
@@ -148,6 +149,7 @@ export const useAgentStore = defineStore('agent', {
         isProcessing: false,
         currentWorkspace: workspacePath,
         currentModel: this.defaultModelId,
+        currentProvider: 'openrouter',
         isVisible: true,
         colSpan: 1,
         messageQueue: [],
@@ -164,17 +166,19 @@ export const useAgentStore = defineStore('agent', {
 
       // Persist to SQLite
       await invoke('agents_save', {
-        id,
-        name,
-        workspace: workspacePath,
-        model: this.defaultModelId,
-        is_visible: true,
-        color: agent.color,
-        icon: agent.icon,
-        description: agent.description,
-        desktop_id: this.activeWorkspaceId,
-        video: agent.video,
-        lottie: agent.lottie
+        agent: {
+          id,
+          name,
+          workspace: workspacePath,
+          provider: 'openrouter',
+          is_visible: true,
+          color: agent.color,
+          icon: agent.icon,
+          description: agent.description,
+          desktop_id: this.activeWorkspaceId,
+          video: agent.video,
+          lottie: agent.lottie
+        }
       })
 
       return id
@@ -421,10 +425,12 @@ export const useAgentStore = defineStore('agent', {
       }
 
       await invoke('desktops_save', {
-        id: workspace.id,
-        name: workspace.name,
-        color: workspace.color,
-        path: workspace.path
+        desktop: {
+          id: workspace.id,
+          name: workspace.name,
+          color: workspace.color,
+          path: workspace.path
+        }
       })
     },
 
@@ -518,6 +524,7 @@ export const useAgentStore = defineStore('agent', {
             isProcessing: false,
             currentWorkspace: agent.workspace,
             currentModel: agent.model,
+            currentProvider: agent.provider || 'openrouter',
             isVisible: agent.is_visible === 1,
             colSpan: 1,
             messageQueue: [],
@@ -539,21 +546,31 @@ export const useAgentStore = defineStore('agent', {
       }
     },
 
-    async updateInstance(instanceId: string, updates: Partial<{ name: string; workspace: string; model: string }>) {
+    async updateInstance(instanceId: string, updates: Partial<{ name: string; workspace: string; model: string; provider: string }>) {
       const instance = this.instances[instanceId]
       if (!instance) return
 
       if (updates.name !== undefined) instance.name = updates.name
       if (updates.workspace !== undefined) instance.currentWorkspace = updates.workspace
       if (updates.model !== undefined) instance.currentModel = updates.model
+      if (updates.provider !== undefined) instance.currentProvider = updates.provider
 
       // Persist to SQLite
       await invoke('agents_save', {
-        id: instanceId,
-        name: instance.name,
-        workspace: instance.currentWorkspace,
-        model: instance.currentModel,
-        is_visible: instance.isVisible
+        agent: {
+          id: instanceId,
+          name: instance.name,
+          workspace: instance.currentWorkspace,
+          model: instance.currentModel,
+          provider: instance.currentProvider,
+          is_visible: instance.isVisible,
+          color: instance.color,
+          icon: instance.icon,
+          description: instance.description,
+          desktop_id: instance.workspaceId,
+          video: instance.video,
+          lottie: instance.lottie
+        }
       })
     }
   }

@@ -231,11 +231,30 @@ onMounted(async () => {
 })
 
 
-const setWorkspace = () => {
+const setWorkspace = async () => {
     if (instance.value && workspacePath.value) {
-        instance.value.currentWorkspace = workspacePath.value
-        instance.value.name = agentName.value
-        instance.value.currentModel = selectedModel.value
+        try {
+            // Update local state first
+            instance.value.currentWorkspace = workspacePath.value
+            instance.value.name = agentName.value
+            instance.value.currentModel = selectedModel.value
+
+            // Persist changes to DB
+            await store.updateInstance(props.instanceId, {
+                name: agentName.value,
+                workspace: workspacePath.value,
+                model: selectedModel.value
+            })
+
+            // Switch to mosaic view and select this agent
+            store.viewMode = 'mosaic'
+            store.activeWorkspaceId = props.instanceId
+            
+            console.log('[WorkspaceSelection] Workspace set successfully:', workspacePath.value)
+        } catch (e: any) {
+            console.error('[WorkspaceSelection] Failed to set workspace:', e)
+            alert(`Failed to create workspace: ${e.message || e}`)
+        }
     }
 }
 
