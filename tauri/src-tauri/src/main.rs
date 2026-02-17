@@ -177,15 +177,38 @@ async fn providers_get(state: State<'_, Arc<AppState>>) -> Result<serde_json::Va
 }
 
 #[tauri::command]
-async fn list_directories(path: String) -> Result<serde_json::Value, String> {
-    let dirs = framework::fs::FileSystemService::list_directories(&path)?;
+async fn list_directories(path: String, show_hidden: Option<bool>) -> Result<serde_json::Value, String> {
+    let dirs = framework::fs::FileSystemService::list_directories(&path, show_hidden.unwrap_or(false))?;
     Ok(serde_json::json!({ "directories": dirs }))
 }
 
 #[tauri::command]
-async fn fetch_files(path: String) -> Result<serde_json::Value, String> {
-    let files = framework::fs::FileSystemService::list_files(&path)?;
+async fn fetch_files(path: String, show_hidden: Option<bool>) -> Result<serde_json::Value, String> {
+    let files = framework::fs::FileSystemService::list_files(&path, show_hidden.unwrap_or(false))?;
     Ok(serde_json::json!({ "files": files }))
+}
+
+#[tauri::command]
+async fn get_home_directory(app: AppHandle) -> Result<String, String> {
+    app.path().home_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_system_paths(app: AppHandle) -> Result<serde_json::Value, String> {
+    let home = app.path().home_dir().ok().map(|p| p.to_string_lossy().to_string());
+    let desktop = app.path().desktop_dir().ok().map(|p| p.to_string_lossy().to_string());
+    let documents = app.path().document_dir().ok().map(|p| p.to_string_lossy().to_string());
+    let download = app.path().download_dir().ok().map(|p| p.to_string_lossy().to_string());
+
+    Ok(serde_json::json!({
+        "home": home,
+        "desktop": desktop,
+        "documents": documents,
+        "downloads": download,
+        "sep": if cfg!(windows) { "\\" } else { "/" }
+    }))
 }
 fn main() {
     tauri::Builder::default()
@@ -244,7 +267,9 @@ fn main() {
             settings_set,
             providers_get,
             list_directories,
-            fetch_files
+            fetch_files,
+            get_home_directory,
+            get_system_paths
         ])
 
 
