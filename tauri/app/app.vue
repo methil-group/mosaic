@@ -4,6 +4,17 @@
   </NuxtLayout>
 </template>
 
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useAgentStore } from '~/stores/agent'
+
+const store = useAgentStore()
+
+onMounted(async () => {
+    await store.initSystemPaths()
+})
+</script>
+
 <style>
 @import "~/assets/css/mosaic.css";
 @import "highlight.js/styles/atom-one-dark.css";

@@ -142,18 +142,24 @@ const isInputFocused = ref(false)
 const fetchWorkspaceSuggestions = async () => {
     if (!workspacePath.value) return
     const currentPath = workspacePath.value
+    const sep = store.pathSeparator
 
     let parentPath = currentPath
     let partial = ''
 
-    if (!currentPath.endsWith('/')) {
-        const lastSlash = currentPath.lastIndexOf('/')
-        if (lastSlash !== -1) {
-            parentPath = currentPath.substring(0, lastSlash + 1)
-            partial = currentPath.substring(lastSlash + 1)
+    if (!currentPath.endsWith(sep)) {
+        const lastSep = currentPath.lastIndexOf(sep)
+        if (lastSep !== -1) {
+            parentPath = currentPath.substring(0, lastSep + 1)
+            partial = currentPath.substring(lastSep + 1)
         } else {
-            parentPath = './'
-            partial = currentPath
+            // Check if it looks like a drive letter start on Windows
+            if (store.pathSeparator === '\\' && currentPath.length <= 2) {
+                 parentPath = currentPath
+            } else {
+                parentPath = './'
+                partial = currentPath
+            }
         }
     }
 
@@ -178,8 +184,9 @@ const handleTab = (event: KeyboardEvent) => {
     selectedIndex.value = (selectedIndex.value + 1) % workspaceSuggestions.value.length
 
     const dir = workspaceSuggestions.value[selectedIndex.value]
-    const lastSlash = workspacePath.value.lastIndexOf('/')
-    const parent = workspacePath.value.substring(0, lastSlash + 1)
+    const sep = store.pathSeparator
+    const lastSep = workspacePath.value.lastIndexOf(sep)
+    const parent = workspacePath.value.substring(0, lastSep + 1)
     workspacePath.value = `${parent}${dir}`
 }
 
@@ -189,10 +196,11 @@ const handleEnter = (event: KeyboardEvent) => {
             event.preventDefault()
             const idx = selectedIndex.value === -1 ? 0 : selectedIndex.value
             const dir = workspaceSuggestions.value[idx]
-            const lastSlash = workspacePath.value.lastIndexOf('/')
-            const parent = workspacePath.value.substring(0, lastSlash + 1)
+            const sep = store.pathSeparator
+            const lastSep = workspacePath.value.lastIndexOf(sep)
+            const parent = workspacePath.value.substring(0, lastSep + 1)
 
-            workspacePath.value = `${parent}${dir}/`
+            workspacePath.value = `${parent}${dir}${sep}`
             isWorkspaceMenuOpen.value = false
             fetchWorkspaceSuggestions()
             return
@@ -205,12 +213,23 @@ const handleEnter = (event: KeyboardEvent) => {
 }
 
 const selectWorkspaceSuggestion = (dir: string) => {
-    const lastSlash = workspacePath.value.lastIndexOf('/')
-    const parent = workspacePath.value.substring(0, lastSlash + 1)
+    const sep = store.pathSeparator
+    const lastSep = workspacePath.value.lastIndexOf(sep)
+    const parent = workspacePath.value.substring(0, lastSep + 1)
 
-    workspacePath.value = `${parent}${dir}/`
+    workspacePath.value = `${parent}${dir}${sep}`
     fetchWorkspaceSuggestions()
 }
+
+onMounted(async () => {
+    if (!store.systemPaths.home) {
+        await store.initSystemPaths()
+    }
+    if (store.systemPaths.home && !workspacePath.value) {
+        workspacePath.value = store.systemPaths.home + store.pathSeparator
+    }
+})
+
 
 const setWorkspace = () => {
     if (instance.value && workspacePath.value) {

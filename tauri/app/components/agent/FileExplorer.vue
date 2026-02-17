@@ -177,11 +177,18 @@ const loadDirectories = async (path: string) => {
     error.value = null
     isCreatingFolder.value = false // Close creation UI on navigation
     newFolderName.value = ''
+    
+    // Resolve home directory if path is '~'
+    let resolvedPath = path
+    if (path === '~' && store.systemPaths.home) {
+        resolvedPath = store.systemPaths.home
+    }
+
     try {
-        const result = await store.listDirectories(path)
-        directories.value = result.filter(d => !d.startsWith('.')).sort((a, b) => a.localeCompare(b))
-        currentPath.value = path
-        selectedFolder.value = path
+        const result = await store.listDirectories(resolvedPath)
+        directories.value = result.sort((a, b) => a.localeCompare(b))
+        currentPath.value = resolvedPath
+        selectedFolder.value = resolvedPath
     } catch (e) {
         error.value = 'Failed to load directories'
         console.error(e)
@@ -192,35 +199,35 @@ const loadDirectories = async (path: string) => {
 
 // Navigate into a folder
 const navigateTo = (folderName: string) => {
-    const separator = (currentPath.value === '/' || currentPath.value.endsWith('/')) ? '' : '/'
-    const newPath = `${currentPath.value}${separator}${folderName}`
+    const sep = store.pathSeparator
+    const newPath = currentPath.value.endsWith(sep) 
+        ? `${currentPath.value}${folderName}` 
+        : `${currentPath.value}${sep}${folderName}`
     loadDirectories(newPath)
 }
 
 // Go up one level
 const navigateUp = () => {
     const path = currentPath.value
-    if (path === '~' || path === '/') return
+    const sep = store.pathSeparator
+    
+    if (path === '/' || (cfg_is_windows() && path.length <= 3 && path.includes(':'))) return
 
-    // Special case for home relative paths
-    if (path === '~') return
-
-    const lastSlash = path.lastIndexOf('/')
-    if (lastSlash > 0) {
-        loadDirectories(path.substring(0, lastSlash))
-    } else if (lastSlash === 0) {
-        loadDirectories('/')
-    } else if (path.startsWith('~')) {
-        // If it's something like ~/Documents
-        const homeParts = path.split('/')
-        if (homeParts.length > 1) {
-            homeParts.pop()
-            loadDirectories(homeParts.join('/'))
-        } else {
-            loadDirectories('~')
+    const lastSep = path.lastIndexOf(sep)
+    if (lastSep > 0) {
+        let newPath = path.substring(0, lastSep)
+        // On Windows, if we are at C:\, dont strip the last \
+        if (cfg_is_windows() && newPath.endsWith(':')) {
+            newPath += sep
         }
+        loadDirectories(newPath)
+    } else if (lastSep === 0) {
+        loadDirectories(sep)
     }
 }
+
+const cfg_is_windows = () => store.pathSeparator === '\\'
+
 
 // Go to home
 const navigateHome = () => {
@@ -270,7 +277,10 @@ const handleCreateFolder = async () => {
 }
 
 // Initialize
-onMounted(() => {
+onMounted(async () => {
+    if (!store.systemPaths.home) {
+        await store.initSystemPaths()
+    }
     loadDirectories('~')
 })
 

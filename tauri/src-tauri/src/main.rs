@@ -47,6 +47,7 @@ async fn agent_stream(
         model_id,
         workspace,
         user_name,
+        state.tools.clone(),
     ));
 
     // 3. Store agent
@@ -210,6 +211,11 @@ async fn get_system_paths(app: AppHandle) -> Result<serde_json::Value, String> {
         "sep": if cfg!(windows) { "\\" } else { "/" }
     }))
 }
+
+#[tauri::command]
+async fn create_directory(path: String, name: String) -> Result<(), String> {
+    framework::fs::FileSystemService::create_directory(&path, &name)
+}
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -240,7 +246,7 @@ fn main() {
                 // Providers
                 let api_key = db.get_setting("openrouter_api_key").await.unwrap_or(None).unwrap_or_default();
                 let llm = Arc::new(llm::openrouter::OpenRouter::new(api_key));
-                let lm_studio = Arc::new(llm::lmstudio::LMStudio::new());
+                let lm_studio = Arc::new(llm::lmstudio::LMStudio::new(None));
                 
                 let state = Arc::new(AppState::new(db, tools, llm, lm_studio));
                 app_handle.manage(state);
@@ -269,7 +275,8 @@ fn main() {
             list_directories,
             fetch_files,
             get_home_directory,
-            get_system_paths
+            get_system_paths,
+            create_directory
         ])
 
 

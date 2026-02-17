@@ -25,7 +25,7 @@ pub struct Agent {
     user_name: String,
     messages: Mutex<Vec<Message>>,
     stopped: Mutex<bool>,
-    tools: ToolRegistry,
+    tools: Arc<ToolRegistry>,
 }
 
 impl Agent {
@@ -34,7 +34,7 @@ impl Agent {
         model: String,
         workspace: String,
         user_name: String,
-        tools: ToolRegistry,
+        tools: Arc<ToolRegistry>,
     ) -> Self {
         Self {
             llm,

@@ -82,6 +82,13 @@ export interface State {
   activeWorkspaceId: string | null
   // Layout persistence: keyed by agent IDs hash
   customLayouts: Record<string, any>
+  systemPaths: {
+    home: string | null
+    desktop: string | null
+    documents: string | null
+    downloads: string | null
+  }
+  pathSeparator: string
 }
 
 // AGENT_NAMES is deprecated in favor of AGENTS_REPO
@@ -100,7 +107,14 @@ export const useAgentStore = defineStore('agent', {
     activeWorkspaceId: null,
     viewMode: 'mosaic',
     currentView: 'grid',
-    customLayouts: {}
+    customLayouts: {},
+    systemPaths: {
+      home: null,
+      desktop: null,
+      documents: null,
+      downloads: null
+    },
+    pathSeparator: '/'
   }),
   getters: {
     availableModels: (state): Model[] => {
@@ -334,9 +348,9 @@ export const useAgentStore = defineStore('agent', {
       }
     },
 
-    async listDirectories(path: string): Promise<string[]> {
+    async listDirectories(path: string, show_hidden: boolean = false): Promise<string[]> {
       try {
-        const data: any = await invoke('list_directories', { path })
+        const data: any = await invoke('list_directories', { path, show_hidden })
         return data.directories || []
       } catch (e) {
         console.error('Failed to list directories', e)
@@ -344,17 +358,33 @@ export const useAgentStore = defineStore('agent', {
       }
     },
 
-    async fetchFiles(path: string): Promise<string[]> {
+    async fetchFiles(path: string, show_hidden: boolean = false): Promise<string[]> {
       if (this.filesCache[path]) return this.filesCache[path]
 
       try {
-        const data: any = await invoke('fetch_files', { path })
+        const data: any = await invoke('fetch_files', { path, show_hidden })
         const files = data.files || []
         this.filesCache[path] = files
         return files
       } catch (e) {
         console.error('Failed to fetch files', e)
         return []
+      }
+    },
+
+    async initSystemPaths() {
+      try {
+        const paths: any = await invoke('get_system_paths')
+        this.systemPaths = {
+          home: paths.home,
+          desktop: paths.desktop,
+          documents: paths.documents,
+          downloads: paths.downloads
+        }
+        this.pathSeparator = paths.sep || '/'
+        console.log('[AgentStore] System paths initialized:', this.systemPaths)
+      } catch (e) {
+        console.error('[AgentStore] Failed to init system paths', e)
       }
     },
 
