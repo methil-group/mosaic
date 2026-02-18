@@ -39,6 +39,18 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Global Confirm Modal -->
+    <ConfirmModal 
+      :show="showConfirm"
+      title="Supprimer Workspace"
+      subtitle="ZONE DE DANGER"
+      message="Supprimer cet espace de travail ? Les agents seront déplacés vers l'espace par défaut. Cette action est irréversible."
+      confirm-text="SUPPRIMER"
+      type="danger"
+      @confirm="onDeleteConfirm"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>
 
@@ -48,6 +60,7 @@ import { useAgentStore } from '~/stores/agent'
 import { storeToRefs } from 'pinia'
 import WorkspaceCard from './WorkspaceCard.vue'
 import FileExplorer from '../agent/FileExplorer.vue'
+import ConfirmModal from '../ui/ConfirmModal.vue'
 import { Plus, X } from 'lucide-vue-next'
 
 const agentStore = useAgentStore()
@@ -55,6 +68,8 @@ const { workspaces, workspaceIds, instances, instanceIds } = storeToRefs(agentSt
 
 const isCreating = ref(false)
 const showExplorer = ref(false)
+const showConfirm = ref(false)
+const workspaceToDeleteId = ref<string | null>(null)
 const newName = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 
@@ -83,9 +98,16 @@ const handleSelect = (transitionObject: any) => {
   emit('select', transitionObject)
 }
 
-const handleDelete = async (id: string) => {
-  if (confirm('Supprimer cet espace de travail ? Les agents seront déplacés vers l\'espace par défaut.')) {
-    await agentStore.removeWorkspace(id)
+const handleDelete = (id: string) => {
+  workspaceToDeleteId.value = id
+  showConfirm.value = true
+}
+
+const onDeleteConfirm = async () => {
+  if (workspaceToDeleteId.value) {
+    await agentStore.removeWorkspace(workspaceToDeleteId.value)
+    workspaceToDeleteId.value = null
+    showConfirm.value = false
   }
 }
 

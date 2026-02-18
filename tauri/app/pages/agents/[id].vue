@@ -1,4 +1,5 @@
 <template>
+  <div class="h-full">
     <div v-if="agent" class="h-full flex flex-col bg-gray-50 overflow-hidden">
         <!-- Header -->
         <header
@@ -196,18 +197,31 @@
             </Transition>
         </Teleport>
     </div>
-
     <div v-else class="h-full flex items-center justify-center bg-gray-50">
         <div class="flex flex-col items-center gap-4 opacity-50">
             <div class="w-12 h-12 rounded-full border-2 border-gray-200 border-t-gray-900 animate-spin"></div>
             <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Resolving Workspace...</p>
         </div>
     </div>
+
+    <!-- Confirm Termination Modal -->
+    <ConfirmModal 
+        :show="showConfirm"
+        title="Terminer le processus"
+        subtitle="ZONE DE DANGER"
+        message="Voulez-vous vraiment terminer ce processus d'agent ? L'instance sera supprimée de votre session actuelle."
+        confirm-text="TERMINER"
+        type="danger"
+        @confirm="onTerminateConfirm"
+        @cancel="showConfirm = false"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
 import { useAgentStore } from '~/stores/agent'
+import ConfirmModal from '~/components/ui/ConfirmModal.vue'
 import { ArrowLeft, Bot, Settings, Terminal, BotIcon, Save, History, Database, Trash2, Folder, FolderOpen, ChevronRight, Home, ArrowUp, RefreshCw, X } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
@@ -222,11 +236,16 @@ const goBack = () => {
     router.back()
 }
 
+const showConfirm = ref(false)
+
 const terminateAgent = () => {
-    if (confirm('Terminate this agent?')) {
-        store.removeInstance(id)
-        router.push('/agents')
-    }
+    showConfirm.value = true
+}
+
+const onTerminateConfirm = () => {
+    store.removeInstance(id)
+    router.push('/agents')
+    showConfirm.value = false
 }
 
 // File Explorer Modal state

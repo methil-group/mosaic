@@ -19,41 +19,42 @@
                     </p>
                     
                     <div class="flex flex-col gap-2">
-                        <button v-if="!showConfirm" @click="showConfirm = true"
+                        <button @click="showConfirmModal = true"
                             class="w-full px-6 py-3 rounded-xl bg-white border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all">
                             Delete Every Data
                         </button>
-                        
-                        <div v-else class="flex gap-2">
-                            <button @click="handleReset"
-                                class="flex-1 px-6 py-3 rounded-xl bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all">
-                                Confirm Deletion
-                            </button>
-                            <button @click="showConfirm = false"
-                                class="px-6 py-3 rounded-xl bg-gray-200 text-gray-700 text-[10px] font-black uppercase tracking-widest hover:bg-gray-300 transition-all">
-                                Cancel
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
+        
+        <ConfirmModal 
+            :show="showConfirmModal"
+            title="Réinitialiser les données"
+            subtitle="ZONE DE DANGER"
+            message="Cette action supprimera définitivement votre base de données SQLite, effaçant tous les agents, sessions et paramètres locaux. L'application redémarrera immédiatement."
+            confirm-text="RÉINITIALISER"
+            type="danger"
+            @confirm="handleReset"
+            @cancel="showConfirmModal = false"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core'
+import ConfirmModal from '../ui/ConfirmModal.vue'
+import { Trash2 } from 'lucide-vue-next'
 
-const showConfirm = ref(false)
+const showConfirmModal = ref(false)
 
 const handleReset = async () => {
     try {
         await invoke('app_reset_data')
     } catch (e) {
         console.error('Failed to reset data:', e)
-        if (confirm('Reset all data? This will clear your database.')) {
-            // Manual fallback if invoke fails? 
-        }
+    } finally {
+        showConfirmModal.value = false
     }
 }
 </script>

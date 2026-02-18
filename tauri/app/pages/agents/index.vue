@@ -90,12 +90,24 @@
                 </div>
             </TransitionGroup>
         </div>
+        
+        <ConfirmModal 
+            :show="showConfirm"
+            title="Désinstaller l'unité"
+            subtitle="ZONE DE DANGER"
+            message="Êtes-vous sûr de vouloir supprimer cet agent ? Cette action est irréversible et supprimera tout l'historique associé."
+            confirm-text="SUPPRIMER"
+            type="danger"
+            @confirm="onDeleteConfirm"
+            @cancel="showConfirm = false"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent } from 'vue'
 import { useAgentStore } from '~/stores/agent'
+import ConfirmModal from '~/components/ui/ConfirmModal.vue'
 import * as LucideIcons from 'lucide-vue-next'
 import { Bot, Plus, Search, Trash2, Cpu, Activity, LayoutGrid, Sparkles } from 'lucide-vue-next'
 
@@ -105,6 +117,8 @@ const Vue3Lottie = defineAsyncComponent(() =>
 
 const store = useAgentStore()
 const searchQuery = ref('')
+const showConfirm = ref(false)
+const agentToDeleteId = ref<string | null>(null)
 
 const activeAgents = computed(() => {
     return store.instanceIds
@@ -131,8 +145,15 @@ const deployAgent = () => {
 }
 
 const deleteAgent = (id: string) => {
-    if (confirm('TERMINATE UNIT?')) {
-        store.removeInstance(id)
+    agentToDeleteId.value = id
+    showConfirm.value = true
+}
+
+const onDeleteConfirm = () => {
+    if (agentToDeleteId.value) {
+        store.removeInstance(agentToDeleteId.value)
+        agentToDeleteId.value = null
+        showConfirm.value = false
     }
 }
 

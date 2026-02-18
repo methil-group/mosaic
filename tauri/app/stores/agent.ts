@@ -505,10 +505,18 @@ export const useAgentStore = defineStore('agent', {
         this.instances = {}
         this.instanceIds = []
 
-        for (const agent of agents) {
-          // Load messages for each agent
-          const messages: any = await invoke('messages_list', { agentId: agent.id })
+        // Load messages for all agents in parallel
+        const agentsWithMessages = await Promise.all(agents.map(async (agent: any) => {
+          try {
+            const messages: any = await invoke('messages_list', { agentId: agent.id })
+            return { agent, messages }
+          } catch (e) {
+            console.error(`Failed to load messages for agent ${agent.id}`, e)
+            return { agent, messages: [] }
+          }
+        }))
 
+        for (const { agent, messages } of agentsWithMessages) {
           // Try to find matching config for persona/icon if not in DB
           const config = COMPONENTS.find(a => a.name === agent.name)
 
@@ -526,7 +534,7 @@ export const useAgentStore = defineStore('agent', {
             currentWorkspace: agent.workspace,
             currentModel: agent.model,
             currentProvider: agent.provider || 'openrouter',
-            isVisible: agent.is_visible === 1,
+            isVisible: !!agent.is_visible,
             colSpan: 1,
             messageQueue: [],
             abortController: null,
