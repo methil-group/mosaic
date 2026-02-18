@@ -177,7 +177,8 @@ export const useAgentStore = defineStore('agent', {
           description: agent.description,
           desktop_id: this.activeWorkspaceId,
           video: agent.video,
-          lottie: agent.lottie
+          lottie: agent.lottie,
+          model: this.defaultModelId
         }
       })
 
