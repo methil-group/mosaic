@@ -1,5 +1,5 @@
 use crate::llm::{LlmProvider, Message, LlmEvent};
-use crate::core::tools::{ToolRegistry, Tool};
+use crate::core::tools::ToolRegistry;
 use crate::core::prompt::PromptBuilder;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
