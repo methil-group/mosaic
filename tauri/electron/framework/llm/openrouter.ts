@@ -1,6 +1,6 @@
 import type { LlmProvider, Message, LlmEvent, Usage } from './types'
 
-export class OpenRouter implements LlmProvider {
+class OpenRouter implements LlmProvider {
     private apiKey: string
     private baseUrl = 'https://openrouter.ai/api/v1'
 
@@ -83,3 +83,5 @@ export class OpenRouter implements LlmProvider {
         return []
     }
 }
+
+export default OpenRouter

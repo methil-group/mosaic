@@ -1,6 +1,6 @@
 import type { LlmProvider, Message, LlmEvent } from './types'
 
-export class LMStudio implements LlmProvider {
+class LMStudio implements LlmProvider {
     private baseUrl: string
 
     constructor(baseUrl?: string) {
@@ -54,7 +54,6 @@ export class LMStudio implements LlmProvider {
     }
 
     async fetchModels(): Promise<string[]> {
-        // Use LM Studio native API — lists ALL downloaded models, not just loaded ones
         const base = this.baseUrl.replace(/\/v1$/, '')
         const models: string[] = []
 
@@ -71,10 +70,9 @@ export class LMStudio implements LlmProvider {
                 }
             }
         } catch {
-            // Native API not available, fall through to OpenAI-compat
+            // Native API not available
         }
 
-        // Fallback to OpenAI-compat endpoint
         if (models.length === 0) {
             try {
                 const res = await fetch(`${this.baseUrl}/models`, {
@@ -95,3 +93,5 @@ export class LMStudio implements LlmProvider {
         return models
     }
 }
+
+export default LMStudio

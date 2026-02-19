@@ -2,12 +2,12 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
-import { DbService } from './db'
-import { OpenRouter } from './llm/openrouter'
-import { LMStudio } from './llm/lmstudio'
-import type { LlmProvider, Message } from './llm/types'
-import { Agent } from './core/agent'
-import { getDefaultTools, ToolRegistry } from './core/tools/index'
+import DbService from './db'
+import OpenRouter from './framework/llm/openrouter'
+import LMStudio from './framework/llm/lmstudio'
+import type { LlmProvider, Message } from './framework/llm/types'
+import Agent from './core/agent'
+import ToolRegistry, { getDefaultTools } from './core/tools/index'
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -34,7 +34,6 @@ function createWindow() {
         },
     })
 
-    // In dev, load from Nuxt dev server; in production load the generated files
     if (process.env.NODE_ENV === 'development') {
         mainWindow.loadURL('http://localhost:3710')
     } else {
@@ -52,48 +51,48 @@ function registerIpc() {
     // ── Agents ──
     ipcMain.handle('get_agents', () => db.getAgents())
 
-    ipcMain.handle('agents_save', (_e, { agent }) => {
+    ipcMain.handle('agents_save', (_e: any, { agent }: any) => {
         db.saveAgent(agent)
     })
 
-    ipcMain.handle('agents_delete', (_e, { id }) => {
+    ipcMain.handle('agents_delete', (_e: any, { id }: any) => {
         db.deleteAgent(id)
     })
 
-    ipcMain.handle('agents_update_visibility', (_e, { id, isVisible }) => {
+    ipcMain.handle('agents_update_visibility', (_e: any, { id, isVisible }: any) => {
         db.updateAgentVisibility(id, isVisible)
     })
 
     // ── Messages ──
-    ipcMain.handle('messages_list', (_e, { agentId }) => db.getMessages(agentId))
+    ipcMain.handle('messages_list', (_e: any, { agentId }: any) => db.getMessages(agentId))
 
-    ipcMain.handle('messages_add', (_e, { agentId, role, content, model }) => {
+    ipcMain.handle('messages_add', (_e: any, { agentId, role, content, model }: any) => {
         return db.addMessage(agentId, role, content, model)
     })
 
-    ipcMain.handle('messages_update', (_e, { id, content, events }) => {
+    ipcMain.handle('messages_update', (_e: any, { id, content, events }: any) => {
         db.updateMessage(id, content, events)
     })
 
-    ipcMain.handle('messages_clear_for_agent', (_e, { instanceId }) => {
+    ipcMain.handle('messages_clear_for_agent', (_e: any, { instanceId }: any) => {
         db.clearMessagesForAgent(instanceId)
     })
 
     // ── Desktops (Workspaces) ──
     ipcMain.handle('desktops_list', () => db.getDesktops())
 
-    ipcMain.handle('desktops_save', (_e, { desktop }) => {
+    ipcMain.handle('desktops_save', (_e: any, { desktop }: any) => {
         db.saveDesktop(desktop)
     })
 
-    ipcMain.handle('desktops_delete', (_e, { id }) => {
+    ipcMain.handle('desktops_delete', (_e: any, { id }: any) => {
         db.deleteDesktop(id)
     })
 
     // ── Settings ──
-    ipcMain.handle('settings_get', (_e, { key }) => db.getSetting(key))
+    ipcMain.handle('settings_get', (_e: any, { key }: any) => db.getSetting(key))
 
-    ipcMain.handle('settings_set', (_e, { key, value }) => {
+    ipcMain.handle('settings_set', (_e: any, { key, value }: any) => {
         db.setSetting(key, value)
     })
 
@@ -122,7 +121,7 @@ function registerIpc() {
     })
 
     // ── File System ──
-    ipcMain.handle('list_directories', (_e, { path: dirPath, show_hidden }) => {
+    ipcMain.handle('list_directories', (_e: any, { path: dirPath, show_hidden }: any) => {
         try {
             const entries = fs.readdirSync(dirPath, { withFileTypes: true })
             const dirs = entries
@@ -135,7 +134,7 @@ function registerIpc() {
         }
     })
 
-    ipcMain.handle('fetch_files', (_e, { path: dirPath, show_hidden }) => {
+    ipcMain.handle('fetch_files', (_e: any, { path: dirPath, show_hidden }: any) => {
         try {
             const entries = fs.readdirSync(dirPath, { withFileTypes: true })
             const files = entries
@@ -156,7 +155,7 @@ function registerIpc() {
         sep: path.sep,
     }))
 
-    ipcMain.handle('create_directory', (_e, { path: dirPath, name }) => {
+    ipcMain.handle('create_directory', (_e: any, { path: dirPath, name }: any) => {
         const full = path.join(dirPath, name)
         if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true })
     })
@@ -166,12 +165,10 @@ function registerIpc() {
     })
 
     // ── Agent Streaming ──
-    ipcMain.handle('agent_stream', async (_e, { instanceId, modelId, userPrompt, workspace, userName, history, persona }) => {
-        // Determine provider
+    ipcMain.handle('agent_stream', async (_e: any, { instanceId, modelId, userPrompt, workspace, userName, history, persona }: any) => {
         const dbAgent = db.getAgent(instanceId)
         const providerId = dbAgent?.provider || (modelId.includes('/') ? 'openrouter' : 'lmstudio')
 
-        // Re-read API key each time (user may have changed it)
         const apiKey = db.getSetting('openrouter_api_key') || ''
         const currentOpenRouter = new OpenRouter(apiKey)
 
@@ -199,7 +196,7 @@ function registerIpc() {
         }
     })
 
-    ipcMain.handle('stop_agent', (_e, { instanceId }) => {
+    ipcMain.handle('stop_agent', (_e: any, { instanceId }: any) => {
         const agent = activeAgents.get(instanceId)
         if (agent) {
             agent.stop()
@@ -213,7 +210,6 @@ function registerIpc() {
 // ─── App Lifecycle ───────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
-    // Initialize services
     db = new DbService()
     tools = getDefaultTools()
     openRouter = new OpenRouter(db.getSetting('openrouter_api_key') || '')

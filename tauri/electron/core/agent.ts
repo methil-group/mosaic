@@ -1,6 +1,6 @@
-import type { LlmProvider, Message, LlmEvent } from '../llm/types'
-import type { ToolRegistry } from './tools/index'
-import { PromptBuilder } from './prompt'
+import type { LlmProvider, Message } from '../framework/llm/types'
+import type ToolRegistry from './tools/index'
+import PromptBuilder from './prompt/index'
 
 // ─── Agent Event ─────────────────────────────────────────────────────────────
 
@@ -14,7 +14,7 @@ export type AgentEvent =
 
 // ─── Agent ───────────────────────────────────────────────────────────────────
 
-export class Agent {
+class Agent {
     private llm: LlmProvider
     private model: string
     private workspace: string
@@ -75,7 +75,6 @@ export class Agent {
                 break
             }
 
-            // Stream LLM response
             let fullText = ''
             try {
                 for await (const event of this.llm.streamChat(this.model, [...this.messages])) {
@@ -99,14 +98,12 @@ export class Agent {
                 return
             }
 
-            // Parse tool call
             const toolCall = this.parseToolCall(fullText)
 
             if (toolCall) {
                 const [name, params] = toolCall
                 onEvent({ type: 'tool_started', name, parameters: JSON.stringify(params) })
 
-                // Execute tool
                 const tool = this.tools.find(name)
                 let result: string
                 if (tool) {
@@ -121,11 +118,9 @@ export class Agent {
 
                 onEvent({ type: 'tool_finished', name, result })
 
-                // Append to conversation
                 this.messages.push({ role: 'assistant', content: fullText })
                 this.messages.push({ role: 'user', content: PromptBuilder.formatToolResult(name, result) })
             } else {
-                // No tool call — final answer
                 onEvent({ type: 'final_answer', data: fullText })
                 break
             }
@@ -140,19 +135,16 @@ export class Agent {
 
         const inner = content.slice(tcStart + 11, tcEnd)
 
-        // Extract name
         const nStart = inner.indexOf('<name>')
         const nEnd = inner.indexOf('</name>')
         if (nStart === -1 || nEnd === -1) return null
         const name = inner.slice(nStart + 6, nEnd).trim()
 
-        // Extract parameters
         const params: Record<string, string> = {}
         const pStart = inner.indexOf('<parameters>')
         const pEnd = inner.indexOf('</parameters>')
         if (pStart !== -1 && pEnd !== -1) {
             const pInner = inner.slice(pStart + 12, pEnd)
-            // Simple XML tag parsing
             let cursor = pInner
             while (true) {
                 const tagStart = cursor.indexOf('<')
@@ -179,3 +171,5 @@ export class Agent {
         return [name, params]
     }
 }
+
+export default Agent

@@ -307,374 +307,6 @@ class LMStudio {
     return models;
   }
 }
-var ToolCategory = /* @__PURE__ */ ((ToolCategory2) => {
-  ToolCategory2["FileSystem"] = "FileSystem";
-  ToolCategory2["CodeIntelligence"] = "CodeIntelligence";
-  ToolCategory2["Execution"] = "Execution";
-  ToolCategory2["Communication"] = "Communication";
-  ToolCategory2["General"] = "General";
-  return ToolCategory2;
-})(ToolCategory || {});
-function resolvePath(filePath, workspace) {
-  if (path__namespace.isAbsolute(filePath)) return filePath;
-  return path__namespace.join(workspace, filePath);
-}
-function truncateResult(result, maxLen = 8e3) {
-  if (result.length <= maxLen) return result;
-  const half = Math.floor(maxLen / 2);
-  return result.slice(0, half) + `
-
-... [truncated ${result.length - maxLen} characters] ...
-
-` + result.slice(-half);
-}
-class ReadFileTool {
-  name() {
-    return "read_file";
-  }
-  description() {
-    return "Read the contents of a file. Returns the full file content with line numbers.";
-  }
-  category() {
-    return "FileSystem";
-  }
-  isDestructive() {
-    return false;
-  }
-  parameters() {
-    return JSON.stringify({
-      properties: {
-        path: { type: "string", description: "Path to the file (relative to workspace or absolute)" }
-      },
-      required: ["path"]
-    });
-  }
-  examples() {
-    return [{ description: "Read a config file", xml: "<tool_call>\n  <name>read_file</name>\n  <parameters>\n    <path>src/config.ts</path>\n  </parameters>\n</tool_call>" }];
-  }
-  async execute(params, workspace) {
-    const filePath = resolvePath(params.path || "", workspace);
-    if (!fs__namespace.existsSync(filePath)) return `Error: File not found: ${filePath}`;
-    const content = fs__namespace.readFileSync(filePath, "utf-8");
-    const lines = content.split("\n").map((l, i) => `${i + 1}: ${l}`).join("\n");
-    return truncateResult(lines);
-  }
-}
-class WriteFileTool {
-  name() {
-    return "write_file";
-  }
-  description() {
-    return "Create or overwrite a file with the specified content. Use for NEW files only. For modifications, prefer edit_file.";
-  }
-  category() {
-    return "FileSystem";
-  }
-  isDestructive() {
-    return true;
-  }
-  parameters() {
-    return JSON.stringify({
-      properties: {
-        path: { type: "string", description: "Path to the file" },
-        content: { type: "string", description: "Full file content to write" }
-      },
-      required: ["path", "content"]
-    });
-  }
-  examples() {
-    return [{ description: "Create a new file", xml: "<tool_call>\n  <name>write_file</name>\n  <parameters>\n    <path>hello.txt</path>\n    <content>Hello World</content>\n  </parameters>\n</tool_call>" }];
-  }
-  async execute(params, workspace) {
-    const filePath = resolvePath(params.path || "", workspace);
-    const dir = path__namespace.dirname(filePath);
-    if (!fs__namespace.existsSync(dir)) fs__namespace.mkdirSync(dir, { recursive: true });
-    fs__namespace.writeFileSync(filePath, params.content || "", "utf-8");
-    return `File written: ${filePath}`;
-  }
-}
-class EditFileTool {
-  name() {
-    return "edit_file";
-  }
-  description() {
-    return "Perform a surgical find-and-replace in a file. ALWAYS read the file first to get the exact content to replace.";
-  }
-  category() {
-    return "FileSystem";
-  }
-  isDestructive() {
-    return true;
-  }
-  parameters() {
-    return JSON.stringify({
-      properties: {
-        path: { type: "string", description: "Path to the file" },
-        old_content: { type: "string", description: "Exact content to find (must match exactly)" },
-        new_content: { type: "string", description: "Replacement content" }
-      },
-      required: ["path", "old_content", "new_content"]
-    });
-  }
-  examples() {
-    return [{ description: "Replace a function name", xml: "<tool_call>\n  <name>edit_file</name>\n  <parameters>\n    <path>src/utils.ts</path>\n    <old_content>function oldName()</old_content>\n    <new_content>function newName()</new_content>\n  </parameters>\n</tool_call>" }];
-  }
-  async execute(params, workspace) {
-    const filePath = resolvePath(params.path || "", workspace);
-    if (!fs__namespace.existsSync(filePath)) return `Error: File not found: ${filePath}`;
-    const content = fs__namespace.readFileSync(filePath, "utf-8");
-    const oldContent = params.old_content || "";
-    const newContent = params.new_content ?? "";
-    const count = content.split(oldContent).length - 1;
-    if (count === 0) return `Error: old_content not found in file. Read the file first to get exact content.`;
-    if (count > 1) return `Error: old_content found ${count} times. Make it more specific to match exactly once.`;
-    fs__namespace.writeFileSync(filePath, content.replace(oldContent, newContent), "utf-8");
-    return `File edited successfully: ${filePath}`;
-  }
-}
-class RunCommandTool {
-  name() {
-    return "run_command";
-  }
-  description() {
-    return "Execute a shell command in the workspace directory. Use for builds, tests, git, etc.";
-  }
-  category() {
-    return "Execution";
-  }
-  isDestructive() {
-    return true;
-  }
-  parameters() {
-    return JSON.stringify({
-      properties: {
-        command: { type: "string", description: "Shell command to execute" },
-        timeout: { type: "string", description: "Timeout in seconds (default: 30)" }
-      },
-      required: ["command"]
-    });
-  }
-  examples() {
-    return [{ description: "Run tests", xml: "<tool_call>\n  <name>run_command</name>\n  <parameters>\n    <command>npm test</command>\n  </parameters>\n</tool_call>" }];
-  }
-  async execute(params, workspace) {
-    const timeout = parseInt(params.timeout || "30") * 1e3;
-    try {
-      const output = child_process.execSync(params.command || 'echo "no command"', {
-        cwd: workspace,
-        timeout,
-        encoding: "utf-8",
-        maxBuffer: 1024 * 1024,
-        stdio: ["pipe", "pipe", "pipe"]
-      });
-      return truncateResult(`Exit code: 0
-
-${output}`);
-    } catch (err) {
-      const stdout = err.stdout || "";
-      const stderr = err.stderr || "";
-      const code = err.status ?? 1;
-      return truncateResult(`Exit code: ${code}
-
-STDOUT:
-${stdout}
-
-STDERR:
-${stderr}`);
-    }
-  }
-}
-class SearchFilesTool {
-  name() {
-    return "search_files";
-  }
-  description() {
-    return "Search for a pattern in all files recursively. Returns matching lines with file paths and line numbers.";
-  }
-  category() {
-    return "CodeIntelligence";
-  }
-  isDestructive() {
-    return false;
-  }
-  parameters() {
-    return JSON.stringify({
-      properties: {
-        pattern: { type: "string", description: "Text or regex pattern to search for" },
-        path: { type: "string", description: "Directory to search in (default: workspace root)" },
-        file_pattern: { type: "string", description: 'Glob pattern to filter files, e.g. "*.ts"' }
-      },
-      required: ["pattern"]
-    });
-  }
-  examples() {
-    return [{ description: "Find all TODO comments", xml: "<tool_call>\n  <name>search_files</name>\n  <parameters>\n    <pattern>TODO</pattern>\n  </parameters>\n</tool_call>" }];
-  }
-  async execute(params, workspace) {
-    const searchPath = resolvePath(params.path || ".", workspace);
-    const pattern = params.pattern || "";
-    const excludeDirs = ["node_modules", ".git", "target", "dist", ".nuxt", ".output", "__pycache__"];
-    const results = [];
-    function searchDir(dir) {
-      if (results.length > 100) return;
-      let entries;
-      try {
-        entries = fs__namespace.readdirSync(dir, { withFileTypes: true });
-      } catch {
-        return;
-      }
-      for (const entry of entries) {
-        if (results.length > 100) break;
-        if (excludeDirs.includes(entry.name)) continue;
-        const full = path__namespace.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          searchDir(full);
-        } else if (entry.isFile()) {
-          if (params.file_pattern && !entry.name.match(globToRegex(params.file_pattern))) continue;
-          try {
-            const content = fs__namespace.readFileSync(full, "utf-8");
-            const lines = content.split("\n");
-            for (let i = 0; i < lines.length; i++) {
-              if (lines[i].includes(pattern)) {
-                const rel = path__namespace.relative(workspace, full);
-                results.push(`${rel}:${i + 1}: ${lines[i].trim()}`);
-              }
-            }
-          } catch {
-          }
-        }
-      }
-    }
-    searchDir(searchPath);
-    if (results.length === 0) return `No matches found for "${pattern}"`;
-    return truncateResult(results.join("\n"));
-  }
-}
-function globToRegex(glob) {
-  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
-  return new RegExp(`^${escaped}$`);
-}
-class ListDirectoryTool {
-  name() {
-    return "list_directory";
-  }
-  description() {
-    return "List files and directories in a path. Shows file sizes and types.";
-  }
-  category() {
-    return "FileSystem";
-  }
-  isDestructive() {
-    return false;
-  }
-  parameters() {
-    return JSON.stringify({
-      properties: {
-        path: { type: "string", description: "Directory path (default: workspace root)" },
-        recursive: { type: "string", description: 'If "true", list recursively (max 3 levels)' }
-      },
-      required: []
-    });
-  }
-  examples() {
-    return [{ description: "List project root", xml: "<tool_call>\n  <name>list_directory</name>\n  <parameters>\n    <path>.</path>\n  </parameters>\n</tool_call>" }];
-  }
-  async execute(params, workspace) {
-    const dirPath = resolvePath(params.path || ".", workspace);
-    const recursive = params.recursive === "true";
-    const excludeDirs = ["node_modules", ".git", "target", "dist", ".nuxt", ".output"];
-    const lines = [];
-    function listDir(dir, prefix, depth) {
-      if (lines.length > 200) return;
-      let entries;
-      try {
-        entries = fs__namespace.readdirSync(dir, { withFileTypes: true });
-      } catch {
-        return;
-      }
-      entries.sort((a, b) => {
-        if (a.isDirectory() && !b.isDirectory()) return -1;
-        if (!a.isDirectory() && b.isDirectory()) return 1;
-        return a.name.localeCompare(b.name);
-      });
-      for (const entry of entries) {
-        if (excludeDirs.includes(entry.name)) continue;
-        const full = path__namespace.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          lines.push(`${prefix}📁 ${entry.name}/`);
-          if (recursive && depth < 3) listDir(full, prefix + "  ", depth + 1);
-        } else {
-          try {
-            const stat = fs__namespace.statSync(full);
-            const size = formatSize(stat.size);
-            lines.push(`${prefix}📄 ${entry.name} (${size})`);
-          } catch {
-            lines.push(`${prefix}📄 ${entry.name}`);
-          }
-        }
-      }
-    }
-    listDir(dirPath, "", 0);
-    if (lines.length === 0) return `Directory is empty or does not exist: ${dirPath}`;
-    return lines.join("\n");
-  }
-}
-function formatSize(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-class ManageTodosTool {
-  name() {
-    return "manage_todos";
-  }
-  description() {
-    return "Track your progress with a checklist. Create and update task lists visible to the user.";
-  }
-  category() {
-    return "General";
-  }
-  isDestructive() {
-    return false;
-  }
-  parameters() {
-    return JSON.stringify({
-      properties: {
-        checklist: { type: "string", description: 'Full checklist in markdown format, e.g. "- [x] Done\\n- [ ] Pending"' }
-      },
-      required: ["checklist"]
-    });
-  }
-  examples() {
-    return [];
-  }
-  async execute(params) {
-    return `Checklist updated:
-${params.checklist || "(empty)"}`;
-  }
-}
-class ToolRegistry {
-  constructor(tools2) {
-    this.tools = tools2;
-  }
-  getTools() {
-    return this.tools;
-  }
-  find(name) {
-    return this.tools.find((t) => t.name() === name);
-  }
-}
-function getDefaultTools() {
-  return new ToolRegistry([
-    new ReadFileTool(),
-    new WriteFileTool(),
-    new EditFileTool(),
-    new RunCommandTool(),
-    new SearchFilesTool(),
-    new ListDirectoryTool(),
-    new ManageTodosTool()
-  ]);
-}
 class IdentityPart {
   constructor(userName) {
     this.userName = userName;
@@ -701,6 +333,14 @@ NEVER skip step 1. NEVER write code without reading the existing file first.
 ALWAYS verify your changes compile/run before reporting success.`;
   }
 }
+var ToolCategory = /* @__PURE__ */ ((ToolCategory2) => {
+  ToolCategory2["FileSystem"] = "FileSystem";
+  ToolCategory2["CodeIntelligence"] = "CodeIntelligence";
+  ToolCategory2["Execution"] = "Execution";
+  ToolCategory2["Communication"] = "Communication";
+  ToolCategory2["General"] = "General";
+  return ToolCategory2;
+})(ToolCategory || {});
 class ToolFormatPart {
   constructor(tools2) {
     this.tools = tools2;
@@ -931,6 +571,366 @@ class Agent {
     }
     return [name, params];
   }
+}
+function resolvePath(filePath, workspace) {
+  if (path__namespace.isAbsolute(filePath)) return filePath;
+  return path__namespace.join(workspace, filePath);
+}
+function truncateResult(result, maxLen = 8e3) {
+  if (result.length <= maxLen) return result;
+  const half = Math.floor(maxLen / 2);
+  return result.slice(0, half) + `
+
+... [truncated ${result.length - maxLen} characters] ...
+
+` + result.slice(-half);
+}
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+function globToRegex(glob) {
+  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
+  return new RegExp(`^${escaped}$`);
+}
+class ReadFileTool {
+  name() {
+    return "read_file";
+  }
+  description() {
+    return "Read the contents of a file. Returns the full file content with line numbers.";
+  }
+  category() {
+    return ToolCategory.FileSystem;
+  }
+  isDestructive() {
+    return false;
+  }
+  parameters() {
+    return JSON.stringify({
+      properties: {
+        path: { type: "string", description: "Path to the file (relative to workspace or absolute)" }
+      },
+      required: ["path"]
+    });
+  }
+  examples() {
+    return [{ description: "Read a config file", xml: "<tool_call>\n  <name>read_file</name>\n  <parameters>\n    <path>src/config.ts</path>\n  </parameters>\n</tool_call>" }];
+  }
+  async execute(params, workspace) {
+    const filePath = resolvePath(params.path || "", workspace);
+    if (!fs__namespace.existsSync(filePath)) return `Error: File not found: ${filePath}`;
+    const content = fs__namespace.readFileSync(filePath, "utf-8");
+    const lines = content.split("\n").map((l, i) => `${i + 1}: ${l}`).join("\n");
+    return truncateResult(lines);
+  }
+}
+class WriteFileTool {
+  name() {
+    return "write_file";
+  }
+  description() {
+    return "Create or overwrite a file with the specified content. Use for NEW files only. For modifications, prefer edit_file.";
+  }
+  category() {
+    return ToolCategory.FileSystem;
+  }
+  isDestructive() {
+    return true;
+  }
+  parameters() {
+    return JSON.stringify({
+      properties: {
+        path: { type: "string", description: "Path to the file" },
+        content: { type: "string", description: "Full file content to write" }
+      },
+      required: ["path", "content"]
+    });
+  }
+  examples() {
+    return [{ description: "Create a new file", xml: "<tool_call>\n  <name>write_file</name>\n  <parameters>\n    <path>hello.txt</path>\n    <content>Hello World</content>\n  </parameters>\n</tool_call>" }];
+  }
+  async execute(params, workspace) {
+    const filePath = resolvePath(params.path || "", workspace);
+    const dir = path__namespace.dirname(filePath);
+    if (!fs__namespace.existsSync(dir)) fs__namespace.mkdirSync(dir, { recursive: true });
+    fs__namespace.writeFileSync(filePath, params.content || "", "utf-8");
+    return `File written: ${filePath}`;
+  }
+}
+class EditFileTool {
+  name() {
+    return "edit_file";
+  }
+  description() {
+    return "Perform a surgical find-and-replace in a file. ALWAYS read the file first to get the exact content to replace.";
+  }
+  category() {
+    return ToolCategory.FileSystem;
+  }
+  isDestructive() {
+    return true;
+  }
+  parameters() {
+    return JSON.stringify({
+      properties: {
+        path: { type: "string", description: "Path to the file" },
+        old_content: { type: "string", description: "Exact content to find (must match exactly)" },
+        new_content: { type: "string", description: "Replacement content" }
+      },
+      required: ["path", "old_content", "new_content"]
+    });
+  }
+  examples() {
+    return [{ description: "Replace a function name", xml: "<tool_call>\n  <name>edit_file</name>\n  <parameters>\n    <path>src/utils.ts</path>\n    <old_content>function oldName()</old_content>\n    <new_content>function newName()</new_content>\n  </parameters>\n</tool_call>" }];
+  }
+  async execute(params, workspace) {
+    const filePath = resolvePath(params.path || "", workspace);
+    if (!fs__namespace.existsSync(filePath)) return `Error: File not found: ${filePath}`;
+    const content = fs__namespace.readFileSync(filePath, "utf-8");
+    const oldContent = params.old_content || "";
+    const newContent = params.new_content ?? "";
+    const count = content.split(oldContent).length - 1;
+    if (count === 0) return `Error: old_content not found in file. Read the file first to get exact content.`;
+    if (count > 1) return `Error: old_content found ${count} times. Make it more specific to match exactly once.`;
+    fs__namespace.writeFileSync(filePath, content.replace(oldContent, newContent), "utf-8");
+    return `File edited successfully: ${filePath}`;
+  }
+}
+class RunCommandTool {
+  name() {
+    return "run_command";
+  }
+  description() {
+    return "Execute a shell command in the workspace directory. Use for builds, tests, git, etc.";
+  }
+  category() {
+    return ToolCategory.Execution;
+  }
+  isDestructive() {
+    return true;
+  }
+  parameters() {
+    return JSON.stringify({
+      properties: {
+        command: { type: "string", description: "Shell command to execute" },
+        timeout: { type: "string", description: "Timeout in seconds (default: 30)" }
+      },
+      required: ["command"]
+    });
+  }
+  examples() {
+    return [{ description: "Run tests", xml: "<tool_call>\n  <name>run_command</name>\n  <parameters>\n    <command>npm test</command>\n  </parameters>\n</tool_call>" }];
+  }
+  async execute(params, workspace) {
+    const timeout = parseInt(params.timeout || "30") * 1e3;
+    try {
+      const output = child_process.execSync(params.command || 'echo "no command"', {
+        cwd: workspace,
+        timeout,
+        encoding: "utf-8",
+        maxBuffer: 1024 * 1024,
+        stdio: ["pipe", "pipe", "pipe"]
+      });
+      return truncateResult(`Exit code: 0
+
+${output}`);
+    } catch (err) {
+      const stdout = err.stdout || "";
+      const stderr = err.stderr || "";
+      const code = err.status ?? 1;
+      return truncateResult(`Exit code: ${code}
+
+STDOUT:
+${stdout}
+
+STDERR:
+${stderr}`);
+    }
+  }
+}
+class SearchFilesTool {
+  name() {
+    return "search_files";
+  }
+  description() {
+    return "Search for a pattern in all files recursively. Returns matching lines with file paths and line numbers.";
+  }
+  category() {
+    return ToolCategory.CodeIntelligence;
+  }
+  isDestructive() {
+    return false;
+  }
+  parameters() {
+    return JSON.stringify({
+      properties: {
+        pattern: { type: "string", description: "Text or regex pattern to search for" },
+        path: { type: "string", description: "Directory to search in (default: workspace root)" },
+        file_pattern: { type: "string", description: 'Glob pattern to filter files, e.g. "*.ts"' }
+      },
+      required: ["pattern"]
+    });
+  }
+  examples() {
+    return [{ description: "Find all TODO comments", xml: "<tool_call>\n  <name>search_files</name>\n  <parameters>\n    <pattern>TODO</pattern>\n  </parameters>\n</tool_call>" }];
+  }
+  async execute(params, workspace) {
+    const searchPath = resolvePath(params.path || ".", workspace);
+    const pattern = params.pattern || "";
+    const excludeDirs = ["node_modules", ".git", "target", "dist", ".nuxt", ".output", "__pycache__"];
+    const results = [];
+    const searchDir = (dir) => {
+      if (results.length > 100) return;
+      let entries;
+      try {
+        entries = fs__namespace.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (results.length > 100) break;
+        if (excludeDirs.includes(entry.name)) continue;
+        const full = path__namespace.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          searchDir(full);
+        } else if (entry.isFile()) {
+          if (params.file_pattern && !entry.name.match(globToRegex(params.file_pattern))) continue;
+          try {
+            const content = fs__namespace.readFileSync(full, "utf-8");
+            const lines = content.split("\n");
+            for (let i = 0; i < lines.length; i++) {
+              if (lines[i].includes(pattern)) {
+                const rel = path__namespace.relative(workspace, full);
+                results.push(`${rel}:${i + 1}: ${lines[i].trim()}`);
+              }
+            }
+          } catch {
+          }
+        }
+      }
+    };
+    searchDir(searchPath);
+    if (results.length === 0) return `No matches found for "${pattern}"`;
+    return truncateResult(results.join("\n"));
+  }
+}
+class ListDirectoryTool {
+  name() {
+    return "list_directory";
+  }
+  description() {
+    return "List files and directories in a path. Shows file sizes and types.";
+  }
+  category() {
+    return ToolCategory.FileSystem;
+  }
+  isDestructive() {
+    return false;
+  }
+  parameters() {
+    return JSON.stringify({
+      properties: {
+        path: { type: "string", description: "Directory path (default: workspace root)" },
+        recursive: { type: "string", description: 'If "true", list recursively (max 3 levels)' }
+      },
+      required: []
+    });
+  }
+  examples() {
+    return [{ description: "List project root", xml: "<tool_call>\n  <name>list_directory</name>\n  <parameters>\n    <path>.</path>\n  </parameters>\n</tool_call>" }];
+  }
+  async execute(params, workspace) {
+    const dirPath = resolvePath(params.path || ".", workspace);
+    const recursive = params.recursive === "true";
+    const excludeDirs = ["node_modules", ".git", "target", "dist", ".nuxt", ".output"];
+    const lines = [];
+    const listDir = (dir, prefix, depth) => {
+      if (lines.length > 200) return;
+      let entries;
+      try {
+        entries = fs__namespace.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      entries.sort((a, b) => {
+        if (a.isDirectory() && !b.isDirectory()) return -1;
+        if (!a.isDirectory() && b.isDirectory()) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      for (const entry of entries) {
+        if (excludeDirs.includes(entry.name)) continue;
+        const full = path__namespace.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          lines.push(`${prefix}📁 ${entry.name}/`);
+          if (recursive && depth < 3) listDir(full, prefix + "  ", depth + 1);
+        } else {
+          try {
+            const stat = fs__namespace.statSync(full);
+            const size = formatSize(stat.size);
+            lines.push(`${prefix}📄 ${entry.name} (${size})`);
+          } catch {
+            lines.push(`${prefix}📄 ${entry.name}`);
+          }
+        }
+      }
+    };
+    listDir(dirPath, "", 0);
+    if (lines.length === 0) return `Directory is empty or does not exist: ${dirPath}`;
+    return lines.join("\n");
+  }
+}
+class ManageTodosTool {
+  name() {
+    return "manage_todos";
+  }
+  description() {
+    return "Track your progress with a checklist. Create and update task lists visible to the user.";
+  }
+  category() {
+    return ToolCategory.General;
+  }
+  isDestructive() {
+    return false;
+  }
+  parameters() {
+    return JSON.stringify({
+      properties: {
+        checklist: { type: "string", description: 'Full checklist in markdown format, e.g. "- [x] Done\\n- [ ] Pending"' }
+      },
+      required: ["checklist"]
+    });
+  }
+  examples() {
+    return [];
+  }
+  async execute(params) {
+    return `Checklist updated:
+${params.checklist || "(empty)"}`;
+  }
+}
+class ToolRegistry {
+  constructor(tools2) {
+    this.tools = tools2;
+  }
+  getTools() {
+    return this.tools;
+  }
+  find(name) {
+    return this.tools.find((t) => t.name() === name);
+  }
+}
+function getDefaultTools() {
+  return new ToolRegistry([
+    new ReadFileTool(),
+    new WriteFileTool(),
+    new EditFileTool(),
+    new RunCommandTool(),
+    new SearchFilesTool(),
+    new ListDirectoryTool(),
+    new ManageTodosTool()
+  ]);
 }
 let db;
 let tools;

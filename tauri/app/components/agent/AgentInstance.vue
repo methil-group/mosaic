@@ -81,7 +81,7 @@
 
             <AgentSettingsModal v-model="isSettingsOpen" :instance-id="instanceId" />
 
-            <main ref="scrollContainer" class="chat-area flex-1 overflow-y-auto px-4 py-4 space-y-5 bg-white">
+            <main ref="scrollContainer" @scroll="onChatScroll" class="chat-area flex-1 overflow-y-auto px-4 py-4 space-y-5 bg-white">
                     <div v-if="instance.messages.length === 0"
                         class="flex flex-col items-center justify-center py-8 opacity-40">
                         <Bot class="w-6 h-6 text-gray-400 mb-3" />
@@ -176,7 +176,7 @@ const getIconComponent = (iconName?: string) => {
 
 
 onMounted(() => {
-    scrollToBottom()
+    forceScrollToBottom()
     store.fetchProviders()
 
     if (instance.value?.video) {
@@ -210,15 +210,47 @@ const findResult = (events: AgentEvent[], toolName: string, startIndex: number) 
 const getEventName = (event: AgentEvent) => (event as any).name || ''
 const getEventParams = (event: AgentEvent) => (event as any).parameters || ''
 
-const scrollToBottom = async () => {
-    await nextTick()
-    if (scrollContainer.value) {
-        scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight
-    }
+// ─── Smart Auto-Scroll ──────────────────────────────────────────────────────
+// Only scrolls when user is near the bottom (not reading history).
+// Uses smooth scrolling and throttles to avoid jank during streaming.
+
+let isUserNearBottom = true
+let scrollThrottleTimer: ReturnType<typeof setTimeout> | null = null
+
+const checkIfNearBottom = () => {
+    const el = scrollContainer.value
+    if (!el) return
+    // Consider "near bottom" if within 150px of the end
+    isUserNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150
 }
 
-watch(() => instance.value?.messages.length, scrollToBottom)
-watch(() => instance.value?.messages[instance.value?.messages.length - 1]?.content, scrollToBottom)
+const onChatScroll = () => {
+    checkIfNearBottom()
+}
+
+const scrollToBottom = () => {
+    if (scrollThrottleTimer) return // Already scheduled
+
+    scrollThrottleTimer = setTimeout(async () => {
+        scrollThrottleTimer = null
+        await nextTick()
+        const el = scrollContainer.value
+        if (!el || !isUserNearBottom) return
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    }, 100) // Throttle: max once per 100ms
+}
+
+// Force-scroll (no proximity check) for new messages or mount
+const forceScrollToBottom = async () => {
+    await nextTick()
+    const el = scrollContainer.value
+    if (!el) return
+    isUserNearBottom = true
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+}
+
+watch(() => instance.value?.messages.length, forceScrollToBottom) // New message → always scroll
+watch(() => instance.value?.messages[instance.value?.messages.length - 1]?.content, scrollToBottom) // Streaming → only if near bottom
 </script>
 
 <style scoped>
