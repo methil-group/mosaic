@@ -139,7 +139,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import { Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Home, ArrowUp, RefreshCw, X, AlertCircle } from 'lucide-vue-next'
-import { invoke } from '@tauri-apps/api/core'
+const { invoke } = (window as any).api
 
 const props = defineProps<{
     instanceId?: string,

@@ -1,5 +1,7 @@
-import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+const { invoke, onEvent } = (window as any).api as {
+  invoke: (channel: string, ...args: any[]) => Promise<any>
+  onEvent: (channel: string, callback: (data: any) => void) => () => void
+}
 import { defineStore } from 'pinia'
 import { useUserStore } from './user'
 import { COMPONENTS, type AgentComponent } from '~/src/Core/Data/components'
@@ -246,8 +248,8 @@ export const useAgentStore = defineStore('agent', {
         const userStore = useUserStore()
 
         // Listen for agent events
-        const unlisten = await listen('agent-event', (event: any) => {
-          const { instanceId: evtInstanceId, event: agentEvent } = event.payload;
+        const unlisten = onEvent('agent-event', (data: any) => {
+          const { instanceId: evtInstanceId, event: agentEvent } = data
           if (evtInstanceId === instanceId) {
             this.handleEvent(instanceId, agentEvent)
           }
@@ -288,7 +290,9 @@ export const useAgentStore = defineStore('agent', {
           await invoke('messages_update', {
             id: assistantMessage.id,
             content: assistantMessage.content,
-            events: assistantMessage.events ? JSON.stringify(assistantMessage.events) : null
+            events: assistantMessage.events
+              ? JSON.stringify(assistantMessage.events.filter((e: AgentEvent) => e.type !== 'token'))
+              : null
           })
         }
 
@@ -484,17 +488,8 @@ export const useAgentStore = defineStore('agent', {
         const data: any = await invoke('providers_get')
         this.availableProviders = data.providers || []
       } catch (e) {
-        // Handle silently as this is polled
+        // Handle silently — called on-demand when user visits settings or agent panels
       }
-    },
-
-    startProviderPolling() {
-      // Fetch immediately
-      this.fetchProviders()
-      // Then every 10 seconds
-      setInterval(() => {
-        this.fetchProviders()
-      }, 10000)
     },
 
     async loadAgents() {

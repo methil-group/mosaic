@@ -2,21 +2,20 @@
   "name": "mosaic",
   "type": "module",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "main": "dist-electron/main/main.cjs",
   "scripts": {
-    "build": "nuxt build",
     "dev": "nuxt dev --port 3710",
-    "generate": "nuxt generate",
-    "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
-    "tauri:dev": "npm run generate && npx tauri dev",
-    "tauri:build": "npm run generate && npx tauri build",
-    "tauri:build:select": "node scripts/build.js"
+    "build": "nuxt generate",
+    "electron:build": "electron-vite build",
+    "electron:dev": "electron-vite build && concurrently \"npm run dev\" \"wait-on http://localhost:3710 && cross-env NODE_ENV=development electron . --no-sandbox\"",
+    "electron:start": "electron-vite build && electron . --no-sandbox",
+    "rebuild": "npx @electron/rebuild -m .",
+    "postinstall": "nuxt prepare"
   },
   "dependencies": {
     "@nuxtjs/tailwindcss": "^6.14.0",
     "@pinia/nuxt": "^0.11.3",
-    "@tauri-apps/api": "^2.10.1",
     "@types/highlight.js": "^9.12.4",
     "@types/markdown-it": "^14.1.2",
     "axios": "^1.13.4",
@@ -32,10 +31,12 @@
     "vue3-lottie": "^3.3.1"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.10.0",
+    "@electron/rebuild": "^4.0.3",
     "@types/better-sqlite3": "^7.6.13",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
+    "electron": "^35.2.1",
+    "electron-vite": "^3.1.0",
     "wait-on": "^9.0.3"
   }
 }

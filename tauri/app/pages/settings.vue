@@ -34,6 +34,7 @@ const isSavingKey = ref(false)
 const saveStatus = ref<'idle' | 'success'>('idle')
 
 onMounted(async () => {
+    store.fetchProviders()
     const key = await store.getSetting('openrouter_api_key')
     if (key) openRouterKey.value = key
 })

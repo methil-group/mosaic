@@ -8,19 +8,29 @@ export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     build: {
+      outDir: 'dist-electron/main',
       lib: {
         entry: resolve(__dirname, 'electron/main.ts'),
-        fileName: 'main'
-      }
-    }
+        formats: ['cjs'],
+        fileName: () => 'index.js',
+      },
+      rollupOptions: {
+        external: ['electron', 'better-sqlite3'],
+      },
+    },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
+      outDir: 'dist-electron/preload',
       lib: {
         entry: resolve(__dirname, 'electron/preload.ts'),
-        fileName: 'preload'
-      }
-    }
-  }
+        formats: ['cjs'],
+        fileName: () => 'index.js',
+      },
+      rollupOptions: {
+        external: ['electron'],
+      },
+    },
+  },
 })

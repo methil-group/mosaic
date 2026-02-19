@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { invoke } from '@tauri-apps/api/core'
+const { invoke } = (window as any).api
 import ConfirmModal from '../ui/ConfirmModal.vue'
 import { Trash2 } from 'lucide-vue-next'
 
