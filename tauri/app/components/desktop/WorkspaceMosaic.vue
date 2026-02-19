@@ -1,30 +1,33 @@
 <template>
-  <div class="mosaic-container">
-    <div class="mosaic-header">
+  <div class="px-[60px] py-20 max-w-[1600px] mx-auto min-h-full bg-[radial-gradient(circle_at_2px_2px,rgba(0,0,0,0.03)_1px,transparent_0)] bg-[length:32px_32px]">
+    <div class="mb-[60px] text-center">
       <h1 class="text-4xl font-black uppercase tracking-tighter text-gray-900 mb-2">Vos Workspaces</h1>
-      <p class="mosaic-subtitle">{{ workspaceIds.length }} ESPACES DE TRAVAIL</p>
+      <p class="text-[11px] font-extrabold text-gray-400 tracking-[4px] uppercase">{{ workspaceIds.length }} ESPACES DE TRAVAIL</p>
     </div>
 
-    <div class="mosaic-grid">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-10 items-start">
       <template v-for="id in workspaceIds" :key="id">
         <WorkspaceCard v-if="workspaces[id]" :workspace="workspaces[id]!" :agents="getAgentsForWorkspace(id)"
           @select="handleSelect" @delete="handleDelete(id)" />
       </template>
 
-      <button v-if="!isCreating" class="add-desktop-btn" @click="startCreation">
-        <div class="add-desktop-inner">
+      <button v-if="!isCreating"
+        class="w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-gray-300 bg-white text-gray-400 cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.165,0.84,0.44,1)] flex items-center justify-center shadow-sm hover:border-indigo-500 hover:text-indigo-500 hover:bg-indigo-500/[0.02] hover:-translate-y-1.5 hover:shadow-[0_12px_30px_rgba(99,102,241,0.1)]"
+        @click="startCreation">
+        <div class="flex flex-col items-center text-[11px] font-extrabold tracking-[1.5px]">
           <Plus class="w-8 h-8 mb-2" />
           <span>NOUVEAU WORKSPACE</span>
         </div>
       </button>
 
-      <div v-else class="add-desktop-form">
-        <div class="form-content">
+      <div v-else class="w-full aspect-[4/3] rounded-2xl border-2 border-indigo-500 bg-white flex items-center justify-center p-6 shadow-[0_12px_30px_rgba(99,102,241,0.1)]">
+        <div class="w-full text-center">
           <input v-model="newName" ref="nameInput" placeholder="Nom du workspace..." @keydown.enter="handleCreate"
-            @keydown.esc="cancelCreation" class="name-input" />
-          <div class="form-actions">
-            <button class="action-btn cancel" @click="cancelCreation">ANNULER</button>
-            <button class="action-btn confirm" @click="handleCreate">SÉLECT. DOSSIER</button>
+            @keydown.esc="cancelCreation"
+            class="w-full bg-gray-50 border border-gray-200 px-4 py-3 rounded-lg text-sm font-bold mb-5 text-center outline-none transition-all duration-200 focus:bg-white focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/10" />
+          <div class="flex gap-2.5">
+            <button class="flex-1 py-2.5 rounded-lg text-[9px] font-extrabold tracking-[1px] cursor-pointer transition-all duration-200 border-none bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600" @click="cancelCreation">ANNULER</button>
+            <button class="flex-1 py-2.5 rounded-lg text-[9px] font-extrabold tracking-[1px] cursor-pointer transition-all duration-200 border-none bg-indigo-500 text-white hover:bg-indigo-600 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(99,102,241,0.2)]" @click="handleCreate">SÉLÉCT. DOSSIER</button>
           </div>
         </div>
       </div>
@@ -32,8 +35,8 @@
 
     <!-- File Explorer Modal -->
     <Transition name="fade">
-      <div v-if="showExplorer" class="explorer-overlay">
-        <div class="explorer-modal">
+      <div v-if="showExplorer" class="fixed inset-0 bg-black/40 backdrop-blur-lg z-[1000] flex items-center justify-center p-10">
+        <div class="w-full max-w-[600px] h-[80vh] bg-white rounded-[32px] overflow-hidden shadow-2xl animate-modal-in">
           <FileExplorer :title="`DOSSIER : ${newName}`" subtitle="SÉLECTIONNEZ LE DOSSIER DU WORKSPACE"
             @select="onFolderSelect" @cancel="showExplorer = false" />
         </div>
@@ -153,195 +156,12 @@ const getRandomColor = () => {
 </script>
 
 <style scoped>
-.mosaic-container {
-  padding: 80px 60px;
-  max-width: 1600px;
-  margin: 0 auto;
-  min-height: 100%;
-  background-image:
-    radial-gradient(circle at 2px 2px, rgba(0, 0, 0, 0.03) 1px, transparent 0);
-  background-size: 32px 32px;
-}
-
-.mosaic-header {
-  margin-bottom: 60px;
-  text-align: center;
-}
-
-.mosaic-title {
-  font-size: 42px;
-  font-weight: 900;
-  letter-spacing: -2px;
-  color: #1a1a1a;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-}
-
-.mosaic-subtitle {
-  font-size: 11px;
-  font-weight: 800;
-  color: #a0a0a0;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-}
-
-.mosaic-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 40px;
-  align-items: start;
-}
-
-.add-desktop-btn {
-  width: 100%;
-  aspect-ratio: 4/3;
-  border-radius: 16px;
-  border: 2px dashed #dbdbdb;
-  background: white;
-  color: #b0b0b0;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-}
-
-.add-desktop-btn:hover {
-  border-color: #6366f1;
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.02);
-  transform: translateY(-6px);
-  box-shadow: 0 12px 30px rgba(99, 102, 241, 0.1);
-}
-
-.add-desktop-inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-}
-
-.add-desktop-form {
-  width: 100%;
-  aspect-ratio: 4/3;
-  border-radius: 16px;
-  border: 2px solid #6366f1;
-  background: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  box-shadow: 0 12px 30px rgba(99, 102, 241, 0.1);
-}
-
-.form-content {
-  width: 100%;
-  text-align: center;
-}
-
-.name-input {
-  width: 100%;
-  background: #f9f9f9;
-  border: 1px solid #eee;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 20px;
-  text-align: center;
-  outline: none;
-  transition: all 0.2s;
-}
-
-.name-input:focus {
-  background: white;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-.form-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.action-btn {
-  flex: 1;
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.action-btn.cancel {
-  background: #f5f5f5;
-  color: #a0a0a0;
-}
-
-.action-btn.cancel:hover {
-  background: #eee;
-  color: #666;
-}
-
-.action-btn.confirm {
-  background: #6366f1;
-  color: white;
-}
-
-.action-btn.confirm:hover {
-  background: #4f46e5;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
-}
-
-.explorer-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-}
-
-.explorer-modal {
-  width: 100%;
-  max-width: 600px;
-  height: 80vh;
-  background: white;
-  border-radius: 32px;
-  overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  animation: modal-in 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-}
-
 @keyframes modal-in {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+  from { opacity: 0; transform: scale(0.9) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
+.animate-modal-in { animation: modal-in 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

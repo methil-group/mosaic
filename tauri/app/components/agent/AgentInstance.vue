@@ -46,7 +46,7 @@
                 </button>
             </div>
 
-            <header class="panel-header shrink-0 cursor-grab active:cursor-grabbing"
+            <header class="h-20 relative px-4 py-3 overflow-hidden flex flex-col justify-between shrink-0 cursor-grab active:cursor-grabbing"
                 :style="{ backgroundColor: instance.color }" draggable="true" @dragstart="handleDragStart"
                 @dragend="handleDragEnd">
                 <video v-if="videoSource" autoplay loop muted playsinline
@@ -62,9 +62,9 @@
                     </client-only>
                 </div>
 
-                <div class="panel-header-top relative z-20 pointer-events-none">
+                <div class="flex justify-between items-start relative z-20 pointer-events-none">
                     <div class="flex items-center gap-3">
-                        <span class="panel-label-tag flex items-center gap-2">
+                        <span class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-md px-2.5 py-1 rounded-full text-[8px] font-bold text-white uppercase tracking-wider border border-white/20">
                             <component :is="getIconComponent(instance.icon)" class="w-3.5 h-3.5" />
                             Agent <span class="agent-name-label font-extrabold">{{ instance.name }}</span>
                         </span>
@@ -72,16 +72,16 @@
                 </div>
 
                 <!-- Activity/Status Indicator -->
-                <div class="action-circle absolute bottom-3 right-3 z-30 shadow-lg" :class="{
-                    'status-working': instance.isProcessing,
-                    'status-waiting': !instance.isProcessing && instance.messages.length === 0,
-                    'status-done': !instance.isProcessing && instance.messages.length > 0
+                <div class="w-2.5 h-2.5 rounded-full bg-slate-400 transition-all duration-300 border-2 border-white/50 absolute bottom-3 right-3 z-30 shadow-lg" :class="{
+                    'bg-blue-500 shadow-[0_0_8px_#3b82f6]': instance.isProcessing,
+                    '': !instance.isProcessing && instance.messages.length === 0,
+                    'bg-emerald-500': !instance.isProcessing && instance.messages.length > 0
                 }"></div>
             </header>
 
             <AgentSettingsModal v-model="isSettingsOpen" :instance-id="instanceId" />
 
-            <main ref="scrollContainer" @scroll="onChatScroll" class="chat-area flex-1 overflow-y-auto px-4 py-4 space-y-5 bg-white">
+            <main ref="scrollContainer" @scroll="onChatScroll" class="chat-area flex-1 overflow-y-auto px-4 py-4 space-y-5 bg-white scroll-smooth">
                     <div v-if="instance.messages.length === 0"
                         class="flex flex-col items-center justify-center py-8 opacity-40">
                         <Bot class="w-6 h-6 text-gray-400 mb-3" />
@@ -254,125 +254,6 @@ watch(() => instance.value?.messages[instance.value?.messages.length - 1]?.conte
 </script>
 
 <style scoped>
-.panel {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.panel-header {
-    height: 80px;
-    position: relative;
-    padding: 12px 16px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-.panel-header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-}
-
-.panel-label-tag {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
-    padding: 4px 10px;
-    border-radius: 99px;
-    font-size: 8px;
-    font-weight: 700;
-    color: white;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.action-circle {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #94a3b8;
-    transition: all 0.3s;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-}
-
-.status-working {
-    background: #3b82f6;
-    box-shadow: 0 0 8px #3b82f6;
-}
-
-.status-done {
-    background: #10b981;
-}
-
-.chat-area {
-    scroll-behavior: smooth;
-}
-
-.chat-area::-webkit-scrollbar {
-    width: 3px;
-}
-
-.chat-area::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-/* Chip Styles (Simplified for Grid Preview) */
-.agent-chip {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    padding: 8px;
-}
-
-.chip-content {
-    display: inline-flex;
-    align-items: center;
-    padding: 12px 28px;
-    background: white;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    border-radius: 99px;
-    gap: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-.chip-icon-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.chip-name {
-    font-size: 24px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #1e293b;
-    white-space: nowrap;
-}
-
-/* Agent Controls visibility - handled by Tailwind in template, but ensuring consistency */
-.agent-controls {
-    transform: translateY(-4px);
-}
-
-.group\/instance:hover .agent-controls {
-    transform: translateY(0);
-}
+.chat-area::-webkit-scrollbar { width: 3px; }
+.chat-area::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.05); border-radius: 10px; }
 </style>

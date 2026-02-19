@@ -156,95 +156,27 @@ const activeWorkspacePath = computed(() => {
 </script>
 
 <style>
-/* Transition Origin Styles */
-/* Handled via inline v-bind in Template */
+/* Tile TransitionGroup hooks */
+.tile-item { will-change: left, top, width, height; }
+.tile-enter-from { opacity: 0; transform: scale(0.9); }
+.tile-enter-active { transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.tile-enter-to { opacity: 1; transform: scale(1); }
+.tile-leave-from { opacity: 1; transform: scale(1); }
+.tile-leave-active { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+.tile-leave-to { opacity: 0; transform: scale(0.85); }
 
-/* Tile animations */
-.tile-item {
-  will-change: left, top, width, height;
-}
-
-/* Entry animation */
-.tile-enter-from {
-  opacity: 0;
-  transform: scale(0.9);
-}
-
-.tile-enter-active {
-  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.tile-enter-to {
-  opacity: 1;
-  transform: scale(1);
-}
-
-/* Exit animation */
-.tile-leave-from {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.tile-leave-active {
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.tile-leave-to {
-  opacity: 0;
-  transform: scale(0.85);
-}
-
-/* Resize handles */
-.resize-handle {
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.resize-handle:hover,
-.resize-handle-active {
-  opacity: 1;
-}
-
-.resize-handle-visual {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-
-.resize-handle:hover .resize-handle-visual {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.resize-handle-horizontal:hover .resize-handle-visual {
-  transform: scaleX(2);
-}
-
-.resize-handle-vertical:hover .resize-handle-visual {
-  transform: scaleY(2);
-}
-
-.resize-handle-active .resize-handle-visual {
-  background: rgba(0, 0, 0, 0.5);
-}
+/* Resize handle interactions (must be CSS – hover parent→child, active states) */
+.resize-handle { opacity: 0; transition: opacity 0.15s ease; display: flex; align-items: center; justify-content: center; }
+.resize-handle:hover, .resize-handle-active { opacity: 1; }
+.resize-handle-visual { background: rgba(0,0,0,0.15); border-radius: 4px; transition: background 0.15s ease, transform 0.15s ease; }
+.resize-handle:hover .resize-handle-visual { background: rgba(0,0,0,0.3); }
+.resize-handle-horizontal:hover .resize-handle-visual { transform: scaleX(2); }
+.resize-handle-vertical:hover .resize-handle-visual { transform: scaleY(2); }
+.resize-handle-active .resize-handle-visual { background: rgba(0,0,0,0.5); }
 
 /* Global scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
-}
-
-.scroll-none::-webkit-scrollbar {
-  display: none;
-}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+.scroll-none::-webkit-scrollbar { display: none; }
 </style>
