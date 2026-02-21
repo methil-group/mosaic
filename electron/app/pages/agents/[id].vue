@@ -69,23 +69,6 @@
                                         class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-400 focus:bg-white transition-all uppercase tracking-widest" />
                                 </div>
                                 <div class="space-y-2">
-                                    <label
-                                        class="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Current
-                                        Workspace</label>
-                                    <button @click="openFileExplorer"
-                                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[10px] font-mono text-gray-600 text-left hover:border-gray-400 hover:bg-white transition-all flex items-center gap-3 group">
-                                        <Folder
-                                            class="w-4 h-4 text-amber-500/60 group-hover:text-amber-600 transition-colors shrink-0" />
-                                        <span class="truncate flex-1">{{ agent.currentWorkspace || 'Click to select...'
-                                        }}</span>
-                                        <ChevronRight
-                                            class="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-8">
-                                <div class="space-y-2">
                                     <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Provider</label>
                                     <select v-model="agent.currentProvider" @change="onProviderChange"
                                         class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-400 focus:bg-white transition-all uppercase tracking-widest">
@@ -93,14 +76,15 @@
                                         </option>
                                     </select>
                                 </div>
-                                <div class="space-y-2">
-                                    <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Active Model</label>
-                                    <select v-model="agent.currentModel"
-                                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-400 focus:bg-white transition-all uppercase tracking-widest">
-                                        <option v-for="m in currentProviderModels" :key="m.id" :value="m.id">{{ m.name }}
-                                        </option>
-                                    </select>
-                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Active Model</label>
+                                <select v-model="agent.currentModel"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-400 focus:bg-white transition-all uppercase tracking-widest">
+                                    <option v-for="m in currentProviderModels" :key="m.id" :value="m.id">{{ m.name }}
+                                    </option>
+                                </select>
                             </div>
 
                             <div class="pt-4 flex justify-end">
@@ -116,95 +100,7 @@
             </div>
         </div>
 
-        <!-- File Explorer Modal -->
-        <Teleport to="body">
-            <Transition name="modal">
-                <div v-if="showFileExplorer" class="fixed inset-0 z-50 flex items-center justify-center p-8">
-                    <!-- Backdrop -->
-                    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeFileExplorer"></div>
 
-                    <!-- Modal -->
-                    <div
-                        class="relative w-full max-w-xl bg-white border border-gray-200 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
-                        <!-- Modal Header -->
-                        <div class="p-6 border-b border-gray-100 shrink-0">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <FolderOpen class="w-5 h-5 text-amber-500" />
-                                    <h2 class="text-sm font-black uppercase tracking-widest text-gray-900">Select
-                                        Workspace
-                                    </h2>
-                                </div>
-                                <button @click="closeFileExplorer"
-                                    class="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-all">
-                                    <X class="w-4 h-4" />
-                                </button>
-                            </div>
-
-                            <!-- Navigation -->
-                            <div class="flex items-center gap-2 mt-4">
-                                <button @click="navigateHome"
-                                    class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 transition-all"
-                                    title="Home">
-                                    <Home class="w-4 h-4" />
-                                </button>
-                                <button @click="navigateUp"
-                                    class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 transition-all"
-                                    :disabled="currentPath === '~' || currentPath === '/'"
-                                    :class="{ 'opacity-30 cursor-not-allowed': currentPath === '~' || currentPath === '/' }"
-                                    title="Up">
-                                    <ArrowUp class="w-4 h-4" />
-                                </button>
-                                <button @click="loadDirectories(currentPath)"
-                                    class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 transition-all"
-                                    title="Refresh">
-                                    <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
-                                </button>
-                                <div
-                                    class="flex-1 px-4 py-2 bg-gray-100 rounded-lg text-[11px] font-mono text-gray-600 truncate">
-                                    {{ currentPath }}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Directory List -->
-                        <div class="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-                            <div v-if="directories.length === 0 && !isLoading"
-                                class="flex flex-col items-center justify-center py-12 opacity-30">
-                                <Folder class="w-8 h-8 text-gray-400" />
-                                <span class="text-[10px] font-bold uppercase tracking-widest mt-3 text-gray-500">No
-                                    folders
-                                    here</span>
-                            </div>
-
-                            <div v-else class="space-y-1">
-                                <button v-for="dir in directories" :key="dir" @click="navigateToFolder(dir)"
-                                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 text-left transition-all group">
-                                    <Folder
-                                        class="w-4 h-4 text-amber-500/60 group-hover:text-amber-600 transition-colors shrink-0" />
-                                    <span
-                                        class="text-xs font-bold text-gray-600 group-hover:text-gray-900 transition-colors truncate">{{
-                                            dir }}</span>
-                                    <ChevronRight
-                                        class="w-3 h-3 text-gray-300 group-hover:text-gray-500 ml-auto transition-colors shrink-0" />
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Modal Footer -->
-                        <div class="p-6 border-t border-gray-100 shrink-0 flex items-center justify-between">
-                            <div class="text-[10px] font-mono text-gray-500 truncate max-w-[300px]">
-                                {{ currentPath }}
-                            </div>
-                            <button @click="selectFolder"
-                                class="px-6 py-3 bg-gray-900 text-white text-[10px] font-black uppercase tracking-[0.15em] rounded-xl transition-all hover:scale-105 active:scale-95">
-                                Select This Folder
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </Transition>
-        </Teleport>
     </div>
     <div v-else class="h-full flex items-center justify-center bg-gray-50">
         <div class="flex flex-col items-center gap-4 opacity-50">
@@ -231,7 +127,7 @@
 import { useRoute, useRouter } from 'vue-router'
 import { useAgentStore } from '~/stores/agent'
 import ConfirmModal from '~/components/ui/ConfirmModal.vue'
-import { ArrowLeft, Bot, Settings, Terminal, BotIcon, Save, History, Database, Trash2, Folder, FolderOpen, ChevronRight, Home, ArrowUp, RefreshCw, X } from 'lucide-vue-next'
+import { ArrowLeft, Bot, Settings, Terminal, BotIcon, Save, History, Database, Trash2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 const route = useRoute()
@@ -258,28 +154,32 @@ const onTerminateConfirm = () => {
 }
 
 const currentProviderModels = computed(() => {
-    if (!agent.value) return []
-    const provider = store.availableProviders.find(p => p.id === agent.value.currentProvider)
+    const a = agent.value
+    if (!a) return []
+    const provider = store.availableProviders.find(p => p.id === a.currentProvider)
     return provider ? provider.models : []
 })
 
 const onProviderChange = () => {
-    if (agent.value && currentProviderModels.value.length > 0) {
-        agent.value.currentModel = currentProviderModels.value[0].id
+    const a = agent.value
+    const models = currentProviderModels.value
+    if (a && models.length > 0 && models[0]) {
+        a.currentModel = models[0].id
     }
 }
 
 const isSaving = ref(false)
 
 const saveConfig = async () => {
-    if (agent.value) {
+    const a = agent.value
+    if (a) {
         isSaving.value = true
         try {
             await store.updateInstance(id, {
-                name: agent.value.name,
-                workspace: agent.value.currentWorkspace,
-                model: agent.value.currentModel,
-                provider: agent.value.currentProvider
+                name: a.name,
+                workspace: a.currentWorkspace,
+                model: a.currentModel,
+                provider: a.currentProvider
             })
         } finally {
             isSaving.value = false
@@ -287,70 +187,6 @@ const saveConfig = async () => {
     }
 }
 
-// File Explorer Modal state
-const showFileExplorer = ref(false)
-const currentPath = ref('~')
-const directories = ref<string[]>([])
-const isLoading = ref(false)
-
-const openFileExplorer = () => {
-    showFileExplorer.value = true
-    const a = agent.value
-    if (a && a.currentWorkspace) {
-        loadDirectories(a.currentWorkspace)
-    } else {
-        loadDirectories('~')
-    }
-}
-
-const closeFileExplorer = () => {
-    showFileExplorer.value = false
-}
-
-const loadDirectories = async (path: string) => {
-    isLoading.value = true
-    try {
-        const result = await store.listDirectories(path)
-        directories.value = result.filter(d => !d.startsWith('.'))
-        currentPath.value = path
-    } catch (e) {
-        console.error(e)
-    } finally {
-        isLoading.value = false
-    }
-}
-
-const navigateToFolder = (folderName: string) => {
-    const newPath = currentPath.value.endsWith('/')
-        ? `${currentPath.value}${folderName}`
-        : `${currentPath.value}/${folderName}`
-    loadDirectories(newPath)
-}
-
-const navigateUp = () => {
-    const path = currentPath.value
-    if (path === '~' || path === '/') return
-    const lastSlash = path.lastIndexOf('/')
-    if (lastSlash > 0) {
-        loadDirectories(path.substring(0, lastSlash))
-    } else if (lastSlash === 0) {
-        loadDirectories('/')
-    } else {
-        loadDirectories('~')
-    }
-}
-
-const navigateHome = () => {
-    loadDirectories('~')
-}
-
-const selectFolder = () => {
-    const a = agent.value
-    if (a) {
-        a.currentWorkspace = currentPath.value
-    }
-    closeFileExplorer()
-}
 </script>
 
 <style scoped>
