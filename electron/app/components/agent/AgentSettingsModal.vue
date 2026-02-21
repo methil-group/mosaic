@@ -42,42 +42,6 @@
                                         placeholder="Enter instance name..." />
                                 </div>
 
-                                <!-- Workspace Section -->
-                                <div class="space-y-2">
-                                    <label
-                                        class="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Workspace
-                                        Path</label>
-                                    <div class="relative">
-                                        <div
-                                            class="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-4 focus-within:ring-8 focus-within:ring-gray-100 focus-within:border-gray-400 transition-all">
-                                            <Folder class="w-5 h-5 text-gray-400" />
-                                            <input v-model="instance.currentWorkspace"
-                                                @focus="isInputFocused = true; fetchWorkspaceSuggestions()"
-                                                @blur="closeWorkspaceMenu" @keydown.tab="handleTab"
-                                                @keydown.enter="handleEnter"
-                                                class="flex-1 bg-transparent border-none p-0 text-base font-mono text-gray-900 outline-none placeholder:text-gray-300"
-                                                placeholder="/path/to/workspace" />
-                                        </div>
-
-                                        <!-- Autocomplete Dropdown -->
-                                        <div v-if="isWorkspaceMenuOpen"
-                                            class="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-[150] overflow-hidden">
-                                            <div class="max-h-48 overflow-y-auto p-1 space-y-0.5 custom-scrollbar-mini">
-                                                <button v-for="(dir, sIdx) in workspaceSuggestions" :key="dir"
-                                                    @mousedown.prevent="selectWorkspaceSuggestion(dir)"
-                                                    class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 text-left transition-colors group"
-                                                    :class="{ 'bg-gray-200': selectedIndex === sIdx }">
-                                                    <Folder class="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600"
-                                                        :class="{ 'text-gray-600': selectedIndex === sIdx }" />
-                                                    <span
-                                                        class="text-xs font-mono text-gray-500 group-hover:text-gray-900"
-                                                        :class="{ 'text-gray-900': selectedIndex === sIdx }">{{ dir
-                                                        }}</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
 
                             </div>
 
@@ -186,7 +150,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue'
 import { useAgentStore } from '~/stores/agent'
-import { Settings, X, Folder, Check, Globe } from 'lucide-vue-next'
+import { Settings, X, Check, Globe } from 'lucide-vue-next'
 
 const props = defineProps<{
     instanceId: string
@@ -217,15 +181,19 @@ onMounted(async () => {
     lmStudioUrl.value = await store.getSetting('lm_studio_base_url') || ''
 
     // Initialize selectedProviderId based on current model
-    if (instance.value) {
-        const currentModelId = instance.value.currentModel
+    const currentInstance = instance.value
+    if (currentInstance) {
+        const currentModelId = currentInstance.currentModel
         const provider = store.availableProviders.find(p => 
-            p.models.some(m => m.id === currentModelId)
+            p.models && p.models.some(m => m.id === currentModelId)
         )
         if (provider) {
             selectedProviderId.value = provider.id
         } else if (store.availableProviders.length > 0) {
-            selectedProviderId.value = store.availableProviders[0].id
+            const firstProvider = store.availableProviders[0]
+            if (firstProvider) {
+                selectedProviderId.value = firstProvider.id
+            }
         }
     }
 })
@@ -235,10 +203,14 @@ const selectProvider = (providerId: string) => {
     
     // Auto-select first model if current isn't in new provider
     const provider = store.availableProviders.find(p => p.id === providerId)
-    if (provider && provider.models.length > 0) {
-        const hasCurrentModel = provider.models.some(m => m.id === instance.value?.currentModel)
+    const currentInstance = instance.value
+    if (provider && provider.models && provider.models.length > 0 && currentInstance) {
+        const hasCurrentModel = provider.models.some(m => m.id === currentInstance.currentModel)
         if (!hasCurrentModel) {
-            selectModel(provider.models[0].id)
+            const firstModel = provider.models[0]
+            if (firstModel) {
+                selectModel(firstModel.id)
+            }
         } else {
             // Even if model hasn't changed, the provider has.
             store.updateInstance(props.instanceId, { provider: providerId })
@@ -246,99 +218,7 @@ const selectProvider = (providerId: string) => {
     }
 }
 
-const workspaceSuggestions = ref<string[]>([])
-const allSuggestionsForPath = ref<string[]>([])
-const lastFetchedPath = ref('')
-const selectedIndex = ref(-1)
-const isWorkspaceMenuOpen = ref(false)
-const isInputFocused = ref(false)
 
-const fetchWorkspaceSuggestions = async () => {
-    if (!instance.value?.currentWorkspace) return
-    const currentPath = instance.value.currentWorkspace
-    const sep = store.pathSeparator
-
-    let parentPath = currentPath
-    let partial = ''
-
-    if (!currentPath.endsWith(sep)) {
-        const lastSep = currentPath.lastIndexOf(sep)
-        if (lastSep !== -1) {
-            parentPath = currentPath.substring(0, lastSep + 1)
-            partial = currentPath.substring(lastSep + 1)
-        } else {
-            // Check if it looks like a drive letter start on Windows
-            if (store.pathSeparator === '\\' && currentPath.length <= 2) {
-                 parentPath = currentPath
-            } else {
-                parentPath = './'
-                partial = currentPath
-            }
-        }
-    }
-
-    if (parentPath !== lastFetchedPath.value) {
-        const dirs = await store.listDirectories(parentPath)
-        allSuggestionsForPath.value = dirs
-        lastFetchedPath.value = parentPath
-    }
-
-    workspaceSuggestions.value = allSuggestionsForPath.value.filter(d =>
-        d.toLowerCase().startsWith(partial.toLowerCase())
-    )
-
-    selectedIndex.value = -1
-    isWorkspaceMenuOpen.value = workspaceSuggestions.value.length > 0
-}
-
-const handleTab = (event: KeyboardEvent) => {
-    if (!isWorkspaceMenuOpen.value || workspaceSuggestions.value.length === 0) return
-    event.preventDefault()
-
-    selectedIndex.value = (selectedIndex.value + 1) % workspaceSuggestions.value.length
-
-    const dir = workspaceSuggestions.value[selectedIndex.value]
-    const current = instance.value!.currentWorkspace
-    const sep = store.pathSeparator
-    const lastSep = current.lastIndexOf(sep)
-    const parent = current.substring(0, lastSep + 1)
-    instance.value!.currentWorkspace = `${parent}${dir}`
-}
-
-const handleEnter = (event: KeyboardEvent) => {
-    if (!isWorkspaceMenuOpen.value || workspaceSuggestions.value.length === 0) return
-
-    if (selectedIndex.value !== -1 || workspaceSuggestions.value.length === 1) {
-        event.preventDefault()
-        const idx = selectedIndex.value === -1 ? 0 : selectedIndex.value
-        const dir = workspaceSuggestions.value[idx]
-        const current = instance.value!.currentWorkspace
-        const sep = store.pathSeparator
-        const lastSep = current.lastIndexOf(sep)
-        const parent = current.substring(0, lastSep + 1)
-
-        instance.value!.currentWorkspace = `${parent}${dir}${sep}`
-        isWorkspaceMenuOpen.value = false
-        fetchWorkspaceSuggestions()
-    }
-}
-
-const selectWorkspaceSuggestion = (dir: string) => {
-    if (!instance.value) return
-    const current = instance.value.currentWorkspace
-    const sep = store.pathSeparator
-    const lastSep = current.lastIndexOf(sep)
-    const parent = current.substring(0, lastSep + 1)
-
-    instance.value.currentWorkspace = `${parent}${dir}${sep}`
-    fetchWorkspaceSuggestions()
-}
-
-const closeWorkspaceMenu = () => {
-    setTimeout(() => {
-        isWorkspaceMenuOpen.value = false
-    }, 200)
-}
 
 const selectModel = (modelId: string) => {
     store.updateInstance(props.instanceId, { 
@@ -347,11 +227,7 @@ const selectModel = (modelId: string) => {
     })
 }
 
-watch(() => instance.value?.currentWorkspace, () => {
-    if (isInputFocused.value) {
-        fetchWorkspaceSuggestions()
-    }
-})
+
 
 const close = () => {
     emit('update:modelValue', false)

@@ -133,7 +133,7 @@ export const useAgentStore = defineStore('agent', {
 
       let workspacePath = ''
       if (workspaceIdToUse && this.workspaces[workspaceIdToUse]) {
-        workspacePath = this.workspaces[workspaceIdToUse].path || ''
+        workspacePath = this.workspaces[workspaceIdToUse]?.path || ''
       } else {
         workspaceIdToUse = null
       }
@@ -563,8 +563,8 @@ export const useAgentStore = defineStore('agent', {
             })),
             isProcessing: false,
             currentWorkspace: agent.workspace,
-            currentModel: agent.model,
-            currentProvider: agent.provider || 'openrouter',
+            currentModel: agent.model || this.defaultModelId,
+            currentProvider: agent.provider || this.defaultProviderId,
             isVisible: !!agent.is_visible,
             colSpan: 1,
             messageQueue: [],
