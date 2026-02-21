@@ -38,7 +38,7 @@
 
         <!-- Right: Actions -->
         <div class="flex items-center gap-3">
-          <button @click="store.createInstance()" :disabled="visibleInstances.length >= 6" :class="[
+          <button @click="openAgentSelect" :disabled="visibleInstances.length >= 6" :class="[
             'h-9 px-4 rounded-full flex items-center gap-2 shadow-sm transition-all',
             visibleInstances.length >= 6
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
@@ -69,7 +69,7 @@
               <h2 class="text-xs font-black tracking-[0.3em] uppercase text-gray-900">Mosaic Grid Empty</h2>
               <p class="text-[9px] font-bold tracking-widest uppercase text-gray-400">Deploy an agent from the top bar</p>
             </div>
-            <button @click="store.createInstance()"
+            <button @click="openAgentSelect"
               class="mt-4 px-6 py-2.5 rounded-full border border-gray-300 hover:border-gray-500 bg-white hover:bg-gray-50 transition-all text-[9px] font-black uppercase tracking-[0.2em] text-gray-900 shadow-sm">
               Initialize Primary Unit
             </button>
@@ -77,20 +77,40 @@
         </template>
       </div>
     </div>
+
+    <!-- Modals -->
+    <AgentSelectModal 
+      :show="showAgentSelect" 
+      @cancel="showAgentSelect = false" 
+      @select="onAgentSelect" 
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import { LayoutGrid, ChevronLeft } from 'lucide-vue-next'
 import WorkspaceMosaic from '../desktop/WorkspaceMosaic.vue'
 import AgentGrid from './AgentGrid.vue'
+import AgentSelectModal from '../ui/AgentSelectModal.vue'
 
 const store = useAgentStore()
 
 const rootContainer = ref<HTMLElement | null>(null)
 const transitionRect = ref<DOMRect | null>(null)
+const showAgentSelect = ref(false)
+
+const openAgentSelect = () => {
+    showAgentSelect.value = true
+}
+
+const onAgentSelect = async (agentId: string) => {
+    if (store.activeWorkspaceId) {
+        await store.assignAgentToWorkspace(agentId, store.activeWorkspaceId)
+        showAgentSelect.value = false
+    }
+}
 
 const handleWorkspaceSelect = async (transitionObject: any) => {
   transitionRect.value = transitionObject.transitionRect

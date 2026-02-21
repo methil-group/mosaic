@@ -84,21 +84,30 @@
                                 </div>
                             </div>
 
-                            <div class="space-y-2">
-                                <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Active
-                                    Model</label>
-                                <select v-model="agent.currentModel"
-                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-400 focus:bg-white transition-all uppercase tracking-widest">
-                                    <option v-for="m in store.availableModels" :key="m.id" :value="m.id">{{ m.name }}
-                                    </option>
-                                </select>
+                            <div class="grid grid-cols-2 gap-8">
+                                <div class="space-y-2">
+                                    <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Provider</label>
+                                    <select v-model="agent.currentProvider" @change="onProviderChange"
+                                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-400 focus:bg-white transition-all uppercase tracking-widest">
+                                        <option v-for="p in store.availableProviders" :key="p.id" :value="p.id">{{ p.name }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Active Model</label>
+                                    <select v-model="agent.currentModel"
+                                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-400 focus:bg-white transition-all uppercase tracking-widest">
+                                        <option v-for="m in currentProviderModels" :key="m.id" :value="m.id">{{ m.name }}
+                                        </option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div class="pt-4 flex justify-end">
-                                <button
-                                    class="px-8 py-3 bg-gray-900 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95">
+                                <button @click="saveConfig" :disabled="isSaving"
+                                    class="px-8 py-3 bg-gray-900 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                                     <Save class="w-4 h-4" />
-                                    Save Runtime Config
+                                    {{ isSaving ? 'Saving...' : 'Save Runtime Config' }}
                                 </button>
                             </div>
                         </div>
@@ -248,6 +257,36 @@ const onTerminateConfirm = () => {
     showConfirm.value = false
 }
 
+const currentProviderModels = computed(() => {
+    if (!agent.value) return []
+    const provider = store.availableProviders.find(p => p.id === agent.value.currentProvider)
+    return provider ? provider.models : []
+})
+
+const onProviderChange = () => {
+    if (agent.value && currentProviderModels.value.length > 0) {
+        agent.value.currentModel = currentProviderModels.value[0].id
+    }
+}
+
+const isSaving = ref(false)
+
+const saveConfig = async () => {
+    if (agent.value) {
+        isSaving.value = true
+        try {
+            await store.updateInstance(id, {
+                name: agent.value.name,
+                workspace: agent.value.currentWorkspace,
+                model: agent.value.currentModel,
+                provider: agent.value.currentProvider
+            })
+        } finally {
+            isSaving.value = false
+        }
+    }
+}
+
 // File Explorer Modal state
 const showFileExplorer = ref(false)
 const currentPath = ref('~')
@@ -256,8 +295,9 @@ const isLoading = ref(false)
 
 const openFileExplorer = () => {
     showFileExplorer.value = true
-    if (agent.value?.currentWorkspace) {
-        loadDirectories(agent.value.currentWorkspace)
+    const a = agent.value
+    if (a && a.currentWorkspace) {
+        loadDirectories(a.currentWorkspace)
     } else {
         loadDirectories('~')
     }
@@ -305,8 +345,9 @@ const navigateHome = () => {
 }
 
 const selectFolder = () => {
-    if (agent.value) {
-        agent.value.currentWorkspace = currentPath.value
+    const a = agent.value
+    if (a) {
+        a.currentWorkspace = currentPath.value
     }
     closeFileExplorer()
 }

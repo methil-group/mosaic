@@ -127,10 +127,16 @@ export const useAgentStore = defineStore('agent', {
     // but flattening all for the basic list is fine for now.
   },
   actions: {
-    async createInstance() {
-      if (!this.activeWorkspaceId) return
-      const activeWorkspace = this.workspaces[this.activeWorkspaceId]
-      const workspacePath = activeWorkspace?.path || ''
+    async createInstance(targetWorkspaceId?: string | null) {
+      // Use targetWorkspaceId if provided, otherwise activeWorkspaceId, and null if both are falsy
+      let workspaceIdToUse = targetWorkspaceId !== undefined ? targetWorkspaceId : this.activeWorkspaceId
+
+      let workspacePath = ''
+      if (workspaceIdToUse && this.workspaces[workspaceIdToUse]) {
+        workspacePath = this.workspaces[workspaceIdToUse].path || ''
+      } else {
+        workspaceIdToUse = null
+      }
 
       const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
         ? crypto.randomUUID()
@@ -162,7 +168,8 @@ export const useAgentStore = defineStore('agent', {
         persona: agent.systemPrompt,
         lottie: agent.lottie,
         video: agent.video,
-        workspaceId: this.activeWorkspaceId as string
+        // Allow workspaceId to be null for "Infrastructure/Units" global agents
+        workspaceId: workspaceIdToUse as string
       }
       this.instanceIds.push(id)
 
@@ -177,7 +184,7 @@ export const useAgentStore = defineStore('agent', {
           color: agent.color,
           icon: agent.icon,
           description: agent.description,
-          desktop_id: this.activeWorkspaceId,
+          desktop_id: workspaceIdToUse, // Can be null
           video: agent.video,
           lottie: agent.lottie,
           model: this.defaultModelId
@@ -185,6 +192,35 @@ export const useAgentStore = defineStore('agent', {
       })
 
       return id
+    },
+
+    async assignAgentToWorkspace(instanceId: string, workspaceId: string) {
+      const instance = this.instances[instanceId]
+      if (!instance) return
+
+      const workspace = this.workspaces[workspaceId]
+      if (!workspace) return
+
+      instance.workspaceId = workspaceId
+      instance.currentWorkspace = workspace.path
+
+      // Update in SQLite
+      await invoke('agents_save', {
+        agent: {
+          id: instanceId,
+          name: instance.name,
+          workspace: instance.currentWorkspace,
+          model: instance.currentModel,
+          provider: instance.currentProvider,
+          is_visible: instance.isVisible,
+          color: instance.color,
+          icon: instance.icon,
+          description: instance.description,
+          desktop_id: instance.workspaceId,
+          video: instance.video,
+          lottie: instance.lottie
+        }
+      })
     },
 
     async removeInstance(id: string) {
@@ -539,12 +575,19 @@ export const useAgentStore = defineStore('agent', {
             persona: config?.systemPrompt,
             lottie: config?.lottie,
             video: config?.video,
-            workspaceId: agent.desktop_id || (this.workspaceIds.length > 0 ? this.workspaceIds[0] : null)
+            // Allow workspaceId to be strictly null if it was created in Infrastructures
+            workspaceId: agent.desktop_id ?? null
           }
           this.instanceIds.push(agent.id)
         }
 
         console.log(`[AgentStore] Loaded ${agents.length} agents from SQLite`)
+
+        // Ensure at least one default agent in Infrastructures (workspaceId = null)
+        if (this.instanceIds.length === 0) {
+          console.log('[AgentStore] No agents found, creating default infrastructure agent')
+          await this.createInstance(null)
+        }
       } catch (e) {
         console.error('Failed to load agents from SQLite', e)
       }

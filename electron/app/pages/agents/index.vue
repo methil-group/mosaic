@@ -123,7 +123,7 @@ const agentToDeleteId = ref<string | null>(null)
 const activeAgents = computed(() => {
     return store.instanceIds
         .map(id => store.instances[id])
-        .filter((a): a is any => !!a)
+        .filter((a): a is any => !!a && (a.workspaceId === null || a.workspaceId === undefined))
 })
 
 const filteredAgents = computed(() => {
@@ -141,7 +141,7 @@ const getIconComponent = (iconName?: string) => {
 }
 
 const deployAgent = () => {
-    store.createInstance()
+    store.createInstance(null)
 }
 
 const deleteAgent = (id: string) => {
