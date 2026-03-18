@@ -1,7 +1,9 @@
 <template>
-  <NuxtLayout>
-    <NuxtPage />
-  </NuxtLayout>
+  <div :class="{ 'dark-theme': store.theme === 'dark' }" class="min-h-screen">
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -11,6 +13,7 @@ import { useAgentStore } from '~/stores/agent'
 const store = useAgentStore()
 
 onMounted(async () => {
+    await store.loadTheme()
     await store.initSystemPaths()
 })
 </script>

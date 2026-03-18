@@ -92,6 +92,7 @@ export interface State {
     downloads: string | null
   }
   pathSeparator: string
+  theme: 'light' | 'dark'
 }
 
 // AGENT_NAMES is deprecated in favor of AGENTS_REPO
@@ -117,7 +118,8 @@ export const useAgentStore = defineStore('agent', {
       documents: null,
       downloads: null
     },
-    pathSeparator: '/'
+    pathSeparator: '/',
+    theme: 'light'
   }),
   getters: {
     availableModels: (state): Model[] => {
@@ -519,6 +521,18 @@ export const useAgentStore = defineStore('agent', {
       }
     },
 
+    async setTheme(theme: 'light' | 'dark') {
+      this.theme = theme
+      await this.setSetting('theme', theme)
+    },
+
+    async loadTheme() {
+      const theme = await this.getSetting('theme') as 'light' | 'dark' | null
+      if (theme) {
+        this.theme = theme
+      }
+    },
+
     async fetchProviders() {
       try {
         const data: any = await invoke('providers_get')
@@ -578,6 +592,15 @@ export const useAgentStore = defineStore('agent', {
             // Allow workspaceId to be strictly null if it was created in Infrastructures
             workspaceId: agent.desktop_id ?? null
           }
+
+          // Apply defaults if missing or invalid
+          if (!this.instances[agent.id].currentProvider) {
+            this.instances[agent.id].currentProvider = this.defaultProviderId
+          }
+          if (!this.instances[agent.id].currentModel) {
+            this.instances[agent.id].currentModel = this.defaultModelId
+          }
+
           this.instanceIds.push(agent.id)
         }
 

@@ -4,10 +4,10 @@
         <div v-if="instance.messageQueue.length > 0"
             class="absolute -top-10 left-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div
-                class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 backdrop-blur-md">
-                <div class="w-1.5 h-1.5 rounded-full bg-gray-900 animate-pulse"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-color)] border border-[var(--border-color)] backdrop-blur-md">
+                <div class="w-1.5 h-1.5 rounded-full bg-[var(--accent-color)] animate-pulse"
                     :style="{ backgroundColor: instance.color }"></div>
-                <span class="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">
+                <span class="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-dim)]">
                     {{ instance.messageQueue.length }} Queued
                 </span>
             </div>
@@ -15,14 +15,14 @@
 
         <!-- Autocomplete Menu -->
         <div v-if="isMenuOpen && filteredFiles.length > 0"
-            class="absolute bottom-full left-0 mb-2 w-72 bg-white border border-gray-200 rounded-xl shadow-2xl z-[100] overflow-hidden backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-            <div class="px-3 py-2 border-b border-gray-100 bg-gray-50">
-                <span class="text-[9px] font-black uppercase tracking-widest text-gray-400">Files in Workspace</span>
+            class="absolute bottom-full left-0 mb-2 w-72 bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-xl shadow-2xl z-[100] overflow-hidden backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div class="px-3 py-2 border-b border-[var(--border-color)] bg-[var(--bg-color)]/50">
+                <span class="text-[9px] font-black uppercase tracking-widest text-[var(--text-dim)]">Files in Workspace</span>
             </div>
             <div class="max-h-64 overflow-y-auto p-1 custom-scrollbar-mini">
                 <button v-for="(file, idx) in filteredFiles" :key="file" @mousedown.prevent="selectFile(file)"
                     class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all group"
-                    :class="idx === menuIndex ? 'bg-gray-900 text-white' : 'hover:bg-gray-100 text-gray-600'"
+                    :class="idx === menuIndex ? 'bg-[var(--accent-color)] text-[var(--panel-bg)]' : 'hover:bg-[var(--panel-hover)] text-[var(--text-dim)]'"
                     :style="idx === menuIndex ? { backgroundColor: instance.color } : {}">
                     <File class="w-3.5 h-3.5 opacity-40 shrink-0" :class="{ 'opacity-100': idx === menuIndex }" />
                     <span class="text-xs font-mono truncate">{{ file }}</span>
@@ -31,11 +31,11 @@
         </div>
 
         <div class="flex items-end gap-2">
-            <div class="input-box flex-1 flex items-end gap-2 transition-all focus-within:border-gray-400"
-                :style="{ borderColor: isMenuOpen ? instance.color : '#eee' }">
+            <div class="input-box flex-1 flex items-end gap-2 transition-all focus-within:border-[var(--text-dim)]"
+                :style="{ borderColor: isMenuOpen ? instance.color : 'var(--border-color)' }">
                 <textarea ref="textareaRef" v-model="prompt" @keydown="handleKeydown" @input="handleInput"
                     placeholder="Command..."
-                    class="chat-input flex-1 bg-transparent border-none outline-none resize-none py-1 min-h-[24px] max-h-48 font-medium text-sm transition-all"
+                    class="chat-input flex-1 bg-transparent border-none outline-none resize-none py-1 min-h-[24px] max-h-48 font-medium text-sm transition-all text-[var(--text-main)] placeholder:text-[var(--text-dim)]/50"
                     :class="{ 'overflow-y-auto': textareaRef && textareaRef.scrollHeight > 192 }"></textarea>
 
                 <button v-if="instance.isProcessing" @click="store.stopProcessing(instanceId)"

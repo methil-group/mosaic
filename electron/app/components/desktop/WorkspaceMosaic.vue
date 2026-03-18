@@ -1,8 +1,8 @@
 <template>
-  <div class="px-[60px] py-20 max-w-[1600px] mx-auto min-h-full bg-[radial-gradient(circle_at_2px_2px,rgba(0,0,0,0.03)_1px,transparent_0)] bg-[length:32px_32px]">
+  <div class="px-[60px] py-20 max-w-[1600px] mx-auto min-h-full bg-[radial-gradient(circle_at_2px_2px,var(--border-color)_1px,transparent_0)] bg-[length:32px_32px]">
     <div class="mb-[60px] text-center">
-      <h1 class="text-4xl font-black uppercase tracking-tighter text-gray-900 mb-2">Vos Workspaces</h1>
-      <p class="text-[11px] font-extrabold text-gray-400 tracking-[4px] uppercase">{{ workspaceIds.length }} ESPACES DE TRAVAIL</p>
+      <h1 class="text-4xl font-black uppercase tracking-tighter text-[var(--text-main)] mb-2">Vos Workspaces</h1>
+      <p class="text-[11px] font-extrabold text-[var(--text-dim)] tracking-[4px] uppercase">{{ workspaceIds.length }} ESPACES DE TRAVAIL</p>
     </div>
 
     <div class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-10 items-start">
@@ -12,7 +12,7 @@
       </template>
 
       <button v-if="!isCreating"
-        class="w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-gray-300 bg-white text-gray-400 cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.165,0.84,0.44,1)] flex items-center justify-center shadow-sm hover:border-indigo-500 hover:text-indigo-500 hover:bg-indigo-500/[0.02] hover:-translate-y-1.5 hover:shadow-[0_12px_30px_rgba(99,102,241,0.1)]"
+        class="w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-[var(--border-color)] bg-[var(--panel-bg)] text-[var(--text-dim)] cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.165,0.84,0.44,1)] flex items-center justify-center shadow-sm hover:border-indigo-500 hover:text-indigo-500 hover:bg-indigo-500/[0.02] hover:-translate-y-1.5 hover:shadow-[0_12px_30px_rgba(99,102,241,0.1)]"
         @click="startCreation">
         <div class="flex flex-col items-center text-[11px] font-extrabold tracking-[1.5px]">
           <Plus class="w-8 h-8 mb-2" />
@@ -20,13 +20,13 @@
         </div>
       </button>
 
-      <div v-else class="w-full aspect-[4/3] rounded-2xl border-2 border-indigo-500 bg-white flex items-center justify-center p-6 shadow-[0_12px_30px_rgba(99,102,241,0.1)]">
+      <div v-else class="w-full aspect-[4/3] rounded-2xl border-2 border-indigo-500 bg-[var(--panel-bg)] flex items-center justify-center p-6 shadow-[0_12px_30px_rgba(99,102,241,0.1)]">
         <div class="w-full text-center">
           <input v-model="newName" ref="nameInput" placeholder="Nom du workspace..." @keydown.enter="handleCreate"
             @keydown.esc="cancelCreation"
-            class="w-full bg-gray-50 border border-gray-200 px-4 py-3 rounded-lg text-sm font-bold mb-5 text-center outline-none transition-all duration-200 focus:bg-white focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/10" />
+            class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] px-4 py-3 rounded-lg text-sm font-bold mb-5 text-center outline-none text-[var(--text-main)] transition-all duration-200 focus:bg-[var(--panel-bg)] focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/10" />
           <div class="flex gap-2.5">
-            <button class="flex-1 py-2.5 rounded-lg text-[9px] font-extrabold tracking-[1px] cursor-pointer transition-all duration-200 border-none bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600" @click="cancelCreation">ANNULER</button>
+            <button class="flex-1 py-2.5 rounded-lg text-[9px] font-extrabold tracking-[1px] cursor-pointer transition-all duration-200 border-none bg-[var(--bg-color)] text-[var(--text-dim)] hover:bg-[var(--border-color)] hover:text-[var(--text-main)]" @click="cancelCreation">ANNULER</button>
             <button class="flex-1 py-2.5 rounded-lg text-[9px] font-extrabold tracking-[1px] cursor-pointer transition-all duration-200 border-none bg-indigo-500 text-white hover:bg-indigo-600 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(99,102,241,0.2)]" @click="handleCreate">SÉLÉCT. DOSSIER</button>
           </div>
         </div>
@@ -36,7 +36,7 @@
     <!-- File Explorer Modal -->
     <Transition name="fade">
       <div v-if="showExplorer" class="fixed inset-0 bg-black/40 backdrop-blur-lg z-[1000] flex items-center justify-center p-10">
-        <div class="w-full max-w-[600px] h-[80vh] bg-white rounded-[32px] overflow-hidden shadow-2xl animate-modal-in">
+        <div class="w-full max-w-[600px] h-[80vh] bg-[var(--panel-bg)] rounded-[32px] overflow-hidden shadow-2xl animate-modal-in">
           <FileExplorer :title="`DOSSIER : ${newName}`" subtitle="SÉLECTIONNEZ LE DOSSIER DU WORKSPACE"
             @select="onFolderSelect" @cancel="showExplorer = false" />
         </div>

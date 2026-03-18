@@ -1,7 +1,7 @@
 <template>
     <!-- Mini Persistent Sidebar -->
     <aside
-        class="h-full border-r border-gray-200 bg-white/80 backdrop-blur-2xl transition-all duration-300 ease-in-out z-[100] flex flex-col shrink-0 relative group"
+        class="h-full border-r border-[var(--border-color)] bg-[var(--panel-bg)]/80 backdrop-blur-2xl transition-all duration-300 ease-in-out z-[100] flex flex-col shrink-0 relative group"
         :class="isSidebarExpanded ? 'w-64' : 'w-16'">
         <!-- Expand/Collapse Button (Top) -->
         <div class="p-4 flex items-center justify-start border-b border-gray-100 h-16 shrink-0 overflow-hidden">
@@ -11,10 +11,10 @@
                 <X v-else class="w-4 h-4 text-gray-400 group-hover:text-gray-900" />
             </button>
             <div v-if="isSidebarExpanded" class="ml-3 flex items-center gap-2 animate-in fade-in duration-300">
-                <div class="w-6 h-6 rounded bg-gray-900 flex items-center justify-center shrink-0">
-                    <Sparkles class="w-3.5 h-3.5 text-white" />
+                <div class="w-6 h-6 rounded bg-[var(--accent-color)] flex items-center justify-center shrink-0">
+                    <Sparkles class="w-3.5 h-3.5 text-[var(--panel-bg)]" />
                 </div>
-                <h1 class="text-[10px] font-black tracking-[0.2em] text-gray-900 truncate">MOSAIC</h1>
+                <h1 class="text-[10px] font-black tracking-[0.2em] text-[var(--text-main)] truncate">MOSAIC</h1>
             </div>
         </div>
 
@@ -53,13 +53,6 @@
                 <Settings class="w-4 h-4 shrink-0" />
                 <span v-if="isSidebarExpanded"
                     class="animate-in slide-in-from-left-2 duration-300 truncate">Settings</span>
-            </NuxtLink>
-            <NuxtLink to="/profile" v-tooltip="!isSidebarExpanded ? 'Profile' : null"
-                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all text-xs font-bold uppercase tracking-widest overflow-hidden"
-                active-class="bg-gray-200 text-gray-900">
-                <User class="w-4 h-4 shrink-0" />
-                <span v-if="isSidebarExpanded"
-                    class="animate-in slide-in-from-left-2 duration-300 truncate">Profile</span>
             </NuxtLink>
         </div>
     </aside>

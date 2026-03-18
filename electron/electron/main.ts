@@ -37,7 +37,7 @@ function createWindow() {
     if (process.env.NODE_ENV === 'development') {
         mainWindow.loadURL('http://localhost:3710')
     } else {
-        mainWindow.loadFile(path.join(__dirname, '../.output/public/index.html'))
+        mainWindow.loadFile(path.join(__dirname, '../../.output/public/index.html'))
     }
 
     mainWindow.on('closed', () => { mainWindow = null })

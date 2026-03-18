@@ -1,5 +1,5 @@
 <template>
-  <div ref="rootContainer" class="h-full relative min-w-0 bg-gray-100 overflow-hidden">
+  <div ref="rootContainer" class="h-full relative min-w-0 bg-[var(--bg-color)] overflow-hidden">
     <!-- Layer 1: Workspace Mosaic (Lower layer) -->
     <div class="absolute inset-0 transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
       :class="{ 'opacity-0 scale-150 pointer-events-none': store.viewMode === 'desktop' }"
@@ -15,22 +15,22 @@
         store.viewMode === 'desktop' ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-50 pointer-events-none'
       ]" :style="{ transformOrigin: transitionOrigin }">
       <!-- Consolidated Top Bar -->
-      <div v-if="store.activeWorkspaceId" class="absolute top-0 left-0 right-0 z-[60] flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-xl border-b border-gray-200/50">
+      <div v-if="store.activeWorkspaceId" class="absolute top-0 left-0 right-0 z-[60] flex items-center justify-between px-6 py-4 bg-[var(--panel-bg)]/80 backdrop-blur-xl border-b border-[var(--border-color)]/50">
         <!-- Left: Back & Title -->
         <div class="flex items-center gap-4">
           <button @click="store.setActiveWorkspace(null)"
-            class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-colors group"
+            class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--accent-color)]/5 transition-colors group"
             title="Retour à la mosaïque">
-            <ChevronLeft class="w-5 h-5 text-gray-500 group-hover:text-gray-900 transition-colors" />
+            <ChevronLeft class="w-5 h-5 text-[var(--text-dim)] group-hover:text-[var(--text-main)] transition-colors" />
           </button>
           
           <div class="flex flex-col">
-            <h2 class="text-sm font-bold text-gray-900 leading-none">{{ activeWorkspaceName }}</h2>
+            <h2 class="text-sm font-bold text-[var(--text-main)] leading-none">{{ activeWorkspaceName }}</h2>
             <div class="flex items-center gap-2 mt-0.5 text-[10px] leading-none">
-              <span class="font-bold text-gray-400 tracking-wider uppercase">Workspace</span>
+              <span class="font-bold text-[var(--text-dim)] tracking-wider uppercase">Workspace</span>
               <template v-if="activeWorkspacePath">
-                <span class="text-gray-300">•</span>
-                <span class="font-medium text-gray-500 truncate max-w-[300px] font-mono" :title="activeWorkspacePath">{{ activeWorkspacePath }}</span>
+                <span class="text-[var(--text-dim)]">•</span>
+                <span class="font-medium text-[var(--text-dim)] truncate max-w-[300px] font-mono" :title="activeWorkspacePath">{{ activeWorkspacePath }}</span>
               </template>
             </div>
           </div>
@@ -41,8 +41,8 @@
           <button @click="openAgentSelect" :disabled="visibleInstances.length >= 6" :class="[
             'h-9 px-4 rounded-full flex items-center gap-2 shadow-sm transition-all',
             visibleInstances.length >= 6
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-              : 'bg-black text-white hover:bg-gray-800 hover:shadow-md border border-black'
+              ? 'bg-[var(--bg-color)] text-[var(--text-dim)] cursor-not-allowed border border-[var(--border-color)]'
+              : 'bg-[var(--accent-color)] text-[var(--panel-bg)] hover:shadow-md border border-[var(--accent-color)]'
           ]">
             <span class="text-[10px] font-bold uppercase tracking-widest">
               {{ visibleInstances.length >= 6 ? 'Full' : 'Add Agent' }}
@@ -52,25 +52,25 @@
       </div>
 
       <div
-        class="flex-1 min-h-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:24px_24px] p-4 pt-20 relative">
+        class="flex-1 min-h-0 bg-[radial-gradient(var(--border-color)_1px,transparent_1px)] [background-size:24px_24px] p-4 pt-20 relative">
         <template v-if="store.activeWorkspaceId">
           <AgentGrid v-if="visibleInstances.length > 0" :workspace-id="store.activeWorkspaceId" />
 
           <!-- Empty State -->
           <div v-else
-            class="h-full flex flex-col items-center justify-center bg-gray-50 gap-6 opacity-60 select-none">
+            class="h-full flex flex-col items-center justify-center bg-[var(--bg-color)] gap-6 opacity-60 select-none">
             <div class="relative">
               <div
-                class="w-16 h-16 rounded-2xl border border-gray-200 flex items-center justify-center bg-white animate-pulse shadow-sm">
-                <LayoutGrid class="w-8 h-8 text-gray-300" />
+                class="w-16 h-16 rounded-2xl border border-[var(--border-color)] flex items-center justify-center bg-[var(--panel-bg)] animate-pulse shadow-sm">
+                <LayoutGrid class="w-8 h-8 text-[var(--text-dim)]" />
               </div>
             </div>
             <div class="text-center space-y-2">
-              <h2 class="text-xs font-black tracking-[0.3em] uppercase text-gray-900">Mosaic Grid Empty</h2>
-              <p class="text-[9px] font-bold tracking-widest uppercase text-gray-400">Deploy an agent from the top bar</p>
+              <h2 class="text-xs font-black tracking-[0.3em] uppercase text-[var(--text-main)]">Mosaic Grid Empty</h2>
+              <p class="text-[9px] font-bold tracking-widest uppercase text-[var(--text-dim)]">Deploy an agent from the top bar</p>
             </div>
             <button @click="openAgentSelect"
-              class="mt-4 px-6 py-2.5 rounded-full border border-gray-300 hover:border-gray-500 bg-white hover:bg-gray-50 transition-all text-[9px] font-black uppercase tracking-[0.2em] text-gray-900 shadow-sm">
+              class="mt-4 px-6 py-2.5 rounded-full border border-[var(--border-color)] hover:border-[var(--text-dim)] bg-[var(--panel-bg)] hover:bg-[var(--bg-color)] transition-all text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-main)] shadow-sm">
               Initialize Primary Unit
             </button>
           </div>

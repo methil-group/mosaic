@@ -1,5 +1,5 @@
 <template>
-    <div class="flex h-screen bg-gray-50 text-gray-900">
+    <div class="flex h-screen bg-[var(--bg-color)] text-[var(--text-main)] transition-colors duration-300">
         <AppSidebar />
         <main class="flex-1 overflow-hidden relative">
             <slot />

@@ -1,6 +1,6 @@
 <template>
     <div v-if="instance" ref="panelRef"
-        class="panel flex flex-col h-full bg-white overflow-hidden relative group/instance transition-all duration-200 border border-gray-200 shadow-sm"
+        class="panel flex flex-col h-full bg-[var(--panel-bg)] overflow-hidden relative group/instance transition-all duration-200 border border-[var(--border-color)] shadow-sm"
         :class="currentMode" :style="{
             '--bot-color': instance.color || '#000000',
             '--bot-color-soft': hexToRgba(instance.color || '#000000', 0.1),
@@ -35,7 +35,7 @@
             <div
                 class="agent-controls absolute top-3 right-3 z-50 flex items-center gap-2 opacity-0 group-hover/instance:opacity-100 transition-all duration-200">
                 <button @click="isSettingsOpen = true"
-                    class="w-7 h-7 flex items-center justify-center bg-white/20 backdrop-blur-md rounded-full border border-white/20 text-white hover:bg-white/40 transition-all"
+                    class="w-7 h-7 flex items-center justify-center bg-[var(--panel-bg)]/20 backdrop-blur-md rounded-full border border-[var(--border-color)]/20 text-white hover:bg-[var(--panel-bg)]/40 transition-all"
                     title="Agent Settings">
                     <Settings class="w-3.5 h-3.5" />
                 </button>
@@ -81,7 +81,7 @@
 
             <AgentSettingsModal v-model="isSettingsOpen" :instance-id="instanceId" />
 
-            <main ref="scrollContainer" @scroll="onChatScroll" class="chat-area flex-1 overflow-y-auto px-4 py-4 space-y-5 bg-white scroll-smooth">
+            <main ref="scrollContainer" @scroll="onChatScroll" class="chat-area flex-1 overflow-y-auto px-4 py-4 space-y-5 bg-[var(--panel-bg)] scroll-smooth">
                     <div v-if="instance.messages.length === 0"
                         class="flex flex-col items-center justify-center py-8 opacity-40">
                         <Bot class="w-6 h-6 text-gray-400 mb-3" />
@@ -97,7 +97,7 @@
                         />
                     </div>
                 </main>
-                <div class="input-container p-4 border-t border-gray-100">
+                <div class="input-container p-4 border-t border-[var(--border-color)]">
                     <AgentInput :instance-id="instanceId" />
                 </div>
         </template>

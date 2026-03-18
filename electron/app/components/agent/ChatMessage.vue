@@ -1,11 +1,11 @@
 <template>
     <div :class="message.role === 'user' ? 'flex flex-col items-end' : 'flex flex-col items-start'">
         <div class="flex items-center gap-1.5 mb-1.5 px-1">
-            <span class="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{{ message.role ===
+            <span class="text-[8px] font-bold text-[var(--text-dim)] uppercase tracking-widest">{{ message.role ===
                 'user' ? 'User' : agentName }}</span>
         </div>
         <div class="px-4 py-2.5 rounded-2xl text-[12px] leading-relaxed relative"
-            :class="message.role === 'user' ? 'bg-gray-900 text-white' : 'bg-gray-50 border border-gray-100 text-gray-900'">
+            :class="message.role === 'user' ? 'bg-[var(--accent-color)] text-[var(--panel-bg)]' : 'bg-[var(--ai-msg-bg)] border border-[var(--border-color)] text-[var(--text-main)]'">
 
             <!-- Process Pane (Thoughts + Tools) -->
             <MessageProcess v-if="messageParts.processItems.length > 0"
@@ -37,12 +37,12 @@
             <div v-if="message.usage"
                 class="mt-2 flex justify-end items-center gap-3 border-t border-gray-100/50 pt-2 opacity-60 hover:opacity-100 transition-opacity">
                 <div class="flex items-center gap-1">
-                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">In</span>
-                    <span class="text-[9px] font-mono text-gray-500">{{ message.usage.prompt_tokens }}</span>
+                    <span class="text-[9px] font-bold text-[var(--text-dim)] uppercase tracking-wider">In</span>
+                    <span class="text-[9px] font-mono text-[var(--text-dim)]">{{ message.usage.prompt_tokens }}</span>
                 </div>
                 <div class="flex items-center gap-1">
-                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Out</span>
-                    <span class="text-[9px] font-mono text-gray-500">{{ message.usage.completion_tokens }}</span>
+                    <span class="text-[9px] font-bold text-[var(--text-dim)] uppercase tracking-wider">Out</span>
+                    <span class="text-[9px] font-mono text-[var(--text-dim)]">{{ message.usage.completion_tokens }}</span>
                 </div>
                 <div class="flex items-center gap-1">
                     <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Total</span>
