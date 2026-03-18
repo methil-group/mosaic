@@ -1,26 +1,26 @@
 <template>
-    <div class="h-full flex flex-col bg-white relative overflow-hidden select-none">
+    <div class="h-full flex flex-col bg-[var(--bg-color)] relative overflow-hidden select-none transition-colors duration-300">
         <!-- Ultra-Subtle Background Pattern -->
-        <div class="absolute inset-0 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:40px_40px] opacity-[0.03] pointer-events-none"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(var(--text-main)_1px,transparent_1px)] [background-size:40px_40px] opacity-[0.03] pointer-events-none"></div>
 
         <!-- Minimalist Header -->
         <header class="h-24 px-12 flex items-center justify-between shrink-0 z-10">
             <div>
-                <h1 class="text-[10px] font-black tracking-[0.4em] text-gray-900 uppercase opacity-40 mb-1">Infrastructure / Units</h1>
+                <h1 class="text-[10px] font-black tracking-[0.4em] text-[var(--text-dim)] uppercase opacity-60 mb-1">Infrastructure / Units</h1>
                 <div class="flex items-center gap-3">
-                    <div class="w-1.5 h-1.5 rounded-full bg-black shadow-[0_0_8px_black]"></div>
-                    <span class="text-xl font-black uppercase tracking-tighter text-gray-900">{{ store.instanceIds.length }} Active</span>
+                    <div class="w-1.5 h-1.5 rounded-full bg-[var(--accent-color)] shadow-[0_0_8px_var(--accent-color)]"></div>
+                    <span class="text-xl font-black uppercase tracking-tighter text-[var(--text-main)]">{{ store.instanceIds.length }} Active</span>
                 </div>
             </div>
 
             <div class="flex items-center gap-8">
-                <div class="relative group border-b border-black/5 focus-within:border-black/20 transition-all pb-1">
-                    <Search class="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-300 group-focus-within:text-black transition-colors" />
+                <div class="relative group border-b border-[var(--border-color)] focus-within:border-[var(--text-dim)] transition-all pb-1">
+                    <Search class="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--text-dim)] group-focus-within:text-[var(--text-main)] transition-colors" />
                     <input v-model="searchQuery" type="text" placeholder="FILTER..."
-                        class="bg-transparent pl-5 pr-2 py-1 text-[10px] font-black tracking-[0.2em] text-gray-900 placeholder:text-gray-300 focus:outline-none w-48" />
+                        class="bg-transparent pl-5 pr-2 py-1 text-[10px] font-black tracking-[0.2em] text-[var(--text-main)] placeholder:text-[var(--text-dim)]/50 focus:outline-none w-48" />
                 </div>
                 <button @click="deployAgent"
-                    class="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg hover:shadow-xl">
+                    class="w-10 h-10 bg-[var(--accent-color)] text-[var(--panel-bg)] rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg hover:shadow-xl">
                     <Plus class="w-5 h-5" />
                 </button>
             </div>
@@ -29,8 +29,8 @@
         <!-- Content -->
         <div class="flex-1 overflow-y-auto px-12 pb-12 custom-scrollbar z-0 relative">
             <div v-if="filteredAgents.length === 0" class="h-full flex flex-col items-center justify-center opacity-10">
-                <Cpu class="w-24 h-24 mb-4 text-black" />
-                <p class="text-[11px] font-black tracking-[0.5em] uppercase text-black">Empty Grid</p>
+                <Cpu class="w-24 h-24 mb-4 text-[var(--text-main)]" />
+                <p class="text-[11px] font-black tracking-[0.5em] uppercase text-[var(--text-main)]">Empty Grid</p>
             </div>
 
             <TransitionGroup 
@@ -40,7 +40,7 @@
                 class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
             >
                 <div v-for="agent in filteredAgents" :key="agent.id"
-                    class="agent-tile aspect-square group relative bg-white border border-black/[0.03] rounded-3xl p-6 hover:border-black/10 hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] transition-all cursor-pointer flex flex-col items-center justify-center gap-4 overflow-hidden"
+                    class="agent-tile aspect-square group relative bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-3xl p-6 hover:border-[var(--text-dim)]/20 hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] transition-all cursor-pointer flex flex-col items-center justify-center gap-4 overflow-hidden"
                     @click="openAgentDetail(agent.id)">
                     
                     <!-- Background Visual Fill (Very Subtle) -->
@@ -71,19 +71,19 @@
 
                     <!-- Minimal Info -->
                     <div class="text-center">
-                        <h2 class="text-[11px] font-black text-gray-900 uppercase tracking-widest">{{ agent.name }}</h2>
+                        <h2 class="text-[11px] font-black text-[var(--text-main)] uppercase tracking-widest">{{ agent.name }}</h2>
                         <div class="flex items-center justify-center gap-1.5 mt-1">
                             <span class="w-1 h-1 rounded-full" :class="agent.isProcessing ? 'bg-blue-500 animate-pulse' : 'bg-green-500'"></span>
-                            <span class="text-[7px] font-bold uppercase tracking-widest text-gray-400">{{ agent.isProcessing ? 'BUSY' : 'READY' }}</span>
+                            <span class="text-[7px] font-bold uppercase tracking-widest text-[var(--text-dim)]">{{ agent.isProcessing ? 'BUSY' : 'READY' }}</span>
                         </div>
                     </div>
 
                     <!-- Hidden Actions (Hover) -->
                     <div class="absolute inset-x-0 bottom-4 flex justify-center gap-4 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-                        <button @click.stop="navigateTo('/')" class="p-2 bg-white rounded-full shadow-md border border-black/5 hover:bg-gray-50 active:scale-90 transition-all">
-                            <LayoutGrid class="w-3 h-3 text-gray-600" />
+                        <button @click.stop="navigateTo('/')" class="p-2 bg-[var(--panel-bg)] rounded-full shadow-md border border-[var(--border-color)] hover:bg-[var(--panel-hover)] active:scale-90 transition-all">
+                            <LayoutGrid class="w-3 h-3 text-[var(--text-dim)]" />
                         </button>
-                        <button @click.stop="deleteAgent(agent.id)" class="p-2 bg-white rounded-full shadow-md border border-black/5 hover:bg-red-50 hover:text-red-500 active:scale-90 transition-all text-gray-600">
+                        <button @click.stop="deleteAgent(agent.id)" class="p-2 bg-[var(--panel-bg)] rounded-full shadow-md border border-[var(--border-color)] hover:bg-red-500/10 hover:text-red-500 active:scale-90 transition-all text-[var(--text-dim)]">
                             <Trash2 class="w-3 h-3" />
                         </button>
                     </div>
@@ -172,7 +172,7 @@ const openAgentDetail = (id: string) => {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--border-color);
 }
 
 /* Animations */

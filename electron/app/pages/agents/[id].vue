@@ -1,22 +1,22 @@
 <template>
   <div class="h-full">
-    <div v-if="agent" class="h-full flex flex-col bg-gray-50 overflow-hidden">
+    <div v-if="agent" class="h-full flex flex-col bg-[var(--bg-color)] overflow-hidden transition-colors duration-300">
         <!-- Header -->
         <header
-            class="h-16 border-b border-gray-200 flex items-center justify-between px-8 bg-white/80 backdrop-blur-xl shrink-0">
+            class="h-16 border-b border-[var(--border-color)] flex items-center justify-between px-8 bg-[var(--panel-bg)]/80 backdrop-blur-xl shrink-0">
             <div class="flex items-center gap-6">
                 <button @click="goBack"
-                    class="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-all">
+                    class="p-2 rounded-lg hover:bg-[var(--panel-hover)] text-[var(--text-dim)] hover:text-[var(--text-main)] transition-all">
                     <ArrowLeft class="w-4 h-4" />
                 </button>
                 <div class="flex items-center gap-4">
                     <div
-                        class="w-10 h-10 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center">
-                        <Bot class="w-5 h-5 text-gray-600" />
+                        class="w-10 h-10 rounded-xl bg-[var(--bg-color)] border border-[var(--border-color)] flex items-center justify-center">
+                        <Bot class="w-5 h-5 text-[var(--text-dim)]" />
                     </div>
                     <div>
-                        <h1 class="text-[14px] font-black tracking-widest text-gray-900 uppercase">{{ agent.name }}</h1>
-                        <p class="text-[9px] font-mono text-gray-400 uppercase tracking-widest mt-0.5">INSTANCE ID: {{
+                        <h1 class="text-[14px] font-black tracking-widest text-[var(--text-main)] uppercase">{{ agent.name }}</h1>
+                        <p class="text-[9px] font-mono text-[var(--text-dim)] uppercase tracking-widest mt-0.5">INSTANCE ID: {{
                             agent.id }}</p>
                     </div>
                 </div>
@@ -41,37 +41,37 @@
                         { label: 'Memory Span', value: 'Episodic', icon: History, color: 'text-orange-500' },
                         { label: 'Core Model', value: agent.currentModel.split('/').pop(), icon: BotIcon, color: 'text-amber-500' }
                     ]" :key="stat.label"
-                        class="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col gap-3 shadow-sm">
+                        class="bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-2xl p-6 flex flex-col gap-3 shadow-sm">
                         <component :is="stat.icon" class="w-4 h-4" :class="stat.color" />
                         <div>
-                            <p class="text-[8px] font-bold text-gray-400 uppercase tracking-[0.2em]">{{ stat.label }}
+                            <p class="text-[8px] font-bold text-[var(--text-dim)] uppercase tracking-[0.2em]">{{ stat.label }}
                             </p>
-                            <p class="text-xs font-black text-gray-900 mt-1">{{ stat.value }}</p>
+                            <p class="text-xs font-black text-[var(--text-main)] mt-1">{{ stat.value }}</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Main Settings -->
                 <section class="space-y-6">
-                    <div class="flex items-center gap-3 text-gray-400">
+                    <div class="flex items-center gap-3 text-[var(--text-dim)]">
                         <Settings class="w-4 h-4" />
                         <h3 class="text-[10px] font-bold uppercase tracking-[0.3em]">Runtime Parameters</h3>
                     </div>
 
                     <div class="space-y-4">
-                        <div class="p-8 bg-white border border-gray-200 rounded-3xl space-y-8 shadow-sm">
+                        <div class="p-8 bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-3xl space-y-8 shadow-sm">
                             <div class="grid grid-cols-2 gap-8">
                                 <div class="space-y-2">
                                     <label
-                                        class="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Identity
+                                        class="text-[9px] font-bold text-[var(--text-dim)] uppercase tracking-widest ml-1">Identity
                                         Override</label>
                                     <input v-model="agent.name" type="text"
-                                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-400 focus:bg-white transition-all uppercase tracking-widest" />
+                                        class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-main)] focus:outline-none focus:border-[var(--text-dim)] focus:bg-[var(--panel-bg)] transition-all uppercase tracking-widest" />
                                 </div>
                                 <div class="space-y-2">
-                                    <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Provider</label>
+                                    <label class="text-[9px] font-bold text-[var(--text-dim)] uppercase tracking-widest ml-1">Provider</label>
                                     <select v-model="agent.currentProvider" @change="onProviderChange"
-                                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-400 focus:bg-white transition-all uppercase tracking-widest">
+                                        class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-main)] focus:outline-none focus:border-[var(--text-dim)] focus:bg-[var(--panel-bg)] transition-all uppercase tracking-widest">
                                         <option v-for="p in store.availableProviders" :key="p.id" :value="p.id">{{ p.name }}
                                         </option>
                                     </select>
@@ -79,9 +79,9 @@
                             </div>
 
                             <div class="space-y-2">
-                                <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Active Model</label>
+                                <label class="text-[9px] font-bold text-[var(--text-dim)] uppercase tracking-widest ml-1">Active Model</label>
                                 <select v-model="agent.currentModel"
-                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-400 focus:bg-white transition-all uppercase tracking-widest">
+                                    class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-main)] focus:outline-none focus:border-[var(--text-dim)] focus:bg-[var(--panel-bg)] transition-all uppercase tracking-widest">
                                     <option v-for="m in currentProviderModels" :key="m.id" :value="m.id">{{ m.name }}
                                     </option>
                                 </select>
@@ -89,7 +89,7 @@
 
                             <div class="pt-4 flex justify-end">
                                 <button @click="saveConfig" :disabled="isSaving"
-                                    class="px-8 py-3 bg-gray-900 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    class="px-8 py-3 bg-[var(--accent-color)] text-[var(--panel-bg)] text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all flex items-center gap-3 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                                     <Save class="w-4 h-4" />
                                     {{ isSaving ? 'Saving...' : 'Save Runtime Config' }}
                                 </button>
@@ -102,10 +102,10 @@
 
 
     </div>
-    <div v-else class="h-full flex items-center justify-center bg-gray-50">
+    <div v-else class="h-full flex items-center justify-center bg-[var(--bg-color)]">
         <div class="flex flex-col items-center gap-4 opacity-50">
-            <div class="w-12 h-12 rounded-full border-2 border-gray-200 border-t-gray-900 animate-spin"></div>
-            <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Resolving Workspace...</p>
+            <div class="w-12 h-12 rounded-full border-2 border-[var(--border-color)] border-t-[var(--accent-color)] animate-spin"></div>
+            <p class="text-[10px] font-black uppercase tracking-widest text-[var(--text-dim)]">Resolving Workspace...</p>
         </div>
     </div>
 
@@ -128,7 +128,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAgentStore } from '~/stores/agent'
 import ConfirmModal from '~/components/ui/ConfirmModal.vue'
 import { ArrowLeft, Bot, Settings, Terminal, BotIcon, Save, History, Database, Trash2 } from 'lucide-vue-next'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -136,6 +136,10 @@ const store = useAgentStore()
 
 const id = route.params.id as string
 const agent = computed(() => store.instances[id])
+
+onMounted(() => {
+    store.fetchProviders()
+})
 
 const goBack = () => {
     router.back()
@@ -199,7 +203,7 @@ const saveConfig = async () => {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--border-color);
     border-radius: 10px;
 }
 
