@@ -66,8 +66,8 @@ class FileSuggester(Suggester):
         return prefix + "@" + matches[0]
 
 class SidebarResizer(Static):
-    def __init__(self):
-        super().__init__("")
+    def __init__(self, **kwargs):
+        super().__init__("", **kwargs)
         self.dragging = False
 
     def on_mouse_down(self, event):
@@ -105,12 +105,10 @@ class Mosaic(App):
         padding: 1 2;
         overflow-y: scroll;
         scrollbar-gutter: stable;
-        can-focus: true;
     }
     #sidebar-resizer {
         width: 1;
         background: #1e293b;
-        cursor: ew-resize;
     }
     #sidebar-resizer:hover, #sidebar-resizer.dragging {
         background: $accent;
@@ -252,7 +250,7 @@ class Mosaic(App):
                         id="user-input",
                         suggester=FileSuggester(self.workspace)
                     )
-            yield SidebarResizer().set_id("sidebar-resizer")
+            yield SidebarResizer(id="sidebar-resizer")
             yield TodoSidebar(id="todo-sidebar")
             with Vertical(id="settings-pane"):
                 yield Label("SETTINGS")
@@ -425,7 +423,7 @@ class Mosaic(App):
         
         self.provider_type = "openrouter"
         self._init_llm()
-        self.query_one("#chat-log").write("[yellow]Settings saved and LLM re-initialized.[/]")
+        self.add_message("[yellow]Settings saved and LLM re-initialized.[/]")
 
 
 def run():
