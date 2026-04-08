@@ -58,31 +58,37 @@ class Agent:
                         full_text += token
                         
                         # Buffering logic for tool masking
+                        buffer += token
+                        
+                        # If buffer contains a complete tool_call start tag, start masking
+                        if not masking and "<tool_call>" in buffer:
+                            # Send everything before the tag
+                            pre_tag = buffer.split("<tool_call>")[0]
+                            if pre_tag:
+                                on_event({"type": "token", "data": pre_tag})
+                            masking = True
+                            # Keep only the part from <tool_call> onwards in the buffer
+                            buffer = "<tool_call>" + buffer.split("<tool_call>", 1)[1]
+                        
                         if not masking:
-                            if "<" in token or buffer:
-                                buffer += token
-                                if buffer.startswith("<tool_call"):
-                                    # We don't send anything if it looks like a tool call
-                                    if "</tool_call>" in buffer:
-                                        # Tool call caught in a single chunk (unlikely but possible)
-                                        buffer = ""
-                                    else:
-                                        masking = True
-                                elif len(buffer) > 20: # Buffer too long, not a tool call
-                                    on_event({"type": "token", "data": buffer})
-                                    buffer = ""
-                                elif ">" in buffer and not buffer.startswith("<tool_call"):
-                                    # It was some other tag or not a tool call
-                                    on_event({"type": "token", "data": buffer})
-                                    buffer = ""
+                            # If buffer might be starting a tool call, we hold it
+                            # Otherwise, we emit everything that isn't a potential start
+                            if "<" in buffer:
+                                # Send everything up to the first <
+                                pre_tag, post_tag = buffer.split("<", 1)
+                                if pre_tag:
+                                    on_event({"type": "token", "data": pre_tag})
+                                    buffer = "<" + post_tag
                             else:
-                                on_event({"type": "token", "data": token})
+                                # No tag in sight, emit and clear buffer
+                                on_event({"type": "token", "data": buffer})
+                                buffer = ""
                         else:
-                            # In masking mode, we wait for </tool_call>
-                            buffer += token
+                            # In masking mode, check if we've reached the end
                             if "</tool_call>" in buffer:
                                 masking = False
-                                buffer = "" # Discard the XML call from UI stream
+                                # Hold content for parsing but don't emit to UI
+                                buffer = "" 
                     
                     elif event["type"] == "usage":
                         on_event({"type": "usage", "data": event["data"]})

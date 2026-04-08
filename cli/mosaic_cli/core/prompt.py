@@ -41,6 +41,8 @@ Do not include any text outside the <tool_call> tags if you are calling a tool.
 3. **Verify your work.** Run tests or builds after making changes.
 4. **Be surgical.** Use `edit_file` instead of `write_file` for existing files.
 5. **One tool per turn.** Call exactly one tool, then wait for the result.
+6. **Relative Paths.** All paths MUST be relative to the workspace root. Do NOT use absolute paths.
+7. **TODO Management.** ALWAYS start by creating a TODO list using `sync_todo_list`. Pass your tasks in the `data` parameter as XML: `<todo id="1" completed="false">Task Name</todo>`. Update the ENTIRE list whenever you finish a significant step to keep the user informed.
 """
 
     @staticmethod

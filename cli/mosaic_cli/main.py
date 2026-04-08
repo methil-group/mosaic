@@ -1,4 +1,5 @@
 import os
+from typing import Union
 import asyncio
 import sys
 import json
@@ -6,8 +7,11 @@ from dotenv import load_dotenv, set_key
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical, Horizontal
 from textual.widgets import Header, Footer, Input, RichLog, Static, Button, Select, Label
+from textual.widget import Widget
+from textual.suggester import Suggester
 from textual.binding import Binding
 from textual import on, work
+from textual.message import Message
 
 from .core.agent import Agent
 from .core.components import ChatMessage, ToolExecution, ToolResult, TodoSidebar, TodoItem
@@ -17,6 +21,8 @@ from .core.tools.edit_file import EditFileTool
 from .core.tools.list_directory import ListDirectoryTool
 from .core.tools.run_command import RunCommandTool
 from .core.tools.create_todo import CreateTodoTool
+from .core.tools.update_todo import UpdateTodoTool
+from .core.tools.sync_todo_list import SyncTodoListTool
 
 from .framework.llm.openrouter import OpenRouter
 from .framework.llm.openai import OpenAiProvider
@@ -27,18 +33,87 @@ from rich.text import Text
 from rich.box import ROUNDED
 from rich.console import Group
 
+class FileSuggester(Suggester):
+    def __init__(self, workspace: str):
+        super().__init__(use_cache=False)
+        self.workspace = workspace
+
+    async def get_suggestion(self, value: str) -> str | None:
+        if "@" not in value:
+            return None
+        
+        parts = value.rsplit("@", 1)
+        prefix = parts[0]
+        to_complete = parts[1]
+        
+        # Get all files in workspace
+        matches = []
+        try:
+            for root, dirs, files in os.walk(self.workspace):
+                # Skip hidden dirs
+                dirs[:] = [d for d in dirs if not d.startswith('.')]
+                for f in files:
+                    rel_path = os.path.relpath(os.path.join(root, f), self.workspace)
+                    if rel_path.startswith(to_complete):
+                        matches.append(rel_path)
+        except:
+            return None
+            
+        if not matches:
+            return None
+            
+        # Return first match
+        return prefix + "@" + matches[0]
+
+class SidebarResizer(Static):
+    def __init__(self):
+        super().__init__("")
+        self.dragging = False
+
+    def on_mouse_down(self, event):
+        self.dragging = True
+        self.capture_mouse()
+        self.add_class("dragging")
+
+    def on_mouse_move(self, event):
+        if self.dragging:
+            self.post_message(self.Resized(event.screen_x))
+
+    def on_mouse_up(self, event):
+        self.dragging = False
+        self.release_mouse()
+        self.remove_class("dragging")
+
+    class Resized(Message):
+        def __init__(self, screen_x: int):
+            self.screen_x = screen_x
+            super().__init__()
+
 class Mosaic(App):
     CSS = """
     Screen {
         background: #0f172a;
     }
+    #chat-area {
+        width: 1fr;
+    }
     #chat-log {
         height: 1fr;
         border: tall #1e293b;
         background: #1e293b 10%;
-        margin: 1 2;
+        margin: 1 0 1 2;
         padding: 1 2;
+        overflow-y: scroll;
         scrollbar-gutter: stable;
+        can-focus: true;
+    }
+    #sidebar-resizer {
+        width: 1;
+        background: #1e293b;
+        cursor: ew-resize;
+    }
+    #sidebar-resizer:hover, #sidebar-resizer.dragging {
+        background: $accent;
     }
     #input-area {
         height: auto;
@@ -64,7 +139,6 @@ class Mosaic(App):
         background: #0f172a;
         display: none;
         padding: 1 2;
-        z-index: 100;
     }
     #todo-sidebar {
         width: 35;
@@ -111,8 +185,23 @@ class Mosaic(App):
     BINDINGS = [
         Binding("ctrl+s", "toggle_settings", "Settings"),
         Binding("ctrl+q", "quit", "Quit"),
-        Binding("ctrl+c", "clear_log", "Clear"),
+        Binding("ctrl+c", "copy_last_message", "Copy Last", show=True),
+        Binding("ctrl+l", "clear_log", "Clear"),
     ]
+
+    def action_copy_last_message(self):
+        # Find latest assistant message
+        if hasattr(self, 'history') and self.history:
+            # We want the last assistant message
+            assistant_msgs = [m for m in self.history if m.get('role') == 'assistant']
+            if assistant_msgs:
+                last_msg = assistant_msgs[-1].get('content', '')
+                self.copy_to_clipboard(last_msg)
+                self.notify("Last assistant message copied!")
+            else:
+                self.notify("No assistant message to copy.", severity="error")
+        else:
+            self.notify("History is empty.", severity="error")
 
     def __init__(self, workspace: str = None):
         super().__init__()
@@ -136,7 +225,9 @@ class Mosaic(App):
             EditFileTool(),
             ListDirectoryTool(),
             RunCommandTool(),
-            CreateTodoTool()
+            CreateTodoTool(),
+            UpdateTodoTool(),
+            SyncTodoListTool()
         ]
         self.history = []
 
@@ -153,10 +244,15 @@ class Mosaic(App):
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal():
-            with Vertical():
-                yield RichLog(id="chat-log", highlight=True, markup=True)
+            with Vertical(id="chat-area"):
+                yield Vertical(id="chat-log")
                 with Horizontal(id="input-area"):
-                    yield Input(placeholder="Ask anything...", id="user-input")
+                    yield Input(
+                        placeholder="Ask anything... (@ to autocomplete files)", 
+                        id="user-input",
+                        suggester=FileSuggester(self.workspace)
+                    )
+            yield SidebarResizer().set_id("sidebar-resizer")
             yield TodoSidebar(id="todo-sidebar")
             with Vertical(id="settings-pane"):
                 yield Label("SETTINGS")
@@ -174,10 +270,18 @@ class Mosaic(App):
         yield Footer()
 
     def on_mount(self):
-        self.query_one("#chat-log").write("[bold gold1]Welcome to Mosaic[/]")
-        self.query_one("#chat-log").write("[dim]Press Ctrl+S for settings, Ctrl+Q to quit[/]\n")
+        self.add_message("[bold gold1]Welcome to Mosaic[/]")
+        self.add_message("[dim]Press Ctrl+S for settings, Ctrl+Q to quit[/]\n")
         if not self.api_key:
-            self.query_one("#chat-log").write("[red]Warning: API Key not set. Use Ctrl+S to enter it.[/]")
+            self.add_message("[red]Warning: API Key not set. Use Ctrl+S to enter it.[/]")
+
+    def add_message(self, content: Union[str, Widget]):
+        log = self.query_one("#chat-log")
+        if isinstance(content, str):
+            log.mount(Static(content))
+        else:
+            log.mount(content)
+        log.scroll_end()
 
     @work
     async def refresh_models(self):
@@ -191,6 +295,13 @@ class Mosaic(App):
     def action_clear_log(self):
         self.query_one("#chat-log").clear()
 
+    @on(SidebarResizer.Resized)
+    def handle_sidebar_resize(self, message: SidebarResizer.Resized):
+        sidebar = self.query_one("#todo-sidebar")
+        new_width = self.size.width - message.screen_x
+        if 15 < new_width < self.size.width - 20:
+            sidebar.styles.width = new_width
+
     @on(Input.Submitted, "#user-input")
     async def on_input_submitted(self, event: Input.Submitted):
         prompt = event.value
@@ -202,8 +313,7 @@ class Mosaic(App):
             return
 
         event.input.value = ""
-        log = self.query_one("#chat-log")
-        log.write(f"\n[bold sky_blue1]USER:[/]\n{prompt}\n")
+        self.add_message(f"\n[bold sky_blue1]USER:[/]\n{prompt}\n")
         
         self.run_agent(prompt)
 
@@ -212,21 +322,29 @@ class Mosaic(App):
         log = self.query_one("#chat-log")
         agent = Agent(self.llm, self.model, self.workspace, "User", self.tools)
         
-        assistant_header_written = False
+        current_assistant_static = None
+        assistant_content = ""
         
         def on_event(event):
-            nonlocal assistant_header_written
-            should_scroll = log.scroll_y >= log.max_scroll_y
+            nonlocal current_assistant_static, assistant_content
             
             if event["type"] == "token":
-                if not assistant_header_written:
-                    log.write("\n[bold spring_green3]ASSISTANT:[/]")
-                    assistant_header_written = True
-                log.write(event["data"], scroll_end=should_scroll)
+                if not current_assistant_static:
+                    current_assistant_static = Static("")
+                    log.mount(current_assistant_static)
+                    assistant_content = "[bold spring_green3]ASSISTANT:[/]\n"
+                
+                assistant_content += event["data"]
+                current_assistant_static.update(assistant_content)
+                log.scroll_end()
             elif event["type"] == "tool_started":
+                # Finish current snippet
+                current_assistant_static = None
+                assistant_content = ""
+                
                 # Create a group or panel for the tool call
                 params_str = ", ".join([f"{k}={v}" for k,v in event['parameters'].items()])
-                call_panel = Panel(
+                call_panel = Static(Panel(
                     Text.from_markup(f"[bold]Parameters:[/] [dim]{params_str}[/]"),
                     title=f"[bold medium_purple3]🛠️ {event['name']}[/]",
                     title_align="left",
@@ -234,9 +352,9 @@ class Mosaic(App):
                     box=ROUNDED,
                     expand=False,
                     padding=(0, 1)
-                )
-                log.write(call_panel, scroll_end=should_scroll)
-                assistant_header_written = False
+                ))
+                log.mount(call_panel)
+                log.scroll_end()
             elif event["type"] == "tool_finished":
                 res = event['result']
                 
@@ -247,15 +365,35 @@ class Mosaic(App):
                         if data.get("status") == "success":
                             self.query_one("#todo-sidebar").add_todo(
                                 data["todo"]["title"],
-                                data["todo"]["description"]
+                                data["todo"]["description"],
+                                data["todo"].get("id", str(len(self.query_one("#todo-list").children)))
                             )
                     except:
                         pass
                 
+                if event['name'] == "update_todo":
+                    try:
+                        data = json.loads(res)
+                        if data.get("status") == "success":
+                            self.query_one("#todo-sidebar").update_todo(
+                                data["todo"]["id"],
+                                data["todo"]["completed"]
+                            )
+                    except:
+                        pass
+                
+                if event['name'] == "sync_todo_list":
+                    try:
+                        data = json.loads(res)
+                        if data.get("status") == "success":
+                            self.query_one("#todo-sidebar").sync_todos(data["todos"])
+                    except:
+                        pass
+
                 file_status = " ✓ File modified" if any(x in event['name'] for x in ["edit_file", "write_file"]) else ""
                 
                 truncated = res[:500] + "..." if len(res) > 500 else res
-                result_panel = Panel(
+                result_panel = Static(Panel(
                     Text.from_markup(f"[dim]{truncated}[/]"),
                     title=f"[bold spring_green3]↳ Result{file_status}[/]",
                     title_align="left",
@@ -263,11 +401,14 @@ class Mosaic(App):
                     box=ROUNDED,
                     expand=False,
                     padding=(0, 1)
-                )
-                log.write(result_panel, scroll_end=should_scroll)
-                assistant_header_written = False
+                ))
+                log.mount(result_panel)
+                log.scroll_end()
+                current_assistant_static = None
+                assistant_content = ""
             elif event["type"] == "error":
-                log.write(f"\n[bold red]ERROR: {event['message']}[/]", scroll_end=should_scroll)
+                log.mount(Static(f"\n[bold red]ERROR: {event['message']}[/]"))
+                log.scroll_end()
 
         await agent.run(prompt, self.history, on_event)
         self.history.extend(agent.messages[1:]) # Skip system prompt in history

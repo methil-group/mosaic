@@ -1,77 +1,20 @@
-# Mosaic
+# Mosaic 🧩
 
-> **The Modular AI Interaction & Code Ecosystem**
+Mosaic is a premium **Agentic TUI (Terminal User Interface)** for autonomous coding and workspace management.
 
-Mosaic is an advanced platform designed to provide an easy and efficient pipeline for running AI locally. It features a high-performance Gleam-powered backend and a premium Nuxt-based frontend hub for seamless agentic workflows.
-
----
-
-## Quick Start (CLI)
-
-We provide a specialized CLI tool to launch the entire Mosaic ecosystem with a single command.
-
-### Installation
-
-To register the `mosaic` command globally on your system, run the installation script from the project root:
-
+## 🚀 Quick Start
 ```bash
-chmod +x install.sh
-./install.sh
-```
+# Setup
+pip install -e ./cli
 
-> [!NOTE]
-> This will create a symlink in `/usr/local/bin` and may require your system password.
-
-### Usage
-
-Once installed, you can launch the platform from anywhere in your terminal:
-
-```bash
+# Run
 mosaic
 ```
 
-#### Commands & Flags
-| Command | Description |
-| :--- | :--- |
-| `mosaic` | Start Backend (3710) and Frontend (3715) |
-| `mosaic --help` | Show CLI help and usage |
-| `mosaic --version` | Check the current CLI version |
+## ✨ Key Features
+- **Agentic Workflows**: Multi-turn tool execution (Filesystem, Shell, etc.).
+- **Smart UI**: Token-by-token streaming, resizable sidebars, and interactive TODO checklists.
+- **Benchmark Suite**: Comparative model testing with detailed performance logging.
+- **Auto-Sync**: Real-time state management via XML-based synchronization.
 
----
-
-## System Architecture
-
-- **Backend**: Built with [Gleam](https://gleam.run/) (Erlang/OTP). Handles high-concurrency agent logic and tool execution.
-- **Frontend**: Built with [Nuxt 4](https://nuxt.com/) and Vue 3. A premium, reactive dashboard for interacting with your AI agents.
-
-### Ports
-- **Frontend Hub**: `http://localhost:3715`
-- **Engine API**: `http://localhost:3710`
-
----
-
-## Manual Development
-
-If you prefer to run the services individually:
-
-### Backend
-```bash
-cd mosaic-back
-gleam run
-```
-
-### Frontend
-```bash
-cd mosaic-front
-npm run dev -- --port 3715
-```
-
----
-
-## Stopping the System
-
-When using the `mosaic` CLI, simply press **`Ctrl + C`**. The CLI will automatically handle the graceful shutdown of both the backend and frontend processes for you.
-
----
-
-*Built for the future of agentic coding.*
+*Mosaic: Modular, autonomous, and built for the terminal.*

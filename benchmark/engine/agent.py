@@ -10,7 +10,9 @@ class BenchmarkAgent:
         llm,
         model: str,
         workspace: str,
-        tools: List[Any]
+        tools: List[Any],
+        log_path: Optional[str] = None,
+        verbose: bool = True
     ):
         self.llm = llm
         self.model = model
@@ -18,11 +20,26 @@ class BenchmarkAgent:
         self.tools = tools
         self.messages = []
         self.max_steps = 20
+        self.log_path = log_path
+        self.verbose = verbose
+        self.tool_counts = {}
+
+    def _log(self, message: str):
+        if self.log_path:
+            with open(self.log_path, "a", encoding="utf-8") as f:
+                f.write(message + "\n")
 
     async def run(self, task: str):
-        print(f"Starting agent with task: {task}")
+        self._log(f"=== NEW RUN for Model: {self.model} ===")
+        self._log(f"Workspace: {self.workspace}")
         
         system_prompt = self._create_system_prompt()
+        self._log("\n--- SYSTEM PROMPT ---\n" + system_prompt)
+        self._log("\n--- USER TASK ---\n" + task)
+        
+        if self.verbose:
+            print(f"Starting agent with task: {task}")
+        
         self.messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": task}
@@ -31,20 +48,31 @@ class BenchmarkAgent:
         step = 0
         while step < self.max_steps:
             step += 1
-            print(f"\n--- Step {step} ---")
+            if self.verbose:
+                print(f"\n--- Step {step} ---")
+            self._log(f"\n--- STEP {step} ---")
             
             full_text = ""
+            self._log("\n[LLM RESPONSE START]")
             async for event in self.llm.stream_chat(self.model, self.messages):
                 if event["type"] == "token":
-                    full_text += event["data"]
-                    print(event["data"], end="", flush=True)
+                    t = event["data"]
+                    full_text += t
+                    if self.verbose:
+                        print(t, end="", flush=True)
+                    self._log(t)
+            self._log("[LLM RESPONSE END]\n")
             
-            print("\n")
+            if self.verbose:
+                print("\n")
             
             tool_call = self._parse_tool_call(full_text)
             if tool_call:
                 name, params = tool_call
-                print(f"Tool Call: {name}({params})")
+                self.tool_counts[name] = self.tool_counts.get(name, 0) + 1
+                if self.verbose:
+                    print(f"Tool Call: {name}({params})")
+                self._log(f"TOOL CALL DETECTED: {name}\nParameters: {json.dumps(params, indent=2)}")
                 
                 tool = next((t for t in self.tools if t.name() == name), None)
                 if tool:
@@ -55,15 +83,21 @@ class BenchmarkAgent:
                 else:
                     result = f"Error: Tool '{name}' not found"
                 
-                print(f"Tool Result: {result[:200]}..." if len(result) > 200 else f"Tool Result: {result}")
+                log_res = result[:500] + "..." if len(result) > 500 else result
+                self._log(f"TOOL RESULT:\n{log_res}")
+                if self.verbose:
+                    print(f"Tool Result: {result[:200]}..." if len(result) > 200 else f"Tool Result: {result}")
                 
                 self.messages.append({"role": "assistant", "content": full_text})
                 self.messages.append({"role": "user", "content": f"<tool_result>\n<name>{name}</name>\n<content>\n{result}\n</content>\n</tool_result>"})
             else:
-                print("Final Answer received or no tool call.")
+                self._log("Final Answer or no tool call received.")
+                if self.verbose:
+                    print("Final Answer received or no tool call.")
                 return full_text
         
-        print("Max steps reached.")
+        if self.verbose:
+            print("Max steps reached.")
         return "Error: Max steps reached"
 
     def _create_system_prompt(self) -> str:

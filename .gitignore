@@ -56,3 +56,5 @@ release
 out
 testmed
 mosatest
+temp_workspace
+logsbenchmark/logs/*

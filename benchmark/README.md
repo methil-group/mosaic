@@ -18,7 +18,11 @@ This folder contains a battery of tests to evaluate the agentic coding capabilit
 Run the runner script with the path to your model:
 
 ```bash
-python runner.py --model /path/to/your/model.gguf --case 01_simple_fix
+# For local GGUF:
+python runner.py --model /path/to/your/model.gguf --case 01_simple_fix --provider gguf
+
+# For OpenRouter:
+python runner.py --model deepseek/deepseek-v3.2 --case 01_simple_fix --provider openrouter --api-key YOUR_KEY
 ```
 
 ## Structure

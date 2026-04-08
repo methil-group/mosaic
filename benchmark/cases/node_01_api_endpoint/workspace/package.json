@@ -1,0 +1,7 @@
+{
+  "name": "node_api_endpoint",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
