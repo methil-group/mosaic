@@ -106,9 +106,9 @@ function registerIpc() {
                     id: 'openrouter',
                     name: 'OpenRouter',
                     models: [
+                        { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3' },
                         { id: 'qwen/qwen3.5-397b-a17b', name: 'Qwen 3.5 397B' },
                         { id: 'qwen/qwen3-coder-next', name: 'Qwen3 Coder next' },
-                        { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
                     ],
                 },
                 {

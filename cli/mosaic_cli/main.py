@@ -1,6 +1,7 @@
 import os
 import asyncio
 import sys
+import json
 from dotenv import load_dotenv, set_key
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical, Horizontal
@@ -9,50 +10,22 @@ from textual.binding import Binding
 from textual import on, work
 
 from .core.agent import Agent
+from .core.components import ChatMessage, ToolExecution, ToolResult, TodoSidebar, TodoItem
 from .core.tools.read_file import ReadFileTool
 from .core.tools.write_file import WriteFileTool
 from .core.tools.edit_file import EditFileTool
 from .core.tools.list_directory import ListDirectoryTool
 from .core.tools.run_command import RunCommandTool
+from .core.tools.create_todo import CreateTodoTool
+
 from .framework.llm.openrouter import OpenRouter
+from .framework.llm.openai import OpenAiProvider
+from .framework.llm.llama_provider import LlamaProvider
 
-class ChatMessage(Static):
-    def __init__(self, role: str, content: str):
-        super().__init__()
-        self.role = role
-        self.content = content
-
-    def render(self) -> str:
-        color = "cyan" if self.role == "user" else "green"
-        if self.role == "system": color = "yellow"
-        if self.role == "assistant": color = "green"
-        return f"[{color} bold]{self.role.upper()}:[/] {self.content}"
-
-class ToolExecution(Static):
-    def __init__(self, name: str, params: dict):
-        super().__init__()
-        self.name = name
-        self.params = params
-
-    def render(self) -> str:
-        return f"[magenta bold]TOOL CALL: {self.name}[/] ({self.params})"
-
-class ToolResult(Static):
-    def __init__(self, name: str, result: str):
-        super().__init__()
-        self.name = name
-        self.result = result
-
-    def render(self) -> str:
-        # Show modified files if it was an edit or write
-        output = f"[magenta]TOOL RESULT: {self.name}[/]\n"
-        if "edit_file" in self.name or "write_file" in self.name:
-            output += f"[bold green]Modified file mentioned in result[/]\n"
-        
-        # Truncate result for display
-        truncated = self.result[:200] + "..." if len(self.result) > 200 else self.result
-        output += f"[dim]{truncated}[/]"
-        return output
+from rich.panel import Panel
+from rich.text import Text
+from rich.box import ROUNDED
+from rich.console import Group
 
 class Mosaic(App):
     CSS = """
@@ -91,6 +64,23 @@ class Mosaic(App):
         background: #0f172a;
         display: none;
         padding: 1 2;
+        z-index: 100;
+    }
+    #todo-sidebar {
+        width: 35;
+        dock: right;
+        border-left: tall #1e293b;
+        background: #0f172a;
+        padding: 1 1;
+    }
+    #todo-sidebar-title {
+        text-style: bold;
+        color: #8b5cf6;
+        margin-bottom: 1;
+        padding: 0 1;
+    }
+    #todo-list {
+        height: 1fr;
     }
     #settings-pane Label {
         margin-top: 1;
@@ -102,8 +92,18 @@ class Mosaic(App):
         width: 100%;
     }
     #workspace-info {
-        margin-top: 2;
+        margin-top: 1;
         color: #64748b;
+        text-style: italic;
+    }
+    .tool-block {
+        background: #334155 20%;
+        border-left: solid #8b5cf6;
+        padding: 0 1;
+        margin: 1 0;
+    }
+    .tool-result {
+        color: #94a3b8;
         text-style: italic;
     }
     """
@@ -120,25 +120,35 @@ class Mosaic(App):
         if os.path.exists(self.config_path):
             load_dotenv(self.config_path)
         else:
-            # Create the file if it doesn't exist to ensure set_key works later
             open(self.config_path, 'a').close()
 
         self.api_key = os.getenv("OPENROUTER_API_KEY", "")
+        self.provider_type = "openrouter"
+        
         self.workspace = os.path.abspath(workspace) if workspace else os.getcwd()
         self.model = os.getenv("MOSAIC_MODEL", "deepseek/deepseek-v3.2")
-        self.llm = OpenRouter(self.api_key)
-        self.available_models = [
-            "deepseek/deepseek-v3.2",
-            "qwen/qwen3-coder-next"
-        ]
+        
+        self._init_llm()
+
         self.tools = [
             ReadFileTool(),
             WriteFileTool(),
             EditFileTool(),
             ListDirectoryTool(),
-            RunCommandTool()
+            RunCommandTool(),
+            CreateTodoTool()
         ]
         self.history = []
+
+    def _init_llm(self):
+        if self.provider_type == "openrouter":
+            self.llm = OpenRouter(self.api_key)
+        elif self.provider_type == "openai":
+            self.llm = OpenAiProvider(self.openai_key, self.openai_base_url)
+        elif self.provider_type == "gguf":
+            self.llm = LlamaProvider(self.gguf_path)
+        else:
+            self.llm = OpenRouter(self.api_key)
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -147,12 +157,18 @@ class Mosaic(App):
                 yield RichLog(id="chat-log", highlight=True, markup=True)
                 with Horizontal(id="input-area"):
                     yield Input(placeholder="Ask anything...", id="user-input")
+            yield TodoSidebar(id="todo-sidebar")
             with Vertical(id="settings-pane"):
                 yield Label("SETTINGS")
                 yield Label("OpenRouter API Key")
                 yield Input(placeholder="sk-or-v1-...", value=self.api_key, id="api-key-input", password=True)
+                
                 yield Label("Model")
-                yield Select([(m, m) for m in self.available_models], value=self.model, id="model-select")
+                yield Select([
+                    ("Qwen Coder Next", "qwen/qwen3-coder-next"),
+                    ("DeepSeek v3.2", "deepseek/deepseek-v3.2")
+                ], value=self.model if self.model in ["qwen/qwen3-coder-next", "deepseek/deepseek-v3.2"] else "deepseek/deepseek-v3.2", id="model-select")
+                
                 yield Button("Save & Refresh", variant="primary", id="save-settings")
                 yield Static(f"Workspace: {self.workspace}", id="workspace-info")
         yield Footer()
@@ -200,25 +216,58 @@ class Mosaic(App):
         
         def on_event(event):
             nonlocal assistant_header_written
+            should_scroll = log.scroll_y >= log.max_scroll_y
+            
             if event["type"] == "token":
                 if not assistant_header_written:
                     log.write("\n[bold spring_green3]ASSISTANT:[/]")
                     assistant_header_written = True
-                log.write(event["data"], scroll_end=True)
+                log.write(event["data"], scroll_end=should_scroll)
             elif event["type"] == "tool_started":
-                log.write(f"\n[italic medium_purple3]→ Calling {event['name']}...[/] [dim]({event['parameters']})[/]")
+                # Create a group or panel for the tool call
+                params_str = ", ".join([f"{k}={v}" for k,v in event['parameters'].items()])
+                call_panel = Panel(
+                    Text.from_markup(f"[bold]Parameters:[/] [dim]{params_str}[/]"),
+                    title=f"[bold medium_purple3]🛠️ {event['name']}[/]",
+                    title_align="left",
+                    border_style="medium_purple3",
+                    box=ROUNDED,
+                    expand=False,
+                    padding=(0, 1)
+                )
+                log.write(call_panel, scroll_end=should_scroll)
                 assistant_header_written = False
             elif event["type"] == "tool_finished":
                 res = event['result']
-                # Highlight if file was touched
-                if "edit_file" in event['name'] or "write_file" in event['name']:
-                    log.write(f" [bold spring_green3]✓ File modified[/]")
+                
+                # Check for create_todo and update the side bar
+                if event['name'] == "create_todo":
+                    try:
+                        data = json.loads(res)
+                        if data.get("status") == "success":
+                            self.query_one("#todo-sidebar").add_todo(
+                                data["todo"]["title"],
+                                data["todo"]["description"]
+                            )
+                    except:
+                        pass
+                
+                file_status = " ✓ File modified" if any(x in event['name'] for x in ["edit_file", "write_file"]) else ""
                 
                 truncated = res[:500] + "..." if len(res) > 500 else res
-                log.write(f"\n[dim]Result: {truncated}[/]")
+                result_panel = Panel(
+                    Text.from_markup(f"[dim]{truncated}[/]"),
+                    title=f"[bold spring_green3]↳ Result{file_status}[/]",
+                    title_align="left",
+                    border_style="spring_green3",
+                    box=ROUNDED,
+                    expand=False,
+                    padding=(0, 1)
+                )
+                log.write(result_panel, scroll_end=should_scroll)
                 assistant_header_written = False
             elif event["type"] == "error":
-                log.write(f"\n[bold red]ERROR: {event['message']}[/]")
+                log.write(f"\n[bold red]ERROR: {event['message']}[/]", scroll_end=should_scroll)
 
         await agent.run(prompt, self.history, on_event)
         self.history.extend(agent.messages[1:]) # Skip system prompt in history
@@ -229,12 +278,13 @@ class Mosaic(App):
         self.api_key = self.query_one("#api-key-input").value
         self.model = self.query_one("#model-select").value
         
-        # Save to global config
         set_key(self.config_path, "OPENROUTER_API_KEY", self.api_key)
         set_key(self.config_path, "MOSAIC_MODEL", self.model)
+        set_key(self.config_path, "MOSAIC_PROVIDER", "openrouter")
         
-        self.llm = OpenRouter(self.api_key)
-        self.query_one("#chat-log").write("[yellow]Settings saved globally and LLM re-initialized.[/]")
+        self.provider_type = "openrouter"
+        self._init_llm()
+        self.query_one("#chat-log").write("[yellow]Settings saved and LLM re-initialized.[/]")
 
 
 def run():

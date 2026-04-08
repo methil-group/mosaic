@@ -46,6 +46,8 @@ class Agent:
                 break
             
             full_text = ""
+            buffer = ""
+            masking = False
             try:
                 async for event in self.llm.stream_chat(self.model, self.messages):
                     if self.stopped:
@@ -54,12 +56,43 @@ class Agent:
                     if event["type"] == "token":
                         token = event["data"]
                         full_text += token
-                        on_event({"type": "token", "data": token})
+                        
+                        # Buffering logic for tool masking
+                        if not masking:
+                            if "<" in token or buffer:
+                                buffer += token
+                                if buffer.startswith("<tool_call"):
+                                    # We don't send anything if it looks like a tool call
+                                    if "</tool_call>" in buffer:
+                                        # Tool call caught in a single chunk (unlikely but possible)
+                                        buffer = ""
+                                    else:
+                                        masking = True
+                                elif len(buffer) > 20: # Buffer too long, not a tool call
+                                    on_event({"type": "token", "data": buffer})
+                                    buffer = ""
+                                elif ">" in buffer and not buffer.startswith("<tool_call"):
+                                    # It was some other tag or not a tool call
+                                    on_event({"type": "token", "data": buffer})
+                                    buffer = ""
+                            else:
+                                on_event({"type": "token", "data": token})
+                        else:
+                            # In masking mode, we wait for </tool_call>
+                            buffer += token
+                            if "</tool_call>" in buffer:
+                                masking = False
+                                buffer = "" # Discard the XML call from UI stream
+                    
                     elif event["type"] == "usage":
                         on_event({"type": "usage", "data": event["data"]})
                     elif event["type"] == "error":
                         on_event({"type": "error", "message": event["message"]})
                         return
+                
+                # If anything left in buffer, flush it (only if not masking)
+                if buffer and not masking:
+                    on_event({"type": "token", "data": buffer})
             except Exception as e:
                 on_event({"type": "error", "message": str(e)})
                 return

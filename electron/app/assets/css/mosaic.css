@@ -832,11 +832,11 @@ body {
 /* Input Area */
 .input-container {
   padding: 20px 24px 30px 24px;
-  background: white;
+  background: var(--panel-bg);
 }
 
 .input-box {
-  border: 1.5px solid #eee;
+  border: 1.5px solid var(--border-color);
   border-radius: 12px;
   padding: 10px 16px;
   width: 100%;
@@ -847,7 +847,8 @@ body {
   border: none;
   outline: none;
   font-size: 14px;
-  color: #333;
+  color: var(--text-main);
+  background: transparent;
 }
 
 /* ADAPTIVE MODES - MATCHING REFERENCE IMAGE */

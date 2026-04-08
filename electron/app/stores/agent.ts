@@ -103,7 +103,7 @@ export const useAgentStore = defineStore('agent', {
     instanceIds: [],
     availableProviders: [],
     defaultProviderId: 'openrouter',
-    defaultModelId: 'qwen/qwen3-coder-next',
+    defaultModelId: 'deepseek/deepseek-chat',
     backendUrl: 'http://localhost:3710',
     filesCache: {},
     workspaces: {},
@@ -594,11 +594,14 @@ export const useAgentStore = defineStore('agent', {
           }
 
           // Apply defaults if missing or invalid
-          if (!this.instances[agent.id].currentProvider) {
-            this.instances[agent.id].currentProvider = this.defaultProviderId
-          }
-          if (!this.instances[agent.id].currentModel) {
-            this.instances[agent.id].currentModel = this.defaultModelId
+          const instance = this.instances[agent.id]
+          if (instance) {
+            if (!instance.currentProvider) {
+              instance.currentProvider = this.defaultProviderId
+            }
+            if (!instance.currentModel) {
+              instance.currentModel = this.defaultModelId
+            }
           }
 
           this.instanceIds.push(agent.id)

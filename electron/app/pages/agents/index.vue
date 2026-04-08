@@ -105,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted } from 'vue'
 import { useAgentStore } from '~/stores/agent'
 import ConfirmModal from '~/components/ui/ConfirmModal.vue'
 import * as LucideIcons from 'lucide-vue-next'
@@ -119,6 +119,10 @@ const store = useAgentStore()
 const searchQuery = ref('')
 const showConfirm = ref(false)
 const agentToDeleteId = ref<string | null>(null)
+
+onMounted(() => {
+    store.fetchProviders()
+})
 
 const activeAgents = computed(() => {
     return store.instanceIds
