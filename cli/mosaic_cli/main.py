@@ -14,7 +14,7 @@ from textual import on, work
 from textual.message import Message
 
 from .core.agent import Agent
-from .core.components import ChatMessage, ToolExecution, ToolResult, TodoSidebar, TodoItem
+from .core.components import ChatMessage, ToolExecution, ToolResult, ToolBlock, TodoSidebar, TodoItem
 from .core.tools.read_file import ReadFileTool
 from .core.tools.write_file import WriteFileTool
 from .core.tools.edit_file import EditFileTool
@@ -169,15 +169,51 @@ class Mosaic(App):
         text-style: italic;
     }
     .tool-block {
-        background: #334155 20%;
-        border-left: solid #8b5cf6;
-        padding: 0 1;
+        background: #1e293b;
+        border: solid #334155;
+        border-left: solid 4 #8b5cf6;
         margin: 1 0;
+        padding: 0;
+        height: auto;
     }
-    .tool-result {
+    .tool-header {
+        padding: 0 1;
+        background: #334155 40%;
+        height: 1;
+    }
+    .tool-header:hover {
+        background: #8b5cf6 30%;
+        cursor: pointer;
+    }
+    .tool-header #tool-title {
+        width: 1fr;
+        color: #c084fc;
+    }
+    .tool-header #tool-chevron {
+        width: 3;
+        text-align: right;
+        color: #64748b;
+    }
+    #tool-details {
+        padding: 1 2;
+        background: #0f172a 50%;
+        display: block;
+    }
+    .tool-block.collapsed #tool-details {
+        display: none;
+    }
+    .tool-params {
         color: #94a3b8;
-        text-style: italic;
+        margin-bottom: 1;
     }
+    #tool-result-static {
+        border-top: dashed #334155;
+        padding-top: 1;
+    }
+    .tool-header.has-result #tool-title {
+        color: #4ade80;
+    }
+
     """
 
     BINDINGS = [
@@ -340,23 +376,15 @@ class Mosaic(App):
                 current_assistant_static = None
                 assistant_content = ""
                 
-                # Create a group or panel for the tool call
-                params_str = ", ".join([f"{k}={v}" for k,v in event['parameters'].items()])
-                call_panel = Static(Panel(
-                    Text.from_markup(f"[bold]Parameters:[/] [dim]{params_str}[/]"),
-                    title=f"[bold medium_purple3]🛠️ {event['name']}[/]",
-                    title_align="left",
-                    border_style="medium_purple3",
-                    box=ROUNDED,
-                    expand=False,
-                    padding=(0, 1)
-                ))
-                log.mount(call_panel)
+                # Create the collapsible tool block
+                current_tool_block = ToolBlock(event['name'], event['parameters'])
+                log.mount(current_tool_block)
                 log.scroll_end()
+                
             elif event["type"] == "tool_finished":
                 res = event['result']
                 
-                # Check for create_todo and update the side bar
+                # Check for todo tools
                 if event['name'] == "create_todo":
                     try:
                         data = json.loads(res)
@@ -388,22 +416,17 @@ class Mosaic(App):
                     except:
                         pass
 
-                file_status = " ✓ File modified" if any(x in event['name'] for x in ["edit_file", "write_file"]) else ""
+                file_modified = any(x in event['name'] for x in ["edit_file", "write_file", "create_todo", "update_todo"])
                 
-                truncated = res[:500] + "..." if len(res) > 500 else res
-                result_panel = Static(Panel(
-                    Text.from_markup(f"[dim]{truncated}[/]"),
-                    title=f"[bold spring_green3]↳ Result{file_status}[/]",
-                    title_align="left",
-                    border_style="spring_green3",
-                    box=ROUNDED,
-                    expand=False,
-                    padding=(0, 1)
-                ))
-                log.mount(result_panel)
+                # Update the tool block with results
+                if 'current_tool_block' in locals() and current_tool_block:
+                    current_tool_block.set_result(res, file_modified)
+                
                 log.scroll_end()
                 current_assistant_static = None
                 assistant_content = ""
+                current_tool_block = None
+
             elif event["type"] == "error":
                 log.mount(Static(f"\n[bold red]ERROR: {event['message']}[/]"))
                 log.scroll_end()
