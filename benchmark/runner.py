@@ -14,14 +14,11 @@ from mosaic_cli.framework.llm.openrouter import OpenRouter
 from engine.agent import BenchmarkAgent
 from engine.tools import ListDirectoryTool, ReadFileTool, WriteFileTool, RunCommandTool
 
-async def run_benchmark(model_path, case_name, provider_type="gguf", api_key=None, verbose=False):
+async def run_benchmark(model_path, case_name, log_dir, provider_type="gguf", api_key=None, verbose=False):
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_dir = "logs"
     os.makedirs(log_dir, exist_ok=True)
     
-    # Sanitize model name for filename
-    model_name_safe = os.path.basename(model_path).replace("/", "_").replace(":", "_")
-    log_path = os.path.join(log_dir, f"{model_name_safe}_{case_name}_{timestamp}.log")
+    log_path = os.path.join(log_dir, f"{case_name}.log")
     
     with open(log_path, "w", encoding="utf-8") as f:
         f.write(f"=== MOSAIC BENCHMARK RUN: {case_name} ===\n")
@@ -109,13 +106,15 @@ async def run_benchmark(model_path, case_name, provider_type="gguf", api_key=Non
             
     return result.returncode == 0, agent.tool_counts
 
-if __name__ == "__main__":
+async def main():
     parser = argparse.ArgumentParser(description="Mosaic Benchmark Runner")
     parser.add_argument("--model", required=True, help="Model ID (OpenRouter) or path to GGUF file")
     parser.add_argument("--case", help="Benchmark case name (omit to run all cases)")
     parser.add_argument("--provider", choices=["gguf", "openrouter"], default="gguf", help="LLM Provider type")
     parser.add_argument("--api-key", help="API Key for OpenRouter")
     parser.add_argument("--verbose", action="store_true", help="Show full agent output in console")
+    parser.add_argument("--parallel", action="store_true", help="Run cases in parallel")
+    parser.add_argument("--concurrency", type=int, default=5, help="Number of simultaneous cases (default: 5)")
     
     args = parser.parse_args()
     
@@ -126,23 +125,91 @@ if __name__ == "__main__":
         # Discover all cases
         cases_to_run = sorted([d for d in os.listdir(cases_dir) if os.path.isdir(os.path.join(cases_dir, d))])
     
+    # Session setup
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_name_safe = os.path.basename(args.model).replace("/", "_").replace(":", "_")
+    session_dir = os.path.join("logs", f"{model_name_safe}_{timestamp}")
+    os.makedirs(session_dir, exist_ok=True)
+
     print(f"\n🚀 Starting Mosaic Benchmark Suite")
     print(f"Model: {args.model} | Provider: {args.provider}")
     print(f"Total Cases: {len(cases_to_run)}")
+    print(f"Session Log Directory: {session_dir}")
+    if args.parallel:
+        print(f"Mode: Parallel (Concurrency: {args.concurrency})")
     print("-" * 70)
     
     results = []
-    for i, case in enumerate(cases_to_run):
-        print(f"[{i+1}/{len(cases_to_run)}] Case: {case:30} ", end="", flush=True)
-        success, tool_counts = asyncio.run(run_benchmark(args.model, case, args.provider, args.api_key, verbose=args.verbose))
-        status = "✅ SUCCESS" if success else "❌ FAILURE"
+    total_tool_counts = {}
+
+    def aggregate_counts(counts):
+        for tool, count in counts.items():
+            total_tool_counts[tool] = total_tool_counts.get(tool, 0) + count
+
+    if args.parallel:
+        semaphore = asyncio.Semaphore(args.concurrency)
         
-        tools_summary = ", ".join([f"{k}:{v}" for k, v in tool_counts.items()]) if tool_counts else "None"
-        print(f"{status:10} | Tools: {tools_summary}")
-        results.append((case, status, tools_summary))
+        async def run_with_semaphore(case_name, index, total):
+            async with semaphore:
+                print(f"  [START] {case_name}")
+                success, tool_counts = await run_benchmark(args.model, case_name, session_dir, args.provider, args.api_key, verbose=args.verbose)
+                status = "✅ SUCCESS" if success else "❌ FAILURE"
+                tools_summary = ", ".join([f"{k}:{v}" for k, v in tool_counts.items()]) if tool_counts else "None"
+                print(f"  [FINISH] {case_name:30} {status}")
+                return (case_name, status, tools_summary, tool_counts)
+
+        tasks = [run_with_semaphore(case, i, len(cases_to_run)) for i, case in enumerate(cases_to_run)]
+        raw_results = await asyncio.gather(*tasks)
+        for case_name, status, tools_summary, tool_counts in raw_results:
+            results.append((case_name, status, tools_summary))
+            aggregate_counts(tool_counts)
+    else:
+        for i, case in enumerate(cases_to_run):
+            print(f"[{i+1}/{len(cases_to_run)}] Case: {case:30} ", end="", flush=True)
+            success, tool_counts = await run_benchmark(args.model, case, session_dir, args.provider, args.api_key, verbose=args.verbose)
+            status = "✅ SUCCESS" if success else "❌ FAILURE"
+            tools_summary = ", ".join([f"{k}:{v}" for k, v in tool_counts.items()]) if tool_counts else "None"
+            print(f"{status:10} | Tools: {tools_summary}")
+            results.append((case, status, tools_summary))
+            aggregate_counts(tool_counts)
     
+    # Generate Recap.md
+    recap_path = os.path.join(session_dir, "recap.md")
+    with open(recap_path, "w", encoding="utf-8") as f:
+        f.write(f"# Mosaic Benchmark Recap\n\n")
+        f.write(f"- **Model**: {args.model}\n")
+        f.write(f"- **Provider**: {args.provider}\n")
+        f.write(f"- **Timestamp**: {timestamp}\n")
+        f.write(f"- **Log Directory**: `{session_dir}`\n\n")
+        
+        f.write("## Results Summary\n\n")
+        f.write("| Case | Status | Tools Used |\n")
+        f.write("| :--- | :--- | :--- |\n")
+        for case, status, tools in results:
+            f.write(f"| {case} | {status} | {tools} |\n")
+        
+        f.write("\n## Total Tool Usage by Category\n\n")
+        
+        # Define categories
+        categories = {
+            "File Operations": ["ListDirectoryTool", "ReadFileTool", "WriteFileTool"],
+            "System Operations": ["RunCommandTool"]
+        }
+        
+        for cat_name, tools in categories.items():
+            cat_total = sum(total_tool_counts.get(t, 0) for t in tools)
+            f.write(f"### {cat_name}: {cat_total}\n")
+            for t in tools:
+                if t in total_tool_counts:
+                    f.write(f"- **{t}**: {total_tool_counts[t]}\n")
+            f.write("\n")
+
     print("-" * 70)
     print("Summary:")
     for case, status, tools in results:
         print(f"  {case:30} {status:10} | {tools}")
     print("-" * 70)
+    print(f"Full recap saved to: {recap_path}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
