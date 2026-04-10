@@ -1,0 +1,27 @@
+{
+    "entities": [
+        {
+            "name": "Player",
+            "components": {
+                "Position": { "x": 10, "y": 20 },
+                "Sprite": { "texture": "hero.png" },
+                "Health": { "max": 150 }
+            }
+        },
+        {
+            "name": "Enemy_1",
+            "components": {
+                "Position": { "x": 100, "y": 50 },
+                "Sprite": { "texture": "orc.png" },
+                "Health": { "max": 50 }
+            }
+        },
+        {
+            "name": "Wall",
+            "components": {
+                "Position": { "x": 0, "y": 0 },
+                "Sprite": { "texture": "brick.png" }
+            }
+        }
+    ]
+}

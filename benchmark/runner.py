@@ -6,6 +6,7 @@ import shutil
 import datetime
 import subprocess
 import json
+import time
 
 # Ensure we can import from the cli folder
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "cli"))
@@ -34,7 +35,7 @@ async def run_benchmark(model_path, case_name, log_dir, provider_type="gguf", ap
     case_dir = os.path.join("cases", case_name)
     if not os.path.exists(case_dir):
         print(f"Error: Case {case_name} not found at {case_dir}")
-        return False, {}
+        return False, {}, 0
     
     # Prepare workspace
     original_workspace = os.path.join(case_dir, "workspace")
@@ -49,11 +50,11 @@ async def run_benchmark(model_path, case_name, log_dir, provider_type="gguf", ap
     elif provider_type == "openrouter":
         if not api_key:
             print("Error: --api-key is required for OpenRouter")
-            return False, {}
+            return False, {}, 0
         provider = OpenRouter(api_key)
     else:
         print(f"Error: Unsupported provider {provider_type}")
-        return False, {}
+        return False, {}, 0
     
     # Initialize tools
     tools = [
@@ -72,11 +73,14 @@ async def run_benchmark(model_path, case_name, log_dir, provider_type="gguf", ap
         task_content = f.read()
     
     # Run agent
+    start_time = time.time()
     try:
         await agent.run(task_content)
     except Exception as e:
         if verbose:
             print(f"Agent error: {e}")
+    end_time = time.time()
+    duration = end_time - start_time
     
     # Verify
     verify_script = os.path.join(case_dir, "verify.py")
@@ -90,6 +94,7 @@ async def run_benchmark(model_path, case_name, log_dir, provider_type="gguf", ap
     
     with open(log_path, "a", encoding="utf-8") as f:
         f.write("\n=== METRICS ===\n")
+        f.write(f"Duration: {duration:.2f}s\n")
         f.write(f"Tool Calls: {json.dumps(agent.tool_counts, indent=2)}\n")
         f.write("\n=== VERIFICATION ===\n")
         f.write(f"Outcome: {outcome}\n")
@@ -98,13 +103,14 @@ async def run_benchmark(model_path, case_name, log_dir, provider_type="gguf", ap
 
     if verbose:
         print("\n=== Benchmark Result ===")
+        print(f"Duration: {duration:.2f}s")
         print(result.stdout)
         print(outcome)
         print(f"Tools Used: {agent.tool_counts}")
         if result.returncode != 0:
             print(result.stderr)
             
-    return result.returncode == 0, agent.tool_counts
+    return result.returncode == 0, agent.tool_counts, duration
 
 async def main():
     parser = argparse.ArgumentParser(description="Mosaic Benchmark Runner")
@@ -141,6 +147,7 @@ async def main():
     
     results = []
     total_tool_counts = {}
+    total_duration = 0
 
     def aggregate_counts(counts):
         for tool, count in counts.items():
@@ -152,26 +159,30 @@ async def main():
         async def run_with_semaphore(case_name, index, total):
             async with semaphore:
                 print(f"  [START] {case_name}")
-                success, tool_counts = await run_benchmark(args.model, case_name, session_dir, args.provider, args.api_key, verbose=args.verbose)
+                success, tool_counts, duration = await run_benchmark(args.model, case_name, session_dir, args.provider, args.api_key, verbose=args.verbose)
                 status = "✅ SUCCESS" if success else "❌ FAILURE"
                 tools_summary = ", ".join([f"{k}:{v}" for k, v in tool_counts.items()]) if tool_counts else "None"
-                print(f"  [FINISH] {case_name:30} {status}")
-                return (case_name, status, tools_summary, tool_counts)
+                print(f"  [FINISH] {case_name:30} {status} ({duration:.2f}s)")
+                return (case_name, status, tools_summary, tool_counts, duration)
 
         tasks = [run_with_semaphore(case, i, len(cases_to_run)) for i, case in enumerate(cases_to_run)]
         raw_results = await asyncio.gather(*tasks)
-        for case_name, status, tools_summary, tool_counts in raw_results:
-            results.append((case_name, status, tools_summary))
+        for case_name, status, tools_summary, tool_counts, duration in raw_results:
+            results.append((case_name, status, tools_summary, duration))
             aggregate_counts(tool_counts)
+            total_duration += duration
     else:
         for i, case in enumerate(cases_to_run):
             print(f"[{i+1}/{len(cases_to_run)}] Case: {case:30} ", end="", flush=True)
-            success, tool_counts = await run_benchmark(args.model, case, session_dir, args.provider, args.api_key, verbose=args.verbose)
+            success, tool_counts, duration = await run_benchmark(args.model, case, session_dir, args.provider, args.api_key, verbose=args.verbose)
             status = "✅ SUCCESS" if success else "❌ FAILURE"
             tools_summary = ", ".join([f"{k}:{v}" for k, v in tool_counts.items()]) if tool_counts else "None"
-            print(f"{status:10} | Tools: {tools_summary}")
-            results.append((case, status, tools_summary))
+            print(f"{status:10} | Duration: {duration:6.2f}s | Tools: {tools_summary}")
+            results.append((case, status, tools_summary, duration))
             aggregate_counts(tool_counts)
+            total_duration += duration
+    
+    avg_duration = total_duration / len(cases_to_run) if cases_to_run else 0
     
     # Generate Recap.md
     recap_path = os.path.join(session_dir, "recap.md")
@@ -180,13 +191,14 @@ async def main():
         f.write(f"- **Model**: {args.model}\n")
         f.write(f"- **Provider**: {args.provider}\n")
         f.write(f"- **Timestamp**: {timestamp}\n")
-        f.write(f"- **Log Directory**: `{session_dir}`\n\n")
+        f.write(f"- **Log Directory**: `{session_dir}`\n")
+        f.write(f"- **Average Time per Test**: `{avg_duration:.2f}s`\n\n")
         
         f.write("## Results Summary\n\n")
-        f.write("| Case | Status | Tools Used |\n")
-        f.write("| :--- | :--- | :--- |\n")
-        for case, status, tools in results:
-            f.write(f"| {case} | {status} | {tools} |\n")
+        f.write("| Case | Status | Duration | Tools Used |\n")
+        f.write("| :--- | :--- | :--- | :--- |\n")
+        for case, status, tools, duration in results:
+            f.write(f"| {case} | {status} | {duration:.2f}s | {tools} |\n")
         
         f.write("\n## Total Tool Usage by Category\n\n")
         

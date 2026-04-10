@@ -1,0 +1,27 @@
+{
+    "entites": [
+        {
+            "nom": "Joueur",
+            "composants": {
+                "Position": { "x": 10, "y": 20 },
+                "Sprite": { "texture": "heros.png" },
+                "Sante": { "max": 150 }
+            }
+        },
+        {
+            "nom": "Ennemi_1",
+            "composants": {
+                "Position": { "x": 100, "y": 50 },
+                "Sprite": { "texture": "orc.png" },
+                "Sante": { "max": 50 }
+            }
+        },
+        {
+            "nom": "Mur",
+            "composants": {
+                "Position": { "x": 0, "y": 0 },
+                "Sprite": { "texture": "brique.png" }
+            }
+        }
+    ]
+}

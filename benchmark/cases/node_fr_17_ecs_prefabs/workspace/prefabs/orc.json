@@ -1,0 +1,8 @@
+{
+    "nom": "Orc",
+    "composants": {
+        "Sante": { "max": 100, "actuelle": 100 },
+        "Stats": { "force": 10, "agilite": 5 },
+        "Sprite": { "texture": "orc_idle.png" }
+    }
+}
