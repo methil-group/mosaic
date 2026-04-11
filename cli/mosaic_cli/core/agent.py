@@ -105,6 +105,7 @@ class Agent:
                 on_event({"type": "error", "message": str(e)})
                 return
 
+            tool_call = self.parse_tool_call(full_text)
             if tool_call:
                 consecutive_retries = 0
                 name, params = tool_call

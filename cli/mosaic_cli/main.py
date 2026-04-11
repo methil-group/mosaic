@@ -171,7 +171,7 @@ class Mosaic(App):
     .tool-block {
         background: #1e293b;
         border: solid #334155;
-        border-left: solid 4 #8b5cf6;
+        border-left: solid #8b5cf6;
         margin: 1 0;
         padding: 0;
         height: auto;
@@ -183,7 +183,7 @@ class Mosaic(App):
     }
     .tool-header:hover {
         background: #8b5cf6 30%;
-        cursor: pointer;
+        /* cursor: pointer; (Not supported in Textual) */
     }
     .tool-header #tool-title {
         width: 1fr;
@@ -249,7 +249,7 @@ class Mosaic(App):
         self.provider_type = "openrouter"
         
         self.workspace = os.path.abspath(workspace) if workspace else os.getcwd()
-        self.model = os.getenv("MOSAIC_MODEL", "deepseek/deepseek-v3.2")
+        self.model = os.getenv("MOSAIC_MODEL", "qwen/qwen3.5-27b")
         
         self._init_llm()
 
@@ -295,9 +295,10 @@ class Mosaic(App):
                 
                 yield Label("Model")
                 yield Select([
-                    ("Qwen Coder Next", "qwen/qwen3-coder-next"),
-                    ("DeepSeek v3.2", "deepseek/deepseek-v3.2")
-                ], value=self.model if self.model in ["qwen/qwen3-coder-next", "deepseek/deepseek-v3.2"] else "deepseek/deepseek-v3.2", id="model-select")
+                    ("Qwen 3.5 27b", "qwen/qwen3.5-27b"),
+                    ("Qwen 3.6 Plus", "qwen/qwen3.6-plus"),
+                    ("Qwen Coder Next", "qwen/qwen3-coder-next")
+                ], value=self.model if self.model in ["qwen/qwen3.5-27b", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else "qwen/qwen3.5-27b", id="model-select")
                 
                 yield Button("Save & Refresh", variant="primary", id="save-settings")
                 yield Static(f"Workspace: {self.workspace}", id="workspace-info")
