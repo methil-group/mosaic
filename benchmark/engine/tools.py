@@ -25,6 +25,11 @@ class ListDirectoryTool(Tool):
 
     async def execute(self, params: Dict[str, Any], workspace: str) -> str:
         path = params.get("path", ".")
+        # If the model redundantly includes the workspace path, strip it
+        if path.startswith(workspace):
+            path = path[len(workspace):].lstrip("/")
+        if not path: path = "."
+        
         full_path = os.path.join(workspace, path)
         try:
             items = os.listdir(full_path)
@@ -41,6 +46,10 @@ class ReadFileTool(Tool):
 
     async def execute(self, params: Dict[str, Any], workspace: str) -> str:
         path = params.get("path", "")
+        # If the model redundantly includes the workspace path, strip it
+        if path.startswith(workspace):
+            path = path[len(workspace):].lstrip("/")
+        
         full_path = os.path.join(workspace, path)
         try:
             with open(full_path, "r") as f:
@@ -57,6 +66,10 @@ class WriteFileTool(Tool):
 
     async def execute(self, params: Dict[str, Any], workspace: str) -> str:
         path = params.get("path", "")
+        # If the model redundantly includes the workspace path, strip it
+        if path.startswith(workspace):
+            path = path[len(workspace):].lstrip("/")
+            
         content = params.get("content", "")
         full_path = os.path.join(workspace, path)
         try:

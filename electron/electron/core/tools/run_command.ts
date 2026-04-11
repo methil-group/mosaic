@@ -18,7 +18,7 @@ class RunCommandTool implements Tool {
         })
     }
     examples(): ToolExample[] {
-        return [{ description: 'Run tests', xml: '<tool_call>\n  <name>run_command</name>\n  <parameters>\n    <command>npm test</command>\n  </parameters>\n</tool_call>' }]
+        return [{ description: 'Run tests', xml: '<tool_call>\n{"name": "run_command", "arguments": {"command": "npm test"}}\n</tool_call>' }]
     }
     async execute(params: Record<string, string>, workspace: string): Promise<string> {
         const timeout = parseInt(params.timeout || '30') * 1000

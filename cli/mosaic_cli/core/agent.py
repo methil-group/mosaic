@@ -1,5 +1,6 @@
-import json
 import re
+import uuid
+import json
 from typing import List, Dict, Any, Callable, AsyncIterable, Optional, Tuple
 from .prompt import PromptBuilder
 from .tools.base import Tool
@@ -39,6 +40,7 @@ class Agent:
 
     async def reasoning_loop(self, on_event: Callable[[Dict[str, Any]], None]):
         total_steps = 0
+        consecutive_retries = 0
         while not self.stopped:
             total_steps += 1
             if total_steps > 30:
@@ -103,10 +105,11 @@ class Agent:
                 on_event({"type": "error", "message": str(e)})
                 return
 
-            tool_call = self.parse_tool_call(full_text)
             if tool_call:
+                consecutive_retries = 0
                 name, params = tool_call
-                on_event({"type": "tool_started", "name": name, "parameters": params})
+                call_id = f"toolu-{uuid.uuid4().hex[:12]}"
+                on_event({"type": "tool_started", "name": name, "parameters": params, "call_id": call_id})
                 
                 tool = next((t for t in self.tools if t.name() == name), None)
                 if tool:
@@ -117,10 +120,21 @@ class Agent:
                 else:
                     result = f"Error: Tool '{name}' not found"
                 
-                on_event({"type": "tool_finished", "name": name, "result": result})
+                on_event({"type": "tool_finished", "name": name, "result": result, "call_id": call_id})
                 
                 self.messages.append({"role": "assistant", "content": full_text})
-                self.messages.append({"role": "user", "content": PromptBuilder.format_tool_result(name, result)})
+                self.messages.append({"role": "user", "content": PromptBuilder.format_tool_result(name, result, call_id)})
+            elif "<tool_call>" in full_text:
+                consecutive_retries += 1
+                if consecutive_retries > 3:
+                    on_event({"type": "error", "message": "Too many consecutive malformed tool calls. stopping."})
+                    break
+                
+                error_msg = "Error: Invalid tool call format. Ensure you provide a valid JSON object with 'name' and 'arguments' keys inside the <tool_call> tags."
+                on_event({"type": "token", "data": f"\n[System: {error_msg}]\n"})
+                self.messages.append({"role": "assistant", "content": full_text})
+                self.messages.append({"role": "user", "content": error_msg})
+                continue
             else:
                 on_event({"type": "final_answer", "data": full_text})
                 break
@@ -131,21 +145,15 @@ class Agent:
             if not match:
                 return None
             
-            inner = match.group(1)
-            name_match = re.search(r"<name>(.*?)</name>", inner, re.DOTALL)
-            if not name_match:
+            inner = match.group(1).strip()
+            data = json.loads(inner)
+            
+            name = data.get("name")
+            params = data.get("arguments", {})
+            
+            if not name:
                 return None
-            name = name_match.group(1).strip()
-            
-            params = {}
-            params_match = re.search(r"<parameters>(.*?)</parameters>", inner, re.DOTALL)
-            if params_match:
-                p_inner = params_match.group(1)
-                # Simple parser for <tag>value</tag>
-                tags = re.findall(r"<(.*?)>(.*?)</\1>", p_inner, re.DOTALL)
-                for tag, val in tags:
-                    params[tag] = val.strip()
-            
+                
             return name, params
         except:
             return None

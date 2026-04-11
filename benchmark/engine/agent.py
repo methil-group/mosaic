@@ -3,6 +3,7 @@ import json
 import asyncio
 from typing import List, Dict, Any, Callable, Optional, Tuple
 import os
+import uuid
 
 class BenchmarkAgent:
     def __init__(
@@ -24,10 +25,10 @@ class BenchmarkAgent:
         self.verbose = verbose
         self.tool_counts = {}
 
-    def _log(self, message: str):
+    def _log(self, message: str, end: str = "\n"):
         if self.log_path:
             with open(self.log_path, "a", encoding="utf-8") as f:
-                f.write(message + "\n")
+                f.write(message + end)
 
     async def run(self, task: str):
         self._log(f"=== NEW RUN for Model: {self.model} ===")
@@ -46,6 +47,7 @@ class BenchmarkAgent:
         ]
         
         step = 0
+        consecutive_retries = 0
         while step < self.max_steps:
             step += 1
             if self.verbose:
@@ -60,7 +62,7 @@ class BenchmarkAgent:
                     full_text += t
                     if self.verbose:
                         print(t, end="", flush=True)
-                    self._log(t)
+                    self._log(t, end="")
             self._log("[LLM RESPONSE END]\n")
             
             if self.verbose:
@@ -68,7 +70,9 @@ class BenchmarkAgent:
             
             tool_call = self._parse_tool_call(full_text)
             if tool_call:
+                consecutive_retries = 0
                 name, params = tool_call
+                call_id = f"toolu-{uuid.uuid4().hex[:12]}"
                 self.tool_counts[name] = self.tool_counts.get(name, 0) + 1
                 if self.verbose:
                     print(f"Tool Call: {name}({params})")
@@ -83,13 +87,40 @@ class BenchmarkAgent:
                 else:
                     result = f"Error: Tool '{name}' not found"
                 
-                log_res = result[:500] + "..." if len(result) > 500 else result
+                log_res = str(result)[:500] + "..." if len(str(result)) > 500 else str(result)
                 self._log(f"TOOL RESULT:\n{log_res}")
                 if self.verbose:
-                    print(f"Tool Result: {result[:200]}..." if len(result) > 200 else f"Tool Result: {result}")
+                    print(f"Tool Result: {str(result)[:200]}..." if len(str(result)) > 200 else f"Tool Result: {result}")
+                
+                # Format as <tool_response>
+                content = result
+                if isinstance(result, str):
+                    try:
+                        content = json.loads(result)
+                    except:
+                        content = {"message": result}
+                
+                response_data = {
+                    "tool_call_id": call_id,
+                    "name": name,
+                    "content": content
+                }
                 
                 self.messages.append({"role": "assistant", "content": full_text})
-                self.messages.append({"role": "user", "content": f"<tool_result>\n<name>{name}</name>\n<content>\n{result}\n</content>\n</tool_result>"})
+                self.messages.append({"role": "user", "content": f"<tool_response>\n{json.dumps(response_data)}\n</tool_response>"})
+            elif "<tool_call>" in full_text:
+                consecutive_retries += 1
+                self.tool_counts["_malformed_"] = self.tool_counts.get("_malformed_", 0) + 1
+                self._log(f"MALFORMED TOOL CALL DETECTED (Retry {consecutive_retries}/3)")
+                
+                if consecutive_retries > 3:
+                    self._log("Too many malformed tool calls. stopping.")
+                    return "Error: Too many malformed tool calls"
+                
+                error_msg = "Error: Invalid tool call format. Ensure you provide a valid JSON object with 'name' and 'arguments' keys inside the <tool_call> tags."
+                self.messages.append({"role": "assistant", "content": full_text})
+                self.messages.append({"role": "user", "content": error_msg})
+                continue
             else:
                 self._log("Final Answer or no tool call received.")
                 if self.verbose:
@@ -107,38 +138,61 @@ class BenchmarkAgent:
 Available tools:
 {tools_desc}
 
-To call a tool, use the following format:
+To call a tool, you MUST use the following XML format. DO NOT use your native tool calling syntax or special tokens like <|channel|> or <|message|>.
 <tool_call>
-<name>tool_name</name>
-<parameters>
-<param1>value1</param1>
-<param2>value2</param2>
-</parameters>
+{{"name": "tool_name", "arguments": {{"param1": "value1", "param2": "value2"}}}}
 </tool_call>
 
 Be precise and complete your tasks step by step. When you are done, provide a final summary of your work.
 """
 
     def _parse_tool_call(self, content: str) -> Optional[Tuple[str, Dict[str, Any]]]:
-        try:
-            match = re.search(r"<tool_call>(.*?)</tool_call>", content, re.DOTALL)
-            if not match:
-                return None
-            
-            inner = match.group(1)
-            name_match = re.search(r"<name>(.*?)</name>", inner, re.DOTALL)
-            if not name_match:
-                return None
-            name = name_match.group(1).strip()
-            
-            params = {}
-            params_match = re.search(r"<parameters>(.*?)</parameters>", inner, re.DOTALL)
-            if params_match:
-                p_inner = params_match.group(1)
-                tags = re.findall(r"<(.*?)>(.*?)</\1>", p_inner, re.DOTALL)
-                for tag, val in tags:
-                    params[tag] = val.strip()
-            
-            return name, params
-        except:
-            return None
+        # Try Strategy 1: XML Format (Default)
+        match = re.search(r"<tool_call>(.*?)</tool_call>", content, re.DOTALL)
+        if match:
+            try:
+                inner = match.group(1).strip()
+                data = json.loads(inner)
+                name = data.get("name")
+                params = data.get("arguments", {})
+                if name:
+                    return name, params
+            except:
+                pass
+
+        # Try Strategy 2: Native Channel/Message Format (gpt-oss/llama-3 style)
+        # Format: <|channel|>analysis to=container.exec code<|message|>{"cmd":["bash","-lc","ls -R"]}<|call|>
+        if "<|message|>" in content:
+            msg_match = re.search(r"<\|message\|>(.*?)(?:<\|call\|>|$)", content, re.DOTALL)
+            if msg_match:
+                try:
+                    data = json.loads(msg_match.group(1).strip())
+                    # If it's a bash command, map to run_command
+                    if "cmd" in data and isinstance(data["cmd"], list):
+                        # Simple mapping: join the list if it looks like a bash command
+                        cmd_list = data["cmd"]
+                        if len(cmd_list) > 1 and "bash" in cmd_list[0]:
+                             # Extract actual command from -c or -lc
+                             for i, arg in enumerate(cmd_list):
+                                 if arg in ["-c", "-lc"] and i + 1 < len(cmd_list):
+                                     return "run_command", {"command": cmd_list[i+1]}
+                        # Fallback: join all
+                        return "run_command", {"command": " ".join(cmd_list)}
+                except:
+                    pass
+
+        # Try Strategy 3: Pure JSON block
+        json_match = re.search(r"({.*})", content, re.DOTALL)
+        if json_match:
+            try:
+                data = json.loads(json_match.group(1).strip())
+                if "name" in data and "parameters" in data:
+                    return data["name"], data["parameters"]
+                if "tool" in data and "args" in data:
+                    return data["tool"], data["args"]
+                if "cmd" in data: # Direct command call
+                    return "run_command", {"command": data["cmd"] if isinstance(data["cmd"], str) else " ".join(data["cmd"])}
+            except:
+                pass
+
+        return None

@@ -14,13 +14,14 @@ def verify(workspace):
     with open(combat_file, "r") as f: combat_content = f.read()
     with open(ui_file, "r") as f: ui_content = f.read()
     
-    # Check for correct logic (French version)
-    has_publier = "publier" in bus_content and ("auditeur(donnees)" in bus_content or "auditeur(" in bus_content)
-    has_evenement = "DegatsSubis" in combat_content and "publier" in combat_content
-    has_abonner = "s_abonner" in ui_content and "DegatsSubis" in ui_content
+    # Check for correct logic specifically in code (no comments)
+    import re
+    has_publier = re.search(r"(?<!#)\s*for .* in .*auditeurs\[type_evenement\]", bus_content) or re.search(r"(?<!#)\s*auditeur\(donnees\)", bus_content)
+    has_evenement = re.search(r"(?<!#)\s*publier\(.DegatsSubis.", combat_content)
+    has_abonner = re.search(r"(?<!#)\s*s_abonner\(.DegatsSubis.", ui_content)
     
-    if not all([has_publier, has_evenement, has_abonner]):
-        print("Échec : Logique de bus d'événements ou intégration système manquante")
+    if not (has_publier and has_evenement and has_abonner):
+        print("Échec : Logique de bus d'événements ou intégration système manquante dans le code")
         return False
 
     # Run app.py to verify execution

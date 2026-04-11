@@ -17,7 +17,7 @@ class ReadFileTool implements Tool {
         })
     }
     examples(): ToolExample[] {
-        return [{ description: 'Read a config file', xml: '<tool_call>\n  <name>read_file</name>\n  <parameters>\n    <path>src/config.ts</path>\n  </parameters>\n</tool_call>' }]
+        return [{ description: 'Read a config file', xml: '<tool_call>\n{"name": "read_file", "arguments": {"path": "src/config.ts"}}\n</tool_call>' }]
     }
     async execute(params: Record<string, string>, workspace: string): Promise<string> {
         const filePath = resolvePath(params.path || '', workspace)

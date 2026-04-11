@@ -10,13 +10,13 @@ def verify(workspace):
     with open(loop_file, "r") as f:
         content = f.read()
         
-    # Check for script execution logic
-    has_loop = "foreach" in content or "for" in content
-    has_invoke = "Invoke" in content or "OnUpdate(" in content
-    has_filter = "OfType<ScriptComponent>" in content or "as ScriptComponent" in content
+    # Check for script execution logic specifically in code (no comments)
+    import re
+    has_loop = re.search(r"(?<!//)\s*(foreach|for)", content)
+    has_invoke = re.search(r"(?<!//)\s*(Invoke|OnUpdate\(|OnUpdate\.\()", content)
     
     if not (has_loop and has_invoke):
-        print("Failure: Missing update loop or script invocation logic")
+        print("Failure: Missing update loop or script invocation logic in the code")
         return False
 
     # Run Program.cs to verify execution

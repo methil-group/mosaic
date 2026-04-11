@@ -13,16 +13,23 @@ def verify(workspace):
     with open(app_file, "r") as f:
         app_content = f.read()
         
-    # Check for core prefab instantiation logic
-    has_merge = "..." in manager_content or "Object.assign" in manager_content or "merge" in manager_content
-    has_instantiate = "instantiate" in manager_content and "new Entity" in manager_content
-    has_override_call = "instantiate" in app_content and "strength" in app_content
-    
-    if all([has_merge, has_instantiate, has_override_call]):
-        print("Successfully verified ECS Prefab System logic with overrides")
-        return True
-    else:
-        print("Failure: Missing prefab merge logic or override application")
+    import subprocess
+    # Run app.js to verify logical execution
+    try:
+        result = subprocess.run(
+            ["node", app_file],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if "Success: Orc instantiated with correct overrides." in result.stdout:
+            print("Successfully verified ECS Prefab System logic with overrides")
+            return True
+        else:
+            print(f"Failure: Logic verification failed. Output: {result.stdout}")
+            return False
+    except Exception as e:
+        print(f"Error executing app.js: {e}")
         return False
 
 if __name__ == "__main__":

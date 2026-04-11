@@ -102,6 +102,7 @@ class Agent {
 
             if (toolCall) {
                 const [name, params] = toolCall
+                const callId = `toolu-${Math.random().toString(36).substring(2, 15)}`
                 onEvent({ type: 'tool_started', name, parameters: JSON.stringify(params) })
 
                 const tool = this.tools.find(name)
@@ -119,7 +120,7 @@ class Agent {
                 onEvent({ type: 'tool_finished', name, result })
 
                 this.messages.push({ role: 'assistant', content: fullText })
-                this.messages.push({ role: 'user', content: PromptBuilder.formatToolResult(name, result) })
+                this.messages.push({ role: 'user', content: PromptBuilder.formatToolResult(name, result, callId) })
             } else {
                 onEvent({ type: 'final_answer', data: fullText })
                 break
@@ -133,42 +134,20 @@ class Agent {
         const tcEnd = content.indexOf('</tool_call>')
         if (tcEnd === -1) return null
 
-        const inner = content.slice(tcStart + 11, tcEnd)
+        const inner = content.slice(tcStart + 11, tcEnd).trim()
+        try {
+            const data = JSON.parse(inner)
+            const name = data.name
+            const params = data.arguments || {}
 
-        const nStart = inner.indexOf('<name>')
-        const nEnd = inner.indexOf('</name>')
-        if (nStart === -1 || nEnd === -1) return null
-        const name = inner.slice(nStart + 6, nEnd).trim()
-
-        const params: Record<string, string> = {}
-        const pStart = inner.indexOf('<parameters>')
-        const pEnd = inner.indexOf('</parameters>')
-        if (pStart !== -1 && pEnd !== -1) {
-            const pInner = inner.slice(pStart + 12, pEnd)
-            let cursor = pInner
-            while (true) {
-                const tagStart = cursor.indexOf('<')
-                if (tagStart === -1) break
-                const tagEnd = cursor.indexOf('>', tagStart)
-                if (tagEnd === -1) break
-
-                const tagName = cursor.slice(tagStart + 1, tagEnd)
-                if (tagName.startsWith('/')) {
-                    cursor = cursor.slice(tagEnd + 1)
-                    continue
-                }
-
-                const closeTag = `</${tagName}>`
-                const valEnd = cursor.indexOf(closeTag, tagEnd + 1)
-                if (valEnd === -1) break
-
-                const val = cursor.slice(tagEnd + 1, valEnd)
-                params[tagName] = val.trim()
-                cursor = cursor.slice(valEnd + closeTag.length)
+            if (name) {
+                return [name, params]
             }
+        } catch {
+            return null
         }
 
-        return [name, params]
+        return null
     }
 }
 

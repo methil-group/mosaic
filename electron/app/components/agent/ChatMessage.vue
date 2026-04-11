@@ -178,9 +178,16 @@ const messageParts = computed(() => {
                             item.result = result;
                         }
                     } else {
-                        const nameMatch = part.match(/"name":\s*"([^"]*)"/);
-                        if (nameMatch) item.name = nameMatch[1];
-                        item.params = part.replace(/<\/?tool_call>/g, '');
+                        const tcInner = part.replace(/<\/?tool_call>/g, '').trim();
+                        try {
+                            const data = JSON.parse(tcInner);
+                            item.name = data.name || 'Unknown Tool';
+                            item.params = JSON.stringify(data.arguments || {}, null, 2);
+                        } catch {
+                            const nameMatch = tcInner.match(/"name":\s*"([^"]*)"/);
+                            if (nameMatch) item.name = nameMatch[1];
+                            item.params = tcInner;
+                        }
                     }
                     if (item.name !== 'manage_todos') processItems.push(item);
                 } else {
@@ -195,6 +202,7 @@ const messageParts = computed(() => {
     finalContent = finalContent
         .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
         .replace(/<tool_result>[\s\S]*?<\/tool_result>/g, '')
+        .replace(/<tool_response>[\s\S]*?<\/tool_response>/g, '')
         .replace(/<\/tool_call>/g, '')
         .trim();
 

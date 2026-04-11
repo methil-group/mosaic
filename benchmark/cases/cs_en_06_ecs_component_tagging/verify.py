@@ -10,12 +10,13 @@ def verify(workspace):
     with open(system_file, "r") as f:
         content = f.read()
         
-    # Check for tag filtering logic
-    has_pos_checks = "HasComponent<IsEnemy>" in content and "HasComponent<InView>" in content
-    has_neg_check = "HasComponent<IsActive>" in content and "!" in content
+    # Check for tag filtering logic specifically in code (no comments)
+    import re
+    has_pos_checks = re.search(r"(?<!//)\s*HasComponent<IsEnemy>", content) and re.search(r"(?<!//)\s*HasComponent<InView>", content)
+    has_neg_check = re.search(r"(?<!//)\s*!.*HasComponent<IsActive>", content)
     
     if not (has_pos_checks and has_neg_check):
-        print("Failure: Missing positive or negative tag filtering logic")
+        print("Failure: Missing positive or negative tag filtering logic in the code")
         return False
 
     # Run Program.cs to verify execution

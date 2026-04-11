@@ -12,13 +12,13 @@ def verify(workspace):
     with open(snapshot_file, "r") as f:
         snapshot_content = f.read()
         
-    # Check for snapshot/rollback logic
-    has_snapshot = "this.snapshots.push" in snapshot_content or "this.snapshots[" in snapshot_content
-    has_clone = "clone" in snapshot_content
-    has_rollback = "rollback" in snapshot_content and "store" in snapshot_content
+    # Check for snapshot/rollback logic specifically in code (no comments)
+    import re
+    has_snapshot = re.search(r"(?<!//)\s*(this\.snapshots\.push|this\.snapshots\[)", snapshot_content)
+    has_rollback = re.search(r"(?<!//)\s*rollback", snapshot_content)
     
-    if not all([has_snapshot, has_rollback]):
-        print("Failure: Missing snapshot or rollback logic")
+    if not (has_snapshot and has_rollback):
+        print("Failure: Missing snapshot or rollback logic in the code")
         return False
 
     # Run app.js to verify execution

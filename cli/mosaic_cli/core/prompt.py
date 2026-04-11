@@ -1,3 +1,4 @@
+import json
 from typing import List, Dict, Any
 from .tools.base import Tool
 
@@ -18,11 +19,7 @@ You have access to the following tools:
 # TOOL CALL FORMAT
 To use a tool, use the following XML-like format:
 <tool_call>
-  <name>tool_name</name>
-  <parameters>
-    <param1>value1</param1>
-    <param2>value2</param2>
-  </parameters>
+{{"name": "tool_name", "arguments": {{"param1": "value1", "param2": "value2"}}}}
 </tool_call>
 
 You must call exactly ONE tool per message.
@@ -47,5 +44,18 @@ Do not include any text outside the <tool_call> tags if you are calling a tool.
 """
 
     @staticmethod
-    def format_tool_result(name: str, result: str) -> str:
-        return f'<tool_result name="{name}">\n{result}\n</tool_result>'
+    def format_tool_result(name: str, result: Any, call_id: str) -> str:
+        if isinstance(result, str):
+            try:
+                content = json.loads(result)
+            except:
+                content = {"message": result}
+        else:
+            content = result
+            
+        data = {
+            "tool_call_id": call_id,
+            "name": name,
+            "content": content
+        }
+        return f"<tool_response>\n{json.dumps(data)}\n</tool_response>"

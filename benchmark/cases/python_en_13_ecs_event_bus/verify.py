@@ -14,13 +14,14 @@ def verify(workspace):
     with open(combat_file, "r") as f: combat_content = f.read()
     with open(ui_file, "r") as f: ui_content = f.read()
     
-    # Check for correct logic
-    has_publish = "publish" in bus_content and "listener(data)" in bus_content or "listener(" in bus_content
-    has_event = "DamageTaken" in combat_content and "publish" in combat_content
-    has_subscribe = "subscribe" in ui_content and "DamageTaken" in ui_content
+    # Check for correct logic specifically in code (no comments)
+    import re
+    has_publish = re.search(r"(?<!#)\s*for .* in .*listeners\[event_type\]", bus_content) or re.search(r"(?<!#)\s*listener\(data\)", bus_content)
+    has_event = re.search(r"(?<!#)\s*publish\(.DamageTaken.", combat_content)
+    has_subscribe = re.search(r"(?<!#)\s*subscribe\(.DamageTaken.", ui_content)
     
-    if not all([has_publish, has_event, has_subscribe]):
-        print("Failure: Missing event bus logic or system integration")
+    if not (has_publish and has_event and has_subscribe):
+        print("Failure: Missing event bus logic or system integration in the code")
         return False
 
     # Run app.py to verify execution

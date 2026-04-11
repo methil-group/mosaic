@@ -19,7 +19,7 @@ class WriteFileTool implements Tool {
         })
     }
     examples(): ToolExample[] {
-        return [{ description: 'Create a new file', xml: '<tool_call>\n  <name>write_file</name>\n  <parameters>\n    <path>hello.txt</path>\n    <content>Hello World</content>\n  </parameters>\n</tool_call>' }]
+        return [{ description: 'Create a new file', xml: '<tool_call>\n{"name": "write_file", "arguments": {"path": "hello.txt", "content": "Hello World"}}\n</tool_call>' }]
     }
     async execute(params: Record<string, string>, workspace: string): Promise<string> {
         const filePath = resolvePath(params.path || '', workspace)

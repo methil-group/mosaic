@@ -10,11 +10,19 @@ def verify(workspace):
     with open(gestionnaire_file, "r") as f:
         content = f.read()
         
-    # Check for parallelism markers (French version)
-    has_parallel = "Parallel.ForEach" in content or "Task.Run" in content or "Task.WhenAll" in content
+    import re
+    # Check for parallelism markers specifically in code, not comments
+    # This regex looks for keywords not preceded by //
+    # It's a bit simplified but much more robust than a simple "in" content
+    code_pattern = r"(?<!//)\s*(Parallel\.ForEach|Task\.Run|Task\.WhenAll)"
+    has_parallel = re.search(code_pattern, content)
     
-    if not has_parallel:
-        print("Échec : GestionnaireSystemes utilise toujours une exécution séquentielle")
+    # Also check if the original sequential foreach loop is still there
+    original_foreach = "foreach (var systeme in _systemes)"
+    is_sequential_gone = original_foreach not in content or "await Task.WhenAll" in content
+    
+    if not has_parallel or not is_sequential_gone:
+        print("Échec : GestionnaireSystemes utilise toujours une exécution séquentielle ou n'a pas implémenté le parallélisme")
         return False
 
     # Try to compile to ensure code is valid

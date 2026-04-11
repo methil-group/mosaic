@@ -19,7 +19,7 @@ class ListDirectoryTool implements Tool {
         })
     }
     examples(): ToolExample[] {
-        return [{ description: 'List project root', xml: '<tool_call>\n  <name>list_directory</name>\n  <parameters>\n    <path>.</path>\n  </parameters>\n</tool_call>' }]
+        return [{ description: 'List project root', xml: '<tool_call>\n{"name": "list_directory", "arguments": {"path": "."}}\n</tool_call>' }]
     }
     async execute(params: Record<string, string>, workspace: string): Promise<string> {
         const dirPath = resolvePath(params.path || '.', workspace)

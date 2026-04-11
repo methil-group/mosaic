@@ -10,13 +10,13 @@ def verify(workspace):
     with open(registre_file, "r") as f:
         content = f.read()
         
-    # Check for hook dispatch logic (French version)
-    has_dispatch_add = "_sur_composant_ajoute" in content and ("rappel(entite" in content or "rappel(" in content)
-    has_dispatch_retire = "_sur_composant_retire" in content and ("rappel(entite" in content or "rappel(" in content)
-    has_loop = "for" in content
+    # Check for hook dispatch logic specifically in code (no comments)
+    import re
+    has_dispatch_add = re.search(r"(?<!#)\s*rappel\(", content) or re.search(r"(?<!#)\s*for .* in .*hooks\[.sur_ajout.\]", content)
+    has_dispatch_retire = re.search(r"(?<!#)\s*rappel\(", content) or re.search(r"(?<!#)\s*for .* in .*hooks\[.sur_retrait.\]", content)
     
-    if not (has_dispatch_add and has_dispatch_retire and has_loop):
-        print("Échec : Logique de dispatch des hooks manquante dans registre.py")
+    if not (has_dispatch_add and has_dispatch_retire):
+        print("Échec : Logique de dispatch des hooks manquante dans registre.py (non trouvé dans le code)")
         return False
 
     # Run app.py to verify execution

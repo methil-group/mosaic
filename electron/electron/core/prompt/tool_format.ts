@@ -61,10 +61,7 @@ ${toolSections}
 
 To call a tool, use this XML format. All parameter values MUST be strings:
 <tool_call>
-  <name>tool_name</name>
-  <parameters>
-    <param_name>value</param_name>
-  </parameters>
+{"name": "tool_name", "arguments": {"param_name": "value"}}
 </tool_call>
 
 You can call ONE tool at a time. After each call, the system provides the result in a <tool_result> block.

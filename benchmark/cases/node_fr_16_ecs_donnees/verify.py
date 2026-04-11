@@ -13,18 +13,23 @@ def verify(workspace):
     with open(app_file, "r") as f:
         app_content = f.read()
         
-    # Check for correct dynamic instantiation logic
-    has_fabrique_logic = "monde.ajouterComposant" in fabrique_content and "new Composants" in fabrique_content or "Composants[" in fabrique_content
-    has_loop = "forEach" in app_content or "for" in app_content
-    
-    # Check for require usage
-    has_require = "require('./FabriqueEntite')" in app_content
-    
-    if all([has_fabrique_logic, has_loop, has_require]):
-        print("Réussite : Logique de chargement ECS Data-Driven vérifiée")
-        return True
-    else:
-        print("Échec : Logique d'instanciation de fabrique ou intégration multi-fichiers manquante")
+    import subprocess
+    # Run app.js to verify logical execution (French version)
+    try:
+        result = subprocess.run(
+            ["node", app_file],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if "Succès : Niveau chargé avec 2 entités." in result.stdout:
+            print("Réussite : Logique de chargement ECS pilotée par les données vérifiée")
+            return True
+        else:
+            print(f"Échec : La vérification logique a échoué. Sortie : {result.stdout}")
+            return False
+    except Exception as e:
+        print(f"Erreur lors de l'exécution de app.js : {e}")
         return False
 
 if __name__ == "__main__":

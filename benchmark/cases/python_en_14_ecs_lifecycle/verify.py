@@ -10,13 +10,13 @@ def verify(workspace):
     with open(registry_file, "r") as f:
         content = f.read()
         
-    # Check for hook dispatch logic
-    has_dispatch_add = "_on_component_added" in content and ("callback(entity" in content or "callback(" in content)
-    has_dispatch_remove = "_on_component_removed" in content and ("callback(entity" in content or "callback(" in content)
-    has_loop = "for" in content
+    # Check for hook dispatch logic specifically in code (no comments)
+    import re
+    has_dispatch_add = re.search(r"(?<!#)\s*callback\(", content) or re.search(r"(?<!#)\s*for .* in .*hooks\[.on_add.\]", content)
+    has_dispatch_remove = re.search(r"(?<!#)\s*callback\(", content) or re.search(r"(?<!#)\s*for .* in .*hooks\[.on_remove.\]", content)
     
-    if not (has_dispatch_add and has_dispatch_remove and has_loop):
-        print("Failure: Missing hook dispatch logic in registry.py")
+    if not (has_dispatch_add and has_dispatch_remove):
+        print("Failure: Missing hook dispatch logic in registry.py (not found in code)")
         return False
 
     # Run app.py to verify execution

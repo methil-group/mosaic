@@ -28,8 +28,23 @@ class PromptBuilder {
 5. **One tool per turn.** Call exactly one tool, then wait for the result.`
     }
 
-    static formatToolResult(name: string, result: string): string {
-        return `<tool_result name="${name}">\n${result}\n</tool_result>`
+    static formatToolResult(name: string, result: any, callId: string): string {
+        let content: any = result
+        if (typeof result === 'string') {
+            try {
+                content = JSON.parse(result)
+            } catch {
+                content = { message: result }
+            }
+        }
+
+        const data = {
+            tool_call_id: callId,
+            name: name,
+            content: content
+        }
+
+        return `<tool_response>\n${JSON.stringify(data)}\n</tool_response>`
     }
 }
 

@@ -19,7 +19,7 @@ class EditFileTool implements Tool {
         })
     }
     examples(): ToolExample[] {
-        return [{ description: 'Replace a function name', xml: '<tool_call>\n  <name>edit_file</name>\n  <parameters>\n    <path>src/utils.ts</path>\n    <old_content>function oldName()</old_content>\n    <new_content>function newName()</new_content>\n  </parameters>\n</tool_call>' }]
+        return [{ description: 'Replace a function name', xml: '<tool_call>\n{"name": "edit_file", "arguments": {"path": "src/utils.ts", "old_content": "function oldName()", "new_content": "function newName()"}}\n</tool_call>' }]
     }
     async execute(params: Record<string, string>, workspace: string): Promise<string> {
         const filePath = resolvePath(params.path || '', workspace)

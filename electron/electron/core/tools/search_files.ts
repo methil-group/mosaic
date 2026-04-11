@@ -20,7 +20,7 @@ class SearchFilesTool implements Tool {
         })
     }
     examples(): ToolExample[] {
-        return [{ description: 'Find all TODO comments', xml: '<tool_call>\n  <name>search_files</name>\n  <parameters>\n    <pattern>TODO</pattern>\n  </parameters>\n</tool_call>' }]
+        return [{ description: 'Find all TODO comments', xml: '<tool_call>\n{"name": "search_files", "arguments": {"pattern": "TODO"}}\n</tool_call>' }]
     }
     async execute(params: Record<string, string>, workspace: string): Promise<string> {
         const searchPath = resolvePath(params.path || '.', workspace)

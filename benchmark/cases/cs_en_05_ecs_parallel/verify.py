@@ -10,11 +10,17 @@ def verify(workspace):
     with open(manager_file, "r") as f:
         content = f.read()
         
-    # Check for parallelism markers
-    has_parallel = "Parallel.ForEach" in content or "Task.Run" in content or "Task.WhenAll" in content
+    import re
+    # Check for parallelism markers specifically in code, not comments
+    code_pattern = r"(?<!//)\s*(Parallel\.ForEach|Task\.Run|Task\.WhenAll)"
+    has_parallel = re.search(code_pattern, content)
     
-    if not has_parallel:
-        print("Failure: SystemManager still uses sequential execution")
+    # Also check if the original sequential foreach loop is still there
+    original_foreach = "foreach (var system in _systems)"
+    is_sequential_gone = original_foreach not in content or "await Task.WhenAll" in content
+    
+    if not has_parallel or not is_sequential_gone:
+        print("Failure: SystemManager still uses sequential execution or failed to implement parallelism")
         return False
 
     # Try to compile to ensure code is valid

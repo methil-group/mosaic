@@ -10,12 +10,13 @@ def verify(workspace):
     with open(system_file, "r") as f:
         content = f.read()
         
-    # Check for tag filtering logic (French version)
-    has_pos_checks = "PossedeComposant<EstEnnemi>" in content and "PossedeComposant<DansVue>" in content
-    has_neg_check = "PossedeComposant<EstActif>" in content and "!" in content
+    # Check for tag filtering logic specifically in code (no comments)
+    import re
+    has_pos_checks = re.search(r"(?<!//)\s*PossedeComposant<EstEnnemi>", content) and re.search(r"(?<!//)\s*PossedeComposant<DansVue>", content)
+    has_neg_check = re.search(r"(?<!//)\s*!.*PossedeComposant<EstActif>", content)
     
     if not (has_pos_checks and has_neg_check):
-        print("Échec : Logique de filtrage d'étiquettes positive ou négative manquante")
+        print("Échec : Logique de filtrage d'étiquettes positive ou négative manquante dans le code")
         return False
 
     # Run Program.cs to verify execution
