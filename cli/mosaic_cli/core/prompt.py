@@ -58,4 +58,4 @@ Do not include any text inside the <tool_call> tags other than the JSON object.
             "name": name,
             "content": content
         }
-        return f"<tool_response>\n{json.dumps(data)}\n</tool_response>"
+        return f"<tool_response>\n{json.dumps(data, ensure_ascii=False)}\n</tool_response>"

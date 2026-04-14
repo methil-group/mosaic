@@ -14,7 +14,7 @@ class TodoItem(Horizontal):
         yield Checkbox(id=f"todo-check-{self.todo_id}")
         with Vertical():
             yield Label(f"[bold cyan]{self.todo_title}[/]")
-            yield Label(f"[dim]{self.description}[/]", id=f"todo-desc-{self.todo_id}")
+            yield Static(f"[dim]{self.description}[/]", id=f"todo-desc-{self.todo_id}")
 
 class TodoSidebar(Vertical):
     def compose(self):
@@ -28,12 +28,12 @@ class TodoSidebar(Vertical):
 
     def sync_todos(self, todos_data: list):
         todo_list = self.query_one("#todo-list")
-        # Clear existing todos
-        for child in todo_list.children:
-            child.remove()
+        # Reliably clear existing todos using query
+        todo_list.query("*").remove()
             
-        for todo in todos_data:
-            tid = todo.get("id", str(len(todo_list.children)))
+        for i, todo in enumerate(todos_data):
+            # Fallback to index if ID is missing (shouldn't happen with new sync logic)
+            tid = str(todo.get("id", i))
             title = todo.get("title", "Task")
             # For bulk sync, descriptions might be empty/omitted to save tokens
             desc = todo.get("description", "") 

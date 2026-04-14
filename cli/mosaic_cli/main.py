@@ -6,7 +6,7 @@ import json
 from dotenv import load_dotenv, set_key
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical, Horizontal
-from textual.widgets import Header, Footer, Input, RichLog, Static, Button, Select, Label
+from textual.widgets import Header, Footer, Input, RichLog, Static, Button, Select, Label, LoadingIndicator, Markdown
 from textual.widget import Widget
 from textual.suggester import Suggester
 from textual.binding import Binding
@@ -154,6 +154,17 @@ class Mosaic(App):
     #todo-list {
         height: 1fr;
     }
+    TodoItem {
+        height: auto;
+    }
+    TodoItem Vertical {
+        width: 1fr;
+        height: auto;
+    }
+    TodoItem Label, TodoItem Static {
+        width: 100%;
+        height: auto;
+    }
     #settings-pane Label {
         margin-top: 1;
         text-style: bold;
@@ -197,7 +208,7 @@ class Mosaic(App):
     #tool-details {
         padding: 1 2;
         background: #0f172a 50%;
-        display: block;
+        height: auto;
     }
     .tool-block.collapsed #tool-details {
         display: none;
@@ -205,13 +216,20 @@ class Mosaic(App):
     .tool-params {
         color: #94a3b8;
         margin-bottom: 1;
+        height: auto;
     }
     #tool-result-static {
         border-top: dashed #334155;
         padding-top: 1;
+        height: auto;
     }
     .tool-header.has-result #tool-title {
         color: #4ade80;
+    }
+    LoadingIndicator {
+        height: 3;
+        color: #8b5cf6;
+        background: transparent;
     }
 
     """
@@ -359,11 +377,24 @@ class Mosaic(App):
         agent = Agent(self.llm, self.model, self.workspace, "User", self.tools)
         
         current_assistant_static = None
-        assistant_content = ""
+        assistant_content = "" # Rich-formatted content for streaming
+        raw_assistant_content = "" # Raw text content for Markdown
         current_tool_block = None
         
+        # Add loading indicator
+        loading = LoadingIndicator()
+        log.mount(loading)
+        log.scroll_end()
+        
         def on_event(event):
-            nonlocal current_assistant_static, assistant_content, current_tool_block
+            nonlocal current_assistant_static, assistant_content, current_tool_block, raw_assistant_content
+            
+            # Remove loading indicator on first relevant event
+            if event["type"] in ["token", "tool_started", "error"]:
+                try:
+                    loading.remove()
+                except:
+                    pass
             
             if event["type"] == "token":
                 if not current_assistant_static:
@@ -371,6 +402,7 @@ class Mosaic(App):
                     log.mount(current_assistant_static)
                     assistant_content = "[bold spring_green3]ASSISTANT:[/]\n"
                 
+                raw_assistant_content += event["data"]
                 assistant_content += event["data"]
                 current_assistant_static.update(assistant_content)
                 log.scroll_end()
@@ -378,6 +410,7 @@ class Mosaic(App):
                 # Finish current snippet
                 current_assistant_static = None
                 assistant_content = ""
+                raw_assistant_content = ""
                 
                 # Create the collapsible tool block
                 current_tool_block = ToolBlock(event['name'], event['parameters'])
@@ -397,8 +430,8 @@ class Mosaic(App):
                                 data["todo"]["description"],
                                 data["todo"].get("id", str(len(self.query_one("#todo-list").children)))
                             )
-                    except:
-                        pass
+                    except Exception as e:
+                        self.notify(f"UI Error: Failed to add todo - {str(e)}", severity="error")
                 
                 if event['name'] == "update_todo":
                     try:
@@ -408,16 +441,16 @@ class Mosaic(App):
                                 data["todo"]["id"],
                                 data["todo"]["completed"]
                             )
-                    except:
-                        pass
+                    except Exception as e:
+                        self.notify(f"UI Error: Failed to update todo - {str(e)}", severity="error")
                 
                 if event['name'] == "sync_todo_list":
                     try:
                         data = json.loads(res)
                         if data.get("status") == "success":
                             self.query_one("#todo-sidebar").sync_todos(data["todos"])
-                    except:
-                        pass
+                    except Exception as e:
+                        self.notify(f"UI Error: Failed to sync todo list - {str(e)}", severity="error")
 
                 file_modified = any(x in event['name'] for x in ["edit_file", "write_file", "create_todo", "update_todo"])
                 
@@ -428,11 +461,23 @@ class Mosaic(App):
                 log.scroll_end()
                 current_assistant_static = None
                 assistant_content = ""
+                raw_assistant_content = ""
                 current_tool_block = None
 
             elif event["type"] == "error":
                 log.mount(Static(f"\n[bold red]ERROR: {event['message']}[/]"))
                 log.scroll_end()
+            elif event["type"] == "final_answer":
+                # Replace the last streaming snippet with a proper Markdown widget
+                # only if we have raw content (not just whitespace)
+                if current_assistant_static and raw_assistant_content.strip():
+                    try:
+                        current_assistant_static.remove()
+                        log.mount(Label("[bold spring_green3]ASSISTANT:[/]\n"))
+                        log.mount(Markdown(raw_assistant_content))
+                        log.scroll_end()
+                    except:
+                        pass
 
         await agent.run(prompt, self.history, on_event)
         self.history.extend(agent.messages[1:]) # Skip system prompt in history

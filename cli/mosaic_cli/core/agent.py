@@ -33,8 +33,14 @@ class Agent:
 
     def _log(self, data: str, category: str = "INFO"):
         timestamp = datetime.now().isoformat()
-        with open(self.log_file, "a", encoding="utf-8") as f:
-            f.write(f"[{timestamp}] [{category}] {data}\n")
+        try:
+            # Ensure log directory still exists (in case model deletes it)
+            os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                f.write(f"[{timestamp}] [{category}] {data}\n")
+        except:
+            # If we really can't log, just continue to avoid crashing the whole agent
+            pass
 
     async def run(
         self,
@@ -140,6 +146,25 @@ class Agent:
                 on_event({"type": "error", "message": str(e)})
                 return
 
+            # Check for empty response
+            if not full_text.strip():
+                # If we just sent a tool result, the model might be stalling
+                if self.messages and self.messages[-1]["role"] == "user" and "<tool_response>" in self.messages[-1]["content"]:
+                    consecutive_empty_responses += 1
+                    if consecutive_empty_responses > 2:
+                        self._log("Too many empty responses. Stopping.", "ERROR")
+                        on_event({"type": "error", "message": "Too many consecutive empty responses from model."})
+                        break
+                    
+                    retry_msg = "Error: You returned an empty response. If the previous tool failed, please address the error. If it succeeded, please continue your task or provide a final answer."
+                    self._log(f"Empty response detected after tool call. Retrying {consecutive_empty_responses}/2...", "WARNING")
+                    self.messages.append({"role": "user", "content": retry_msg})
+                    continue
+            
+            # Reset empty response counter if we got something
+            if full_text.strip():
+                consecutive_empty_responses = 0
+
             tool_call = self.parse_tool_call(full_text)
             if tool_call:
                 consecutive_retries = 0
@@ -157,7 +182,9 @@ class Agent:
                 else:
                     result = f"Error: Tool '{name}' not found"
                 
-                self._log(f"Tool Result ({name}): {result[:500]}...", "TOOL_RESULT")
+                # Enhanced logging for tool results
+                status = "SUCCESS" if not result.startswith("Error:") else "FAILURE"
+                self._log(f"Tool Result ({name}) [{status}]: {result[:1000]}", "TOOL_RESULT")
                 on_event({"type": "tool_finished", "name": name, "result": result, "call_id": call_id})
                 
                 self.messages.append({"role": "assistant", "content": full_text})

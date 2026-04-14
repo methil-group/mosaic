@@ -8,15 +8,19 @@ class EditFileTool(Tool):
         return "edit_file"
 
     def description(self) -> str:
-        return "Perform a surgical find-and-replace in a file. ALWAYS read the file first to get the exact content to replace."
+        return "Perform a surgical find-and-replace in a file. Parameters: 'path', 'old_content' (the exact text to find), 'new_content' (the replacement text). ALWAYS read the file first to get the exact content to replace."
 
     async def execute(self, params: Dict[str, Any], workspace: str) -> str:
         path = params.get("path", "")
-        old_content = params.get("old_content", "")
+        # Handle both 'old_content' and common assistant hallucination 'content_to_replace'
+        old_content = params.get("old_content") or params.get("content_to_replace") or ""
         new_content = params.get("new_content", "")
         
         if not path:
             return "Error: Missing path parameter"
+        
+        if not old_content:
+            return "Error: Missing 'old_content' parameter (the text you want to replace)."
         
         file_path = resolve_path(path, workspace)
         if not os.path.exists(file_path):

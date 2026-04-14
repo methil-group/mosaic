@@ -24,4 +24,4 @@ class CreateTodoTool(Tool):
                 "description": description
             }
         }
-        return json.dumps(result)
+        return json.dumps(result, ensure_ascii=False)

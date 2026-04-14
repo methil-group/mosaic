@@ -111,17 +111,33 @@ class BenchmarkAgent:
             elif "<tool_call>" in full_text:
                 consecutive_retries += 1
                 self.tool_counts["_malformed_"] = self.tool_counts.get("_malformed_", 0) + 1
-                self._log(f"MALFORMED TOOL CALL DETECTED (Retry {consecutive_retries}/3)")
                 
                 if consecutive_retries > 3:
+                    self._log(f"MALFORMED TOOL CALL DETECTED (Retry limit reached: {consecutive_retries}/3)")
                     self._log("Too many malformed tool calls. stopping.")
                     return "Error: Too many malformed tool calls"
+                
+                self._log(f"MALFORMED TOOL CALL DETECTED (Retry {consecutive_retries}/3)")
                 
                 error_msg = "Error: Invalid tool call format. Ensure you provide a valid JSON object with 'name' and 'arguments' keys inside the <tool_call> tags."
                 self.messages.append({"role": "assistant", "content": full_text})
                 self.messages.append({"role": "user", "content": error_msg})
                 continue
             else:
+                if not full_text.strip():
+                    consecutive_retries += 1
+                    
+                    if consecutive_retries <= 3:
+                        self._log(f"EMPTY RESPONSE DETECTED (Retry {consecutive_retries}/3)")
+                        if self.verbose:
+                            print(f"Empty response, retrying ({consecutive_retries}/3)...")
+                        # Skip adding to messages to keep it clean, just retry
+                        continue
+                    else:
+                        self._log(f"EMPTY RESPONSE DETECTED (Retry limit reached: {consecutive_retries}/3)")
+                        self._log("Too many empty responses. stopping.")
+                        return "Error: Too many empty responses"
+
                 self._log("Final Answer or no tool call received.")
                 if self.verbose:
                     print("Final Answer received or no tool call.")

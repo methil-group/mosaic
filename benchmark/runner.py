@@ -183,6 +183,9 @@ async def main():
             total_duration += duration
     
     avg_duration = total_duration / len(cases_to_run) if cases_to_run else 0
+    pass_count = sum(1 for r in results if "SUCCESS" in r[1])
+    total_count = len(results)
+    pass_rate = (pass_count / total_count * 100) if total_count > 0 else 0
     
     # Generate Recap.md
     recap_path = os.path.join(session_dir, "recap.md")
@@ -192,7 +195,8 @@ async def main():
         f.write(f"- **Provider**: {args.provider}\n")
         f.write(f"- **Timestamp**: {timestamp}\n")
         f.write(f"- **Log Directory**: `{session_dir}`\n")
-        f.write(f"- **Average Time per Test**: `{avg_duration:.2f}s`\n\n")
+        f.write(f"- **Average Time per Test**: `{avg_duration:.2f}s`\n")
+        f.write(f"- **Global Score**: `{pass_count}/{total_count} ({pass_rate:.1f}%)`\n\n")
         
         f.write("## Results Summary\n\n")
         f.write("| Case | Status | Duration | Tools Used |\n")
@@ -204,8 +208,8 @@ async def main():
         
         # Define categories
         categories = {
-            "File Operations": ["ListDirectoryTool", "ReadFileTool", "WriteFileTool"],
-            "System Operations": ["RunCommandTool"]
+            "File Operations": ["list_directory", "read_file", "write_file"],
+            "System Operations": ["run_command"]
         }
         
         for cat_name, tools in categories.items():
@@ -218,9 +222,10 @@ async def main():
 
     print("-" * 70)
     print("Summary:")
-    for case, status, tools in results:
+    for case, status, tools, _ in results:
         print(f"  {case:30} {status:10} | {tools}")
     print("-" * 70)
+    print(f"Global Score: {pass_count}/{total_count} ({pass_rate:.1f}%)")
     print(f"Full recap saved to: {recap_path}")
 
 if __name__ == "__main__":

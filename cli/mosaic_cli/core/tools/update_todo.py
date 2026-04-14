@@ -25,4 +25,4 @@ class UpdateTodoTool(Tool):
                 "completed": bool(completed)
             }
         }
-        return json.dumps(result)
+        return json.dumps(result, ensure_ascii=False)

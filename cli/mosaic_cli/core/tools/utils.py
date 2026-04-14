@@ -21,9 +21,13 @@ def resolve_path(path: str, workspace: str) -> str:
     resolved = os.path.normpath(os.path.join(abs_workspace, clean_path))
     
     # Security check: ensure the resolved path is still inside the workspace
-    if not resolved.startswith(abs_workspace):
-        raise ValueError(f"Access denied: {path} is outside the workspace")
-        
+    # We use commonpath to avoid prefix-matching different directories (e.g. /a/b prefixing /a/bc)
+    try:
+        if os.path.commonpath([abs_workspace, resolved]) != abs_workspace:
+            raise ValueError(f"Access denied: {path} is outside the workspace {abs_workspace}")
+    except ValueError:
+        raise ValueError(f"Access denied: {path} is outside the workspace {abs_workspace}")
+            
     return resolved
 
 def truncate_result(content: str, max_chars: int = 10000) -> str:

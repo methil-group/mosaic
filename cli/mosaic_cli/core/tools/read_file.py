@@ -17,7 +17,7 @@ class ReadFileTool(Tool):
         
         file_path = resolve_path(path, workspace)
         if not os.path.exists(file_path):
-            return f"Error: File not found: {path}"
+            return f"Error: File not found: {path} (Resolved to: {file_path}). Working in workspace: {workspace}"
         
         try:
             with open(file_path, "r", encoding="utf-8") as f:

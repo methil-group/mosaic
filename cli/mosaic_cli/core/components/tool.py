@@ -39,7 +39,16 @@ class ToolBlock(Widget):
         self.result = result
         self.file_status = " ✓ File modified" if file_modified else ""
         
-        truncated = result[:500] + "..." if len(result) > 500 else result
+        display_text = result
+        try:
+            # Try to parse as JSON for pretty-printing and correct encoding
+            if result.strip().startswith(("{", "[")):
+                data = json.loads(result)
+                display_text = json.dumps(data, indent=2, ensure_ascii=False)
+        except:
+            pass
+        
+        truncated = display_text[:1000] + "..." if len(display_text) > 1000 else display_text
         header_text = f"↳ Result{self.file_status}"
         
         self.result_static.update(f"[bold spring_green3]{header_text}[/]\n[dim]{truncated}[/]")
