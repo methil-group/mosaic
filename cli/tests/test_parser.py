@@ -29,3 +29,21 @@ def test_parse_no_tags(agent):
 def test_parse_empty_tags(agent):
     content = '<tool_call></tool_call>'
     assert agent.parse_tool_call(content) is None
+
+def test_parse_markdown_json(agent):
+    content = '<tool_call>```json\n{"name": "test", "arguments": {}}\n```</tool_call>'
+    name, params = agent.parse_tool_call(content)
+    assert name == "test"
+    assert params == {}
+
+def test_parse_noisy_content(agent):
+    content = '<tool_call>Here is the call: {"name": "test", "arguments": {"x": 1}} Hope it works!</tool_call>'
+    name, params = agent.parse_tool_call(content)
+    assert name == "test"
+    assert params == {"x": 1}
+
+def test_parse_multiple_braces(agent):
+    content = '<tool_call>Thoughts { "a": 1 } Call {"name": "test", "arguments": {}} </tool_call>'
+    # Should pick the first valid JSON block that has a "name"
+    name, params = agent.parse_tool_call(content)
+    assert name == "test"

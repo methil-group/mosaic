@@ -24,11 +24,14 @@ class OpenRouter(LlmProvider):
             "model": model,
             "messages": messages,
             "stream": True,
+            "max_tokens": 16384,
+            "temperature": 0.7,
         }
 
-        async with httpx.AsyncClient() as client:
+        timeout = httpx.Timeout(60.0, read=None)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             try:
-                async with client.stream("POST", f"{self.base_url}/chat/completions", headers=headers, json=payload, timeout=60.0) as response:
+                async with client.stream("POST", f"{self.base_url}/chat/completions", headers=headers, json=payload) as response:
                     if response.status_code != 200:
                         yield {"type": "error", "message": f"OpenRouter HTTP {response.status_code}: {await response.aread()}"}
                         return

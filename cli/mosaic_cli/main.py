@@ -101,8 +101,8 @@ class Mosaic(App):
         height: 1fr;
         border: tall #1e293b;
         background: #1e293b 10%;
-        margin: 1 0 1 2;
-        padding: 1 2;
+        margin: 0 1 1 1;
+        padding: 0 1;
         overflow-y: scroll;
         scrollbar-gutter: stable;
     }
@@ -143,7 +143,7 @@ class Mosaic(App):
         dock: right;
         border-left: tall #1e293b;
         background: #0f172a;
-        padding: 1 1;
+        padding: 0 1;
     }
     #todo-sidebar-title {
         text-style: bold;
@@ -172,7 +172,7 @@ class Mosaic(App):
         background: #1e293b;
         border: solid #334155;
         border-left: solid #8b5cf6;
-        margin: 1 0;
+        margin: 0 0 1 0;
         padding: 0;
         height: auto;
     }
@@ -295,10 +295,11 @@ class Mosaic(App):
                 
                 yield Label("Model")
                 yield Select([
+                    ("Qwen 3.5 9b", "qwen/qwen3.5-9b"),
                     ("Qwen 3.5 27b", "qwen/qwen3.5-27b"),
                     ("Qwen 3.6 Plus", "qwen/qwen3.6-plus"),
                     ("Qwen Coder Next", "qwen/qwen3-coder-next")
-                ], value=self.model if self.model in ["qwen/qwen3.5-27b", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else "qwen/qwen3.5-27b", id="model-select")
+                ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else "qwen/qwen3.5-27b", id="model-select")
                 
                 yield Button("Save & Refresh", variant="primary", id="save-settings")
                 yield Static(f"Workspace: {self.workspace}", id="workspace-info")
@@ -359,9 +360,10 @@ class Mosaic(App):
         
         current_assistant_static = None
         assistant_content = ""
+        current_tool_block = None
         
         def on_event(event):
-            nonlocal current_assistant_static, assistant_content
+            nonlocal current_assistant_static, assistant_content, current_tool_block
             
             if event["type"] == "token":
                 if not current_assistant_static:

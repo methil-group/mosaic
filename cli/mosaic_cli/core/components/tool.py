@@ -15,6 +15,7 @@ class ToolBlock(Widget):
         self.params = params
         self.result = ""
         self.file_status = ""
+        self.add_class("tool-block")
         self.add_class("collapsed")
 
     def compose(self):

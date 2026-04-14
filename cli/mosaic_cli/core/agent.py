@@ -1,6 +1,8 @@
 import re
 import uuid
 import json
+import os
+from datetime import datetime
 from typing import List, Dict, Any, Callable, AsyncIterable, Optional, Tuple
 from .prompt import PromptBuilder
 from .tools.base import Tool
@@ -22,6 +24,17 @@ class Agent:
         self.tools = tools
         self.messages: List[Dict[str, str]] = []
         self.stopped = False
+        
+        # Initialize logging
+        self.log_dir = os.path.join(self.workspace, ".log")
+        os.makedirs(self.log_dir, exist_ok=True)
+        self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_file = os.path.join(self.log_dir, f"session_{self.session_id}.log")
+
+    def _log(self, data: str, category: str = "INFO"):
+        timestamp = datetime.now().isoformat()
+        with open(self.log_file, "a", encoding="utf-8") as f:
+            f.write(f"[{timestamp}] [{category}] {data}\n")
 
     async def run(
         self,
@@ -35,6 +48,9 @@ class Agent:
             *history,
             {"role": "user", "content": user_prompt}
         ]
+        
+        self._log(f"Starting session with model: {self.model}", "SYSTEM")
+        self._log(f"User Prompt: {user_prompt}", "USER")
         
         await self.reasoning_loop(on_event)
 
@@ -62,35 +78,51 @@ class Agent:
                         # Buffering logic for tool masking
                         buffer += token
                         
-                        # If buffer contains a complete tool_call start tag, start masking
-                        if not masking and "<tool_call>" in buffer:
-                            # Send everything before the tag
-                            pre_tag = buffer.split("<tool_call>")[0]
-                            if pre_tag:
-                                on_event({"type": "token", "data": pre_tag})
-                            masking = True
-                            # Keep only the part from <tool_call> onwards in the buffer
-                            buffer = "<tool_call>" + buffer.split("<tool_call>", 1)[1]
-                        
-                        if not masking:
-                            # If buffer might be starting a tool call, we hold it
-                            # Otherwise, we emit everything that isn't a potential start
-                            if "<" in buffer:
-                                # Send everything up to the first <
-                                pre_tag, post_tag = buffer.split("<", 1)
-                                if pre_tag:
-                                    on_event({"type": "token", "data": pre_tag})
-                                    buffer = "<" + post_tag
+                        while buffer:
+                            if not masking:
+                                if "<tool_call>" in buffer:
+                                    # Start of a tool call found
+                                    pre_tag, post_tag = buffer.split("<tool_call>", 1)
+                                    if pre_tag:
+                                        on_event({"type": "token", "data": pre_tag})
+                                    masking = True
+                                    buffer = "<tool_call>" + post_tag
+                                elif "<" in buffer:
+                                    # Potential tag starting
+                                    idx = buffer.find("<")
+                                    if idx > 0:
+                                        # Emit everything before the first "<"
+                                        on_event({"type": "token", "data": buffer[:idx]})
+                                        buffer = buffer[idx:]
+                                        continue
+                                    
+                                    # Buffer starts with "<". Check if it's still a possible prefix of "<tool_call>"
+                                    if not "<tool_call>".startswith(buffer):
+                                        # It's not a tool call tag (might be <thought> or something else)
+                                        # Emit the first character and continue
+                                        on_event({"type": "token", "data": buffer[0]})
+                                        buffer = buffer[1:]
+                                        continue
+                                    else:
+                                        # It's a prefix of "<tool_call>", wait for more tokens
+                                        break
+                                else:
+                                    # No tags at all, emit everything
+                                    on_event({"type": "token", "data": buffer})
+                                    buffer = ""
                             else:
-                                # No tag in sight, emit and clear buffer
-                                on_event({"type": "token", "data": buffer})
-                                buffer = ""
-                        else:
-                            # In masking mode, check if we've reached the end
-                            if "</tool_call>" in buffer:
-                                masking = False
-                                # Hold content for parsing but don't emit to UI
-                                buffer = "" 
+                                # We are masking content inside <tool_call> tags
+                                if "</tool_call>" in buffer:
+                                    # End of tool call found
+                                    idx = buffer.find("</tool_call>") + len("</tool_call>")
+                                    # We don't emit the tool call itself
+                                    masking = False
+                                    buffer = buffer[idx:]
+                                    # Continue processing the rest of the buffer
+                                    continue
+                                else:
+                                    # Still inside a tool call, wait for the closing tag
+                                    break
                     
                     elif event["type"] == "usage":
                         on_event({"type": "usage", "data": event["data"]})
@@ -101,7 +133,10 @@ class Agent:
                 # If anything left in buffer, flush it (only if not masking)
                 if buffer and not masking:
                     on_event({"type": "token", "data": buffer})
+                
+                self._log(f"Raw LLM Response:\n{full_text}", "LLM_RESPONSE")
             except Exception as e:
+                self._log(f"Error in stream: {str(e)}", "ERROR")
                 on_event({"type": "error", "message": str(e)})
                 return
 
@@ -110,6 +145,7 @@ class Agent:
                 consecutive_retries = 0
                 name, params = tool_call
                 call_id = f"toolu-{uuid.uuid4().hex[:12]}"
+                self._log(f"Tool Call Detected: {name}({json.dumps(params)})", "TOOL_CALL")
                 on_event({"type": "tool_started", "name": name, "parameters": params, "call_id": call_id})
                 
                 tool = next((t for t in self.tools if t.name() == name), None)
@@ -121,13 +157,16 @@ class Agent:
                 else:
                     result = f"Error: Tool '{name}' not found"
                 
+                self._log(f"Tool Result ({name}): {result[:500]}...", "TOOL_RESULT")
                 on_event({"type": "tool_finished", "name": name, "result": result, "call_id": call_id})
                 
                 self.messages.append({"role": "assistant", "content": full_text})
                 self.messages.append({"role": "user", "content": PromptBuilder.format_tool_result(name, result, call_id)})
             elif "<tool_call>" in full_text:
                 consecutive_retries += 1
+                self._log(f"Malformed tool call detected. Retry {consecutive_retries}/3", "WARNING")
                 if consecutive_retries > 3:
+                    self._log("Max retries reached for malformed call. Stopping.", "ERROR")
                     on_event({"type": "error", "message": "Too many consecutive malformed tool calls. stopping."})
                     break
                 
@@ -147,14 +186,32 @@ class Agent:
                 return None
             
             inner = match.group(1).strip()
-            data = json.loads(inner)
             
-            name = data.get("name")
-            params = data.get("arguments", {})
+            json_str = inner
             
-            if not name:
-                return None
-                
-            return name, params
-        except:
+            # Robust JSON extraction:
+            # Try to find all possible JSON objects within the tags by attempting to parse 
+            # every substring starting with '{' and ending with '}'.
+            
+            starts = [m.start() for m in re.finditer(r"\{", json_str)]
+            ends = [m.start() for m in re.finditer(r"\}", json_str)]
+            
+            # Try from longest to shortest to catch outer objects first
+            for start in starts:
+                for end in reversed(ends):
+                    if end <= start:
+                        continue
+                    
+                    block = json_str[start:end+1].strip()
+                    try:
+                        data = json.loads(block)
+                        if isinstance(data, dict) and "name" in data:
+                            return data["name"], data.get("arguments", {})
+                    except:
+                        continue
+            
+            self._log(f"No valid tool call JSON found in content: {inner[:200]}...", "PARSE_ERROR")
+            return None
+        except Exception as e:
+            self._log(f"Unexpected error in parse_tool_call: {str(e)}", "PARSE_ERROR")
             return None

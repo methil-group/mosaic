@@ -17,13 +17,13 @@ You have access to the following tools:
 {tools_desc}
 
 # TOOL CALL FORMAT
-To use a tool, use the following XML-like format:
+To use a tool, you MUST use the following XML-like format. The content inside the tags MUST be a single valid JSON object and NOTHING else (no thoughts, no backticks, no comments):
 <tool_call>
 {{"name": "tool_name", "arguments": {{"param1": "value1", "param2": "value2"}}}}
 </tool_call>
 
 You must call exactly ONE tool per message.
-Do not include any text outside the <tool_call> tags if you are calling a tool.
+Do not include any text inside the <tool_call> tags other than the JSON object.
 
 # CODING WORKFLOW
 1. **Analyze and Plan**: Your ABSOLUTE FIRST ACTION must be to create a TODO list for the requested task using `sync_todo_list`. Do not call any other tools until you have established the plan.

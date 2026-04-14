@@ -2,6 +2,15 @@ import os
 from typing import List
 
 def resolve_path(path: str, workspace: str) -> str:
+    abs_workspace = os.path.abspath(workspace)
+    
+    # If the path is already absolute and within the workspace, just normalize it
+    if os.path.isabs(path):
+        normalized_path = os.path.normpath(path)
+        if normalized_path.startswith(abs_workspace):
+            return normalized_path
+            
+    # Otherwise, treat it as relative to workspace
     # Remove any absolute path prefix or leading slashes to force relative to workspace
     clean_path = path.lstrip("/").lstrip("\\")
     
@@ -9,10 +18,10 @@ def resolve_path(path: str, workspace: str) -> str:
     if len(clean_path) > 1 and clean_path[1] == ":":
         clean_path = clean_path[2:].lstrip("/").lstrip("\\")
         
-    resolved = os.path.normpath(os.path.join(workspace, clean_path))
+    resolved = os.path.normpath(os.path.join(abs_workspace, clean_path))
     
     # Security check: ensure the resolved path is still inside the workspace
-    if not resolved.startswith(os.path.abspath(workspace)):
+    if not resolved.startswith(abs_workspace):
         raise ValueError(f"Access denied: {path} is outside the workspace")
         
     return resolved
