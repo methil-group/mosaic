@@ -16,9 +16,7 @@ dependencies = [
 [project.scripts]
 mosaic = "mosaic_cli.main:run"
 
-[tool.setuptools]
-packages = ["mosaic_cli"]
-include-package-data = true
-
-[tool.setuptools.package-dir]
-"mosaic_cli" = "mosaic_cli"
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mosaic_cli*"]
+namespaces = false
