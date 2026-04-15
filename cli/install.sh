@@ -6,7 +6,6 @@
 set -e
 
 REPO_URL="https://github.com/methil-group/mosaic"
-INSTALL_DIR="mosaic"
 
 echo "🧩 Installing Mosaic..."
 
@@ -58,16 +57,13 @@ if ! $PYTHON_CMD -m pip --version &> /dev/null; then
     exit 1
 fi
 
+# Create a temporary directory for the installation
+INSTALL_TEMP=$(mktemp -d)
+echo "📂 Downloading Mosaic to temporary directory $INSTALL_TEMP..."
+
 # Clone repository
-if [ -d "$INSTALL_DIR" ]; then
-    echo "⚠️  Directory '$INSTALL_DIR' already exists. Pulling latest changes..."
-    cd "$INSTALL_DIR"
-    git pull
-else
-    echo "📂 Cloning repository from $REPO_URL..."
-    git clone "$REPO_URL" "$INSTALL_DIR"
-    cd "$INSTALL_DIR"
-fi
+git clone "$REPO_URL" "$INSTALL_TEMP" --depth 1
+cd "$INSTALL_TEMP"
 
 # Uninstall existing first to ensure a clean slate
 echo "🧹 Removing existing installation..."
@@ -80,9 +76,14 @@ if ! $PYTHON_CMD -m pip install ./cli; then
     echo "⚠️  Standard installation failed. Attempting with --break-system-packages (PEP 668 compatibility)..."
     $PYTHON_CMD -m pip install ./cli --break-system-packages || {
         echo "❌ Installation failed. You might need to use a virtual environment."
+        rm -rf "$INSTALL_TEMP"
         exit 1
     }
 fi
+
+# Cleanup
+echo "🧹 Cleaning up..."
+rm -rf "$INSTALL_TEMP"
 
 echo "✅ Mosaic has been successfully installed!"
 echo "🚀 Try running 'mosaic' to get started."
