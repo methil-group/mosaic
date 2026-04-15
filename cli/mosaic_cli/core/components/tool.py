@@ -3,6 +3,7 @@ from textual.containers import Vertical, Horizontal
 from textual.widget import Widget
 from textual.reactive import reactive
 import json
+from typing import Any
 from rich.markup import escape
 
 class ToolBlock(Widget):
@@ -10,10 +11,10 @@ class ToolBlock(Widget):
     
     collapsed = reactive(True)
     
-    def __init__(self, name: str, params: dict):
+    def __init__(self, name: Any, params: dict):
         super().__init__()
-        self.tool_name = name
-        self.params = params
+        self.tool_name = str(name)
+        self.params = params or {}
         self.result = ""
         self.file_status = ""
         self.add_class("tool-block")

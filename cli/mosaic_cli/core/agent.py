@@ -233,7 +233,11 @@ class Agent:
                     try:
                         data = json.loads(block)
                         if isinstance(data, dict) and "name" in data:
-                            return data["name"], data.get("arguments", {})
+                            name = str(data["name"])
+                            args = data.get("arguments", {})
+                            if not isinstance(args, dict):
+                                args = {}
+                            return name, args
                     except:
                         continue
             

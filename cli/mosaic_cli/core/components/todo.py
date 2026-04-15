@@ -1,13 +1,14 @@
 from textual.widgets import Static, Label, Checkbox
 from textual.containers import Vertical, Horizontal
+from typing import Any
 from rich.markup import escape
 
 class TodoItem(Horizontal):
-    def __init__(self, title: str, description: str, todo_id: str):
+    def __init__(self, title: Any, description: Any, todo_id: Any):
         super().__init__()
-        self.todo_id = todo_id
-        self.todo_title = title
-        self.description = description
+        self.todo_id = str(todo_id)
+        self.todo_title = str(title)
+        self.description = str(description)
         self.styles.height = "auto"
         self.styles.margin = (0, 0, 1, 0)
 

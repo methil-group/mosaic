@@ -1,12 +1,13 @@
 from textual.widgets import Static, Markdown, Label
 from textual.containers import Vertical
+from typing import Any
 from rich.markup import escape
 
 class ChatMessage(Vertical):
-    def __init__(self, role: str, content: str):
+    def __init__(self, role: str, content: Any):
         super().__init__()
-        self.role = role
-        self.content = content
+        self.role = str(role)
+        self.content = str(content)
         self.styles.height = "auto"
         self.styles.margin = (0, 0, 1, 0)
 
