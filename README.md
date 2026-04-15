@@ -3,12 +3,9 @@
 Mosaic is a premium **Agentic TUI (Terminal User Interface)** for autonomous coding and workspace management.
 
 ## 🚀 Quick Start
-```bash
-# Setup
-pip install -e ./cli
 
-# Run
-mosaic
+```bash
+curl -sSL https://raw.githubusercontent.com/methil-mods/mosaic/main/cli/install.sh | bash
 ```
 
 ## ✨ Key Features

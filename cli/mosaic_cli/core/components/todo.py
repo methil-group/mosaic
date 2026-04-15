@@ -1,5 +1,6 @@
 from textual.widgets import Static, Label, Checkbox
 from textual.containers import Vertical, Horizontal
+from rich.markup import escape
 
 class TodoItem(Horizontal):
     def __init__(self, title: str, description: str, todo_id: str):
@@ -13,8 +14,8 @@ class TodoItem(Horizontal):
     def compose(self):
         yield Checkbox(id=f"todo-check-{self.todo_id}")
         with Vertical():
-            yield Label(f"[bold cyan]{self.todo_title}[/]")
-            yield Static(f"[dim]{self.description}[/]", id=f"todo-desc-{self.todo_id}")
+            yield Label(f"[bold cyan]{escape(self.todo_title)}[/]")
+            yield Static(f"[dim]{escape(self.description)}[/]", id=f"todo-desc-{self.todo_id}")
 
 class TodoSidebar(Vertical):
     def compose(self):

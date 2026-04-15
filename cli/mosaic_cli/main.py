@@ -32,6 +32,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.box import ROUNDED
 from rich.console import Group
+from rich.markup import escape
 
 class FileSuggester(Suggester):
     def __init__(self, workspace: str):
@@ -320,7 +321,7 @@ class Mosaic(App):
                 ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else "qwen/qwen3.5-27b", id="model-select")
                 
                 yield Button("Save & Refresh", variant="primary", id="save-settings")
-                yield Static(f"Workspace: {self.workspace}", id="workspace-info")
+                yield Static(f"Workspace: {escape(self.workspace)}", id="workspace-info")
         yield Footer()
 
     def on_mount(self):
@@ -367,11 +368,10 @@ class Mosaic(App):
             return
 
         event.input.value = ""
-        self.add_message(f"\n[bold sky_blue1]USER:[/]\n{prompt}\n")
-        
-        self.run_agent(prompt)
+        self.add_message(f"\n[bold sky_blue1]USER:[/]\n{escape(prompt)}\n")
 
-    @work
+        self.run_agent(prompt)
+    @work(description="Agent processing")
     async def run_agent(self, prompt: str):
         log = self.query_one("#chat-log")
         agent = Agent(self.llm, self.model, self.workspace, "User", self.tools)
@@ -403,7 +403,7 @@ class Mosaic(App):
                     assistant_content = "[bold spring_green3]ASSISTANT:[/]\n"
                 
                 raw_assistant_content += event["data"]
-                assistant_content += event["data"]
+                assistant_content += escape(event["data"])
                 current_assistant_static.update(assistant_content)
                 log.scroll_end()
             elif event["type"] == "tool_started":
@@ -465,7 +465,7 @@ class Mosaic(App):
                 current_tool_block = None
 
             elif event["type"] == "error":
-                log.mount(Static(f"\n[bold red]ERROR: {event['message']}[/]"))
+                log.mount(Static(f"\n[bold red]ERROR: {escape(event['message'])}[/]"))
                 log.scroll_end()
             elif event["type"] == "final_answer":
                 # Replace the last streaming snippet with a proper Markdown widget

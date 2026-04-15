@@ -3,6 +3,7 @@ from textual.containers import Vertical, Horizontal
 from textual.widget import Widget
 from textual.reactive import reactive
 import json
+from rich.markup import escape
 
 class ToolBlock(Widget):
     """A collapsible block representing a tool execution and its result."""
@@ -20,14 +21,16 @@ class ToolBlock(Widget):
 
     def compose(self):
         with Horizontal(classes="tool-header"):
-            yield Static(f"🛠️ [bold]{self.tool_name}[/]", id="tool-title")
+            yield Static(f"🛠️ [bold]{escape(self.tool_name)}[/]", id="tool-title")
             yield Static("▶", id="tool-chevron")
             
         with Vertical(id="tool-details"):
             params_str = ", ".join([f"{k}={v}" for k,v in self.params.items()])
-            yield Static(f"[bold]Parameters:[/] [dim]{params_str}[/]", classes="tool-params")
-            self.result_static = Static("[italic dim]Executing...[/]", id="tool-result-static")
-            yield self.result_static
+            yield Static(f"[bold]Parameters:[/] [dim]{escape(params_str)}[/]", classes="tool-params")
+            self.result_header = Static("", id="tool-result-header")
+            self.result_content = Static("Executing...", id="tool-result-content", markup=False)
+            yield self.result_header
+            yield self.result_content
 
     def on_click(self) -> None:
         self.collapsed = not self.collapsed
@@ -51,7 +54,9 @@ class ToolBlock(Widget):
         truncated = display_text[:1000] + "..." if len(display_text) > 1000 else display_text
         header_text = f"↳ Result{self.file_status}"
         
-        self.result_static.update(f"[bold spring_green3]{header_text}[/]\n[dim]{truncated}[/]")
+        self.result_header.update(f"[bold spring_green3]{escape(header_text)}[/]")
+        self.result_content.markup = False
+        self.result_content.update(truncated)
         self.query_one(".tool-header").add_class("has-result")
 
 # Maintain backward compatibility for imports if needed, though they aren't used yet
