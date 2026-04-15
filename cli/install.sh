@@ -5,24 +5,43 @@
 
 set -e
 
-REPO_URL="https://github.com/methil-mods/mosaic"
+REPO_URL="https://github.com/methil-group/mosaic"
 INSTALL_DIR="mosaic"
 
 echo "🧩 Installing Mosaic..."
 
+# Function to check for commands
+check_command() {
+    if ! command -v "$1" &> /dev/null; then
+        return 1
+    fi
+    return 0
+}
+
 # Check dependencies
-if ! command -v git &> /dev/null; then
+if ! check_command git; then
     echo "❌ Error: git is not installed."
     exit 1
 fi
 
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Error: python3 is not installed."
+PYTHON_CMD=""
+if check_command python3.14; then
+    PYTHON_CMD="python3.14"
+elif check_command python3; then
+    PYTHON_CMD="python3"
+elif check_command python; then
+    PYTHON_CMD="python"
+else
+    echo "❌ Error: Python is not installed."
     exit 1
 fi
 
-if ! command -v pip &> /dev/null; then
-    echo "❌ Error: pip is not installed."
+echo "🐍 Using $($PYTHON_CMD --version)"
+
+# Ensure pip is available
+if ! $PYTHON_CMD -m pip --version &> /dev/null; then
+    echo "❌ Error: pip is not available for $PYTHON_CMD."
+    echo "💡 Try installing it with: sudo apt install python3-pip (on Debian/Ubuntu)"
     exit 1
 fi
 
@@ -39,7 +58,14 @@ fi
 
 # Install CLI
 echo "📦 Installing Mosaic CLI..."
-pip install -e ./cli
+# Use --break-system-packages if needed, or better yet, recommend a venv
+if ! $PYTHON_CMD -m pip install -e ./cli; then
+    echo "⚠️  Standard installation failed. Attempting with --break-system-packages (PEP 668 compatibility)..."
+    $PYTHON_CMD -m pip install -e ./cli --break-system-packages || {
+        echo "❌ Installation failed. You might need to use a virtual environment."
+        exit 1
+    }
+fi
 
 echo "✅ Mosaic has been successfully installed!"
 echo "🚀 Try running 'mosaic' to get started."
