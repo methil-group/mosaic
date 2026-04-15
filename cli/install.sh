@@ -9,28 +9,61 @@ REPO_URL="https://github.com/methil-group/mosaic"
 
 echo "🧩 Installing Mosaic..."
 
-# Function to check for commands
-check_command() {
-    if ! command -v "$1" &> /dev/null; then
-        return 1
-    fi
-    return 0
+# Colors and formatting
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m' # No Color
+
+# Spinner function
+spinner() {
+    local pid=$1
+    local delay=0.15
+    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    while [ "$(ps -p $pid -o pid=)" ]; do
+        local temp=${spinstr#?}
+        printf " ${PURPLE}%c${NC} " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b"
+    done
+    printf "    \b\b\b\b"
 }
 
-# Check dependencies
+# Function to check for commands
+check_command() {
+    command -v "$1" &> /dev/null
+}
+
+clear
+echo -e "${PURPLE}${BOLD}🧩 Mosaic Installer${NC}"
+echo -e "${DIM}----------------------------------------${NC}"
+
+# Check requirements
 if ! check_command git; then
-    echo "❌ Error: git is not installed."
+    echo -e "${RED}❌ Error: git is not installed.${NC}"
     exit 1
 fi
 
+# Enhanced Python Discovery
+printf "🔍 Searching for Python... "
 PYTHON_CMD=""
-# Search order: stable versions first, then generic python3, then 3.14 as last resort
-for cmd in python3.13 python3.12 python3.11 python3.10 python3 python python3.14; do
+SEARCH_LIST=("python3.13" "python3.12" "python3.11" "python3.10" "python3" "python" "python3.14")
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+     brew_prefix=$(command -v brew &>/dev/null && brew --prefix || echo "/opt/homebrew")
+     SEARCH_LIST=("$brew_prefix/bin/python3.13" "${SEARCH_LIST[@]}")
+fi
+
+for cmd in "${SEARCH_LIST[@]}"; do
     if check_command "$cmd"; then
-        # If it's python3 or python, check if it's 3.14. If so, keep looking unless nothing else found.
         VERSION=$($cmd -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "0.0")
-        if [[ "$VERSION" == "3.14" ]] && [[ "$PYTHON_CMD" == "" ]]; then
-            # Found 3.14, but we'll only use it if we don't find others
+        if [[ "$VERSION" == "3.14" ]] && [[ -z "$PYTHON_CMD" ]]; then
             TEMP_PYTHON="$cmd"
             continue
         fi
@@ -39,51 +72,75 @@ for cmd in python3.13 python3.12 python3.11 python3.10 python3 python python3.14
     fi
 done
 
-if [[ -z "$PYTHON_CMD" ]]; then
-    PYTHON_CMD="$TEMP_PYTHON"
-fi
+PYTHON_CMD=${PYTHON_CMD:-$TEMP_PYTHON}
 
 if [[ -z "$PYTHON_CMD" ]]; then
-    echo "❌ Error: Python is not installed."
+    echo -e "${RED}❌ Error: No suitable Python found (3.10+ required).${NC}"
     exit 1
 fi
+echo -e "${GREEN}Found!${NC}"
+echo -e "🐍 Using ${YELLOW}$($PYTHON_CMD --version)${NC} at ${DIM}$(which $PYTHON_CMD)${NC}"
 
-echo "🐍 Using $($PYTHON_CMD --version) (Command: $PYTHON_CMD)"
-
-# Ensure pip is available
+# Check for pip
 if ! $PYTHON_CMD -m pip --version &> /dev/null; then
-    echo "❌ Error: pip is not available for $PYTHON_CMD."
-    echo "💡 Try installing it with: sudo apt install python3-pip (on Debian/Ubuntu)"
+    echo -e "${RED}❌ Error: pip is not available for $PYTHON_CMD.${NC}"
     exit 1
 fi
 
-# Create a temporary directory for the installation
-INSTALL_TEMP=$(mktemp -d)
-echo "📂 Downloading Mosaic to temporary directory $INSTALL_TEMP..."
+# Cross-platform temp directory
+INSTALL_TEMP=$(mktemp -d 2>/dev/null || mktemp -d -t 'mosaic')
+echo -e "📂 Preparing build space in ${BLUE}$INSTALL_TEMP${NC}..."
 
-# Clone repository
-git clone "$REPO_URL" "$INSTALL_TEMP" --depth 1
+# Clone with depth 1
+printf "📥 Downloading Mosaic... "
+git clone "$REPO_URL" "$INSTALL_TEMP" --depth 1 &>/dev/null &
+spinner $!
+echo -e "${GREEN}Done!${NC}"
+
 cd "$INSTALL_TEMP"
 
-# Uninstall existing first to ensure a clean slate
-echo "🧹 Removing existing installation..."
-$PYTHON_CMD -m pip uninstall -y mosaic-tui &> /dev/null || true
+# Clean up
+printf "🧹 Cleaning environment... "
+$PYTHON_CMD -m pip uninstall -y mosaic-tui &>/dev/null &
+spinner $!
+echo -e "${GREEN}Done!${NC}"
 
 # Install CLI
-echo "📦 Installing Mosaic CLI..."
-# Force standard installation (not editable) to avoid path issues
-if ! $PYTHON_CMD -m pip install ./cli; then
-    echo "⚠️  Standard installation failed. Attempting with --break-system-packages (PEP 668 compatibility)..."
-    $PYTHON_CMD -m pip install ./cli --break-system-packages || {
-        echo "❌ Installation failed. You might need to use a virtual environment."
-        rm -rf "$INSTALL_TEMP"
-        exit 1
-    }
+printf "📦 Installing Mosaic CLI... "
+INSTALL_FLAGS=""
+if [[ -f /etc/os-release ]] || [[ "$OSTYPE" == "darwin"* ]]; then
+    INSTALL_FLAGS="--break-system-packages"
 fi
 
+# Executing install in background for spinner
+$PYTHON_CMD -m pip install ./cli $INSTALL_FLAGS &>/dev/null &
+install_pid=$!
+spinner $install_pid
+wait $install_pid
+res=$?
+
+if [[ $res -ne 0 ]]; then
+    echo -e "${RED}❌ Installation failed.${NC}"
+    rm -rf "$INSTALL_TEMP"
+    exit 1
+fi
+echo -e "${GREEN}Done!${NC}"
+
 # Cleanup
-echo "🧹 Cleaning up..."
 rm -rf "$INSTALL_TEMP"
 
-echo "✅ Mosaic has been successfully installed!"
-echo "🚀 Try running 'mosaic' to get started."
+echo -e "\n${GREEN}${BOLD}✅ Mosaic successfully installed!${NC}"
+
+# Final PATH Check
+if ! check_command mosaic; then
+    echo -e "${YELLOW}⚠️  Warning: 'mosaic' command was installed but is not in your PATH.${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo -e "💡 Add this to your ${BOLD}~/.zshrc${NC} or ${BOLD}~/.bash_profile${NC}:"
+        echo -e "   ${CYAN}export PATH=\"\$PATH:\$($PYTHON_CMD -m site --user-base)/bin\"${NC}"
+    else
+        echo -e "💡 Ensure ${BOLD}~/.local/bin${NC} is in your PATH."
+    fi
+else
+    echo -e "🚀 Run ${PURPLE}${BOLD}mosaic${NC} to start."
+fi
+echo -e "${DIM}----------------------------------------${NC}"
