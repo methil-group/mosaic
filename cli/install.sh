@@ -59,9 +59,9 @@ fi
 # Install CLI
 echo "📦 Installing Mosaic CLI..."
 # Use --break-system-packages if needed, or better yet, recommend a venv
-if ! $PYTHON_CMD -m pip install -e ./cli; then
+if ! $PYTHON_CMD -m pip install ./cli; then
     echo "⚠️  Standard installation failed. Attempting with --break-system-packages (PEP 668 compatibility)..."
-    $PYTHON_CMD -m pip install -e ./cli --break-system-packages || {
+    $PYTHON_CMD -m pip install ./cli --break-system-packages || {
         echo "❌ Installation failed. You might need to use a virtual environment."
         exit 1
     }
