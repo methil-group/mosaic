@@ -18,6 +18,8 @@ class OpenAiProvider(LlmProvider):
             "model": model,
             "messages": messages,
             "stream": True,
+            "stream_options": {"include_usage": True},
+            "max_tokens": 4096
         }
 
         async with httpx.AsyncClient() as client:

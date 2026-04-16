@@ -24,6 +24,7 @@ class BenchmarkAgent:
         self.log_path = log_path
         self.verbose = verbose
         self.tool_counts = {}
+        self.total_tokens = 0
 
     def _log(self, message: str, end: str = "\n"):
         if self.log_path:
@@ -56,6 +57,7 @@ class BenchmarkAgent:
             
             full_text = ""
             self._log("\n[LLM RESPONSE START]")
+            usage_received = False
             async for event in self.llm.stream_chat(self.model, self.messages):
                 if event["type"] == "token":
                     t = event["data"]
@@ -63,6 +65,15 @@ class BenchmarkAgent:
                     if self.verbose:
                         print(t, end="", flush=True)
                     self._log(t, end="")
+                elif event["type"] == "usage":
+                    self.total_tokens += event["data"].get("completion_tokens", 0)
+                    usage_received = True
+            
+            if not usage_received and full_text:
+                # Fallback: estimate tokens (approx 4 chars per token)
+                estimated_tokens = max(1, len(full_text) // 4)
+                self.total_tokens += estimated_tokens
+                
             self._log("[LLM RESPONSE END]\n")
             
             if self.verbose:

@@ -2,3 +2,9 @@ python-dotenv
 requests
 argparse
 asyncio
+transformers
+torch
+accelerate
+bitsandbytes
+sentencepiece
+httpx
