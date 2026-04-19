@@ -175,7 +175,7 @@ Be precise and complete your tasks step by step. When you are done, provide a fi
 
     def _parse_tool_call(self, content: str) -> Optional[Tuple[str, Dict[str, Any]]]:
         # Try Strategy 1: XML Format (Default)
-        match = re.search(r"<tool_call>(.*?)</tool_call>", content, re.DOTALL)
+        match = re.search(r"<tool_call>(.*?)</(?:tool_call|tool_answer|tool_response)>", content, re.DOTALL)
         if match:
             try:
                 inner = match.group(1).strip()

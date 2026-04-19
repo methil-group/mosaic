@@ -47,3 +47,12 @@ def test_parse_multiple_braces(agent):
     # Should pick the first valid JSON block that has a "name"
     name, params = agent.parse_tool_call(content)
     assert name == "test"
+
+def test_parse_alternate_closing_tags(agent):
+    content_answer = '<tool_call>{"name": "test_answer", "arguments": {}}</tool_answer>'
+    name, params = agent.parse_tool_call(content_answer)
+    assert name == "test_answer"
+
+    content_response = '<tool_call>{"name": "test_response", "arguments": {}}</tool_response>'
+    name, params = agent.parse_tool_call(content_response)
+    assert name == "test_response"

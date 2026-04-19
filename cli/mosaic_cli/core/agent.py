@@ -118,9 +118,10 @@ class Agent:
                                     buffer = ""
                             else:
                                 # We are masking content inside <tool_call> tags
-                                if "</tool_call>" in buffer:
+                                end_match = re.search(r"</(?:tool_call|tool_answer|tool_response)>", buffer)
+                                if end_match:
                                     # End of tool call found
-                                    idx = buffer.find("</tool_call>") + len("</tool_call>")
+                                    idx = end_match.end()
                                     # We don't emit the tool call itself
                                     masking = False
                                     buffer = buffer[idx:]
@@ -208,7 +209,7 @@ class Agent:
 
     def parse_tool_call(self, content: str) -> Optional[Tuple[str, Dict[str, Any]]]:
         try:
-            match = re.search(r"<tool_call>(.*?)</tool_call>", content, re.DOTALL)
+            match = re.search(r"<tool_call>(.*?)</(?:tool_call|tool_answer|tool_response)>", content, re.DOTALL)
             if not match:
                 return None
             
