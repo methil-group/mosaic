@@ -27,6 +27,7 @@ from .core.tools.sync_todo_list import SyncTodoListTool
 from .framework.llm.openrouter import OpenRouter
 from .framework.llm.openai import OpenAiProvider
 from .framework.llm.llama_provider import LlamaProvider
+from .framework.llm.lmstudio import LmStudioProvider
 
 from rich.panel import Panel
 from rich.text import Text
@@ -265,7 +266,10 @@ class Mosaic(App):
             open(self.config_path, 'a').close()
 
         self.api_key = os.getenv("OPENROUTER_API_KEY", "")
-        self.provider_type = "openrouter"
+        self.openai_key = os.getenv("OPENAI_API_KEY", "")
+        self.openai_base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        self.lmstudio_url = os.getenv("LM_STUDIO_URL", "http://localhost:1234/v1")
+        self.provider_type = os.getenv("MOSAIC_PROVIDER", "openrouter")
         
         self.workspace = os.path.abspath(workspace) if workspace else os.getcwd()
         self.model = os.getenv("MOSAIC_MODEL", "qwen/qwen3.5-27b")
@@ -289,9 +293,12 @@ class Mosaic(App):
             self.llm = OpenRouter(self.api_key)
         elif self.provider_type == "openai":
             self.llm = OpenAiProvider(self.openai_key, self.openai_base_url)
+        elif self.provider_type == "lmstudio":
+            self.llm = LmStudioProvider(self.lmstudio_url)
         elif self.provider_type == "gguf":
             self.llm = LlamaProvider(self.gguf_path)
         else:
+            self._log(f"Unknown provider type: {self.provider_type}. Falling back to OpenRouter.", "WARNING")
             self.llm = OpenRouter(self.api_key)
 
     def compose(self) -> ComposeResult:
@@ -309,17 +316,33 @@ class Mosaic(App):
             yield TodoSidebar(id="todo-sidebar")
             with Vertical(id="settings-pane"):
                 yield Label("SETTINGS")
+                yield Label("Provider")
+                yield Select([
+                    ("OpenRouter", "openrouter"),
+                    ("OpenAI", "openai"),
+                    ("LM Studio", "lmstudio")
+                ], value=self.provider_type, id="provider-select")
+
                 yield Label("OpenRouter API Key")
                 yield Input(placeholder="sk-or-v1-...", value=self.api_key, id="api-key-input", password=True)
                 
+                yield Label("OpenAI API Key")
+                yield Input(placeholder="sk-...", value=self.openai_key, id="openai-key-input", password=True)
+
+                yield Label("LM Studio URL")
+                yield Input(placeholder="http://localhost:1234/v1", value=self.lmstudio_url, id="lmstudio-url-input")
+
                 yield Label("Model")
                 yield Select([
                     ("Qwen 3.5 9b", "qwen/qwen3.5-9b"),
                     ("Qwen 3.5 27b", "qwen/qwen3.5-27b"),
                     ("Qwen 3.6 Plus", "qwen/qwen3.6-plus"),
-                    ("Qwen Coder Next", "qwen/qwen3-coder-next")
-                ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else "qwen/qwen3.5-27b", id="model-select")
+                    ("Qwen Coder Next", "qwen/qwen3-coder-next"),
+                    ("Custom...", "custom")
+                ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else ("custom" if self.model else "qwen/qwen3.5-27b"), id="model-select")
                 
+                yield Input(placeholder="Enter model name...", value=self.model, id="custom-model-input")
+
                 yield Button("Save & Refresh", variant="primary", id="save-settings")
                 yield Static(f"Workspace: {escape(self.workspace)}", id="workspace-info")
         yield Footer()
@@ -327,8 +350,10 @@ class Mosaic(App):
     def on_mount(self):
         self.add_message("[bold gold1]Welcome to Mosaic[/]")
         self.add_message("[dim]Press Ctrl+S for settings, Ctrl+Q to quit[/]\n")
-        if not self.api_key:
-            self.add_message("[red]Warning: API Key not set. Use Ctrl+S to enter it.[/]")
+        if self.provider_type == "openrouter" and not self.api_key:
+            self.add_message("[red]Warning: OpenRouter API Key not set. Use Ctrl+S to enter it.[/]")
+        elif self.provider_type == "openai" and not self.openai_key:
+            self.add_message("[red]Warning: OpenAI API Key not set. Use Ctrl+S to enter it.[/]")
 
     def add_message(self, content: Union[str, Widget]):
         log = self.query_one("#chat-log")
@@ -363,8 +388,12 @@ class Mosaic(App):
         if not prompt:
             return
         
-        if not self.api_key:
+        if self.provider_type == "openrouter" and not self.api_key:
             self.query_one("#chat-log").write("[red]Error: Please set your OpenRouter API Key in settings (Ctrl+S)[/]")
+            return
+        
+        if self.provider_type == "openai" and not self.openai_key:
+            self.query_one("#chat-log").write("[red]Error: Please set your OpenAI API Key in settings (Ctrl+S)[/]")
             return
 
         event.input.value = ""
@@ -486,13 +515,22 @@ class Mosaic(App):
     @on(Button.Pressed, "#save-settings")
     async def save_settings(self):
         self.api_key = self.query_one("#api-key-input").value
-        self.model = self.query_one("#model-select").value
+        self.openai_key = self.query_one("#openai-key-input").value
+        self.lmstudio_url = self.query_one("#lmstudio-url-input").value
+        self.provider_type = self.query_one("#provider-select").value
+        
+        model_selection = self.query_one("#model-select").value
+        if model_selection == "custom":
+            self.model = self.query_one("#custom-model-input").value
+        else:
+            self.model = model_selection
         
         set_key(self.config_path, "OPENROUTER_API_KEY", self.api_key)
+        set_key(self.config_path, "OPENAI_API_KEY", self.openai_key)
+        set_key(self.config_path, "LM_STUDIO_URL", self.lmstudio_url)
         set_key(self.config_path, "MOSAIC_MODEL", self.model)
-        set_key(self.config_path, "MOSAIC_PROVIDER", "openrouter")
+        set_key(self.config_path, "MOSAIC_PROVIDER", self.provider_type)
         
-        self.provider_type = "openrouter"
         self._init_llm()
         self.add_message("[yellow]Settings saved and LLM re-initialized.[/]")
 
