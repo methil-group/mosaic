@@ -54,27 +54,21 @@ Screen {
 #file-tree-title {
     text-style: bold;
     color: #a8917d;
-    margin-bottom: 1;
+    margin-bottom: 0;
     padding: 1 1;
     border-bottom: dashed #453c35;
-}
-#refresh-tree-btn {
-    width: 100%;
-    margin-bottom: 1;
-    background: #2b2621;
-    color: #8b7e6f;
-    margin-top: 0;
-    height: 1;
 }
 #workspace-tree {
     height: 1fr;
     background: transparent;
     color: #d1bda2;
+    margin-top: 1;
 }
 DirectoryTree {
     background: transparent;
     color: #d1bda2;
     scrollbar-color: #a8917d;
+    scrollbar-background: transparent;
 }
 DirectoryTree > .tree--guides {
     color: #453c35;
@@ -88,6 +82,10 @@ DirectoryTree .tree--label {
 DirectoryTree .tree--highlight {
     background: #3d352e;
     color: #a8917d;
+}
+DirectoryTree .tree--cursor {
+    background: #453c35;
+    color: #d1bda2;
 }
 
 TodoItem {
