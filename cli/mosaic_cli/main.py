@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Union
 import sys
 import json
@@ -467,11 +468,86 @@ class Mosaic(App):
             log = self.query_one("#chat-log")
             log.query("*").remove()
             
+            last_tool_block = None
+            
             for msg in self.history:
                 role = msg.get("role")
                 content = msg.get("content", "")
-                if role in ["user", "assistant"]:
-                    log.mount(ChatMessage(role, content))
+                
+                if role == "assistant":
+                    if "<tool_call>" in content:
+                        # Split by tool call tags
+                        parts = re.split(r"(<tool_call>.*?</tool_call>)", content, flags=re.DOTALL)
+                        for part in parts:
+                            if part.startswith("<tool_call>"):
+                                # Parse tool call
+                                try:
+                                    json_str = part.replace("<tool_call>", "").replace("</tool_call>", "").strip()
+                                    call_data = json.loads(json_str)
+                                    name = call_data.get("name")
+                                    params = call_data.get("arguments")
+                                    last_tool_block = ToolBlock(name, params)
+                                    log.mount(last_tool_block)
+                                except Exception:
+                                    log.mount(ChatMessage(role, part))
+                            elif part.strip():
+                                log.mount(ChatMessage(role, part.strip()))
+                    else:
+                        log.mount(ChatMessage(role, content))
+                
+                elif role == "user":
+                    if "<tool_response>" in content:
+                        try:
+                            # Extract JSON inside <tool_response>
+                            resp_json = content.replace("<tool_response>", "").replace("</tool_response>", "").strip()
+                            resp_data = json.loads(resp_json)
+                            name = resp_data.get("name")
+                            result = resp_data.get("content")
+                            
+                            # Handle TODO items
+                            if name == "create_todo" and isinstance(result, str):
+                                try:
+                                    todo_data = json.loads(result)
+                                    if todo_data.get("status") == "success":
+                                        log.mount(Label("[bold gold1]NEW TODO:[/]"))
+                                        log.mount(TodoItem(
+                                            todo_data["todo"]["title"],
+                                            todo_data["todo"]["description"],
+                                            todo_data["todo"].get("id", "0")
+                                        ))
+                                except Exception:
+                                    pass
+
+                            if name == "sync_todo_list" and isinstance(result, str):
+                                try:
+                                    sync_data = json.loads(result)
+                                    if sync_data.get("status") == "success":
+                                        log.mount(Label("[bold gold1]TODO LIST SYNCED:[/]"))
+                                        for todo in sync_data["todos"]:
+                                            item = TodoItem(
+                                                todo.get("title", "Task"),
+                                                todo.get("description", ""),
+                                                todo.get("id", "0"),
+                                                completed=todo.get("completed", False)
+                                            )
+                                            if todo.get("completed"):
+                                                item.add_class("completed")
+                                            log.mount(item)
+                                except Exception:
+                                    pass
+
+                            # Update the tool block if it matches
+                            if last_tool_block and last_tool_block.tool_name == name:
+                                file_modified = any(x in name for x in ["edit_file", "write_file", "create_todo", "update_todo"])
+                                last_tool_block.set_result(result if isinstance(result, str) else json.dumps(result), file_modified)
+                                last_tool_block = None
+                            else:
+                                # Fallback for orphans or mismatched results
+                                log.mount(Static(f"\n[bold gold1]Tool Result ({name}):[/]\n{str(result)}"))
+                        except Exception:
+                            log.mount(ChatMessage(role, content))
+                    else:
+                        log.mount(ChatMessage(role, content))
             
             log.scroll_end()
             self.notify(f"Loaded chat session: {session_id}")
