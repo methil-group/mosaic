@@ -63,6 +63,25 @@ class OpenAiProvider(LlmProvider):
                 if response.status_code == 200:
                     data = response.json()
                     return [m["id"] for m in data.get("data", [])]
-            except:
+            except Exception:
                 pass
         return []
+    async def get_embedding(self, text: str) -> List[float]:
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": "text-embedding-3-small",
+            "input": text
+        }
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(f"{self.base_url}/embeddings", headers=headers, json=payload, timeout=30.0)
+                if response.status_code == 200:
+                    data = response.json()
+                    return data["data"][0]["embedding"]
+                else:
+                    raise Exception(f"OpenAI Embeddings Error {response.status_code}: {response.text}")
+            except Exception as e:
+                raise Exception(f"Failed to get embeddings: {str(e)}")

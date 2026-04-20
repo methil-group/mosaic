@@ -1,6 +1,4 @@
 import pytest
-import json
-import asyncio
 from unittest.mock import MagicMock, AsyncMock
 from mosaic_cli.core.agent import Agent
 

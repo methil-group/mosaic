@@ -3,7 +3,8 @@ import uuid
 import json
 import os
 from datetime import datetime
-from typing import List, Dict, Any, Callable, AsyncIterable, Optional, Tuple
+from typing import List, Dict, Any, Callable, Optional, Tuple
+from .memory import MemoryManager
 from .prompt import PromptBuilder
 from .tools.base import Tool
 from ..framework.llm.base import LlmProvider
@@ -15,18 +16,20 @@ class Agent:
         model: str,
         workspace: str,
         user_name: str,
-        tools: List[Tool]
+        tools: List[Tool],
+        memory_manager: Optional[MemoryManager] = None
     ):
         self.llm = llm
         self.model = model
         self.workspace = workspace
         self.user_name = user_name
         self.tools = tools
+        self.memory_manager = memory_manager
         self.messages: List[Dict[str, str]] = []
         self.stopped = False
         
         # Initialize logging
-        self.log_dir = os.path.join(self.workspace, ".log")
+        self.log_dir = os.path.join(self.workspace, ".mosaic", "logs")
         os.makedirs(self.log_dir, exist_ok=True)
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_file = os.path.join(self.log_dir, f"session_{self.session_id}.log")
@@ -38,7 +41,7 @@ class Agent:
             os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
             with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] [{category}] {data}\n")
-        except:
+        except Exception:
             # If we really can't log, just continue to avoid crashing the whole agent
             pass
 
@@ -63,6 +66,7 @@ class Agent:
     async def reasoning_loop(self, on_event: Callable[[Dict[str, Any]], None]):
         total_steps = 0
         consecutive_retries = 0
+        consecutive_empty_responses = 0
         while not self.stopped:
             total_steps += 1
             if total_steps > 30:
@@ -239,7 +243,7 @@ class Agent:
                             if not isinstance(args, dict):
                                 args = {}
                             return name, args
-                    except:
+                    except Exception:
                         continue
             
             self._log(f"No valid tool call JSON found in content: {inner[:200]}...", "PARSE_ERROR")

@@ -2,6 +2,7 @@ import os
 from typing import AsyncIterable, List, Dict, Any
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from .base import LlmProvider
 
 # Try to import llama_cpp, but don't fail immediately if not present
 try:
@@ -9,7 +10,7 @@ try:
 except ImportError:
     Llama = None
 
-class LlamaProvider:
+class LlamaProvider(LlmProvider):
     def __init__(self, model_path: str, n_ctx: int = 4096, n_gpu_layers: int = -1):
         self.model_path = model_path
         self.n_ctx = n_ctx
@@ -28,14 +29,14 @@ class LlamaProvider:
                 model_path=self.model_path,
                 n_ctx=self.n_ctx,
                 n_gpu_layers=self.n_gpu_layers,
-                verbose=False
+                verbose=False,
+                embedding=True # Enable embeddings for RAG
             )
         return self._llm
 
     async def stream_chat(self, model: str, messages: List[Dict[str, str]]) -> AsyncIterable[Dict[str, Any]]:
         llm = self._get_llm()
         
-        # Run the synchronous generator in a thread pool to avoid blocking the event loop
         loop = asyncio.get_event_loop()
         
         def run_inference():
@@ -65,3 +66,13 @@ class LlamaProvider:
 
     async def fetch_models(self) -> List[str]:
         return [os.path.basename(self.model_path)]
+
+    async def get_embedding(self, text: str) -> List[float]:
+        llm = self._get_llm()
+        loop = asyncio.get_event_loop()
+        
+        def run_embedding():
+            return llm.create_embedding(text)
+
+        result = await loop.run_in_executor(self._executor, run_embedding)
+        return result["data"][0]["embedding"]

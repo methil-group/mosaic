@@ -9,3 +9,7 @@ class LlmProvider(ABC):
     @abstractmethod
     async def fetch_models(self) -> List[str]:
         pass
+
+    @abstractmethod
+    async def get_embedding(self, text: str) -> List[float]:
+        pass

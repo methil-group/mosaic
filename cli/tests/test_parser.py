@@ -1,5 +1,4 @@
 import pytest
-import json
 from mosaic_cli.core.agent import Agent
 
 @pytest.fixture

@@ -13,6 +13,13 @@ dependencies = [
     "python-dotenv",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
 [project.scripts]
 mosaic = "mosaic_cli.main:run"
 

@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 def resolve_path(path: str, workspace: str) -> str:
     abs_workspace = os.path.abspath(workspace)

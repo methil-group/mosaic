@@ -1,7 +1,6 @@
 from textual.widgets import Static, Label, Checkbox
 from textual.containers import Vertical, Horizontal
 from typing import Any
-from rich.markup import escape
 
 class TodoItem(Horizontal):
     def __init__(self, title: Any, description: Any, todo_id: Any):
@@ -9,14 +8,13 @@ class TodoItem(Horizontal):
         self.todo_id = str(todo_id)
         self.todo_title = str(title)
         self.description = str(description)
-        self.styles.height = "auto"
-        self.styles.margin = (0, 0, 1, 0)
 
     def compose(self):
         yield Checkbox(id=f"todo-check-{self.todo_id}")
         with Vertical():
-            yield Label(f"[bold cyan]{escape(self.todo_title)}[/]")
-            yield Static(f"[dim]{escape(self.description)}[/]", id=f"todo-desc-{self.todo_id}")
+            yield Label(self.todo_title, classes="todo-item-title")
+            if self.description:
+                yield Static(self.description, classes="todo-item-desc", id=f"todo-desc-{self.todo_id}")
 
 class TodoSidebar(Vertical):
     def compose(self):
@@ -40,16 +38,28 @@ class TodoSidebar(Vertical):
             # For bulk sync, descriptions might be empty/omitted to save tokens
             desc = todo.get("description", "") 
             item = TodoItem(title, desc, tid)
-            todo_list.mount(item)
-            # Update checkbox state
             if todo.get("completed"):
-                self.call_after_refresh(self.update_todo, tid, True)
+                item.add_class("completed")
+            todo_list.mount(item)
                 
         todo_list.scroll_end()
 
     def update_todo(self, todo_id: str, completed: bool):
         try:
-            checkbox = self.query_one(f"#todo-check-{todo_id}")
-            checkbox.value = completed
-        except:
+            item = None
+            # Find the item with this todo_id
+            for child in self.query("#todo-list > TodoItem"):
+                if getattr(child, "todo_id", None) == todo_id:
+                    item = child
+                    break
+            
+            if item:
+                if completed:
+                    item.add_class("completed")
+                else:
+                    item.remove_class("completed")
+                
+                checkbox = item.query_one(f"#todo-check-{todo_id}")
+                checkbox.value = completed
+        except Exception:
             pass

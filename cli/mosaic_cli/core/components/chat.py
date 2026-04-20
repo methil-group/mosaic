@@ -13,7 +13,8 @@ class ChatMessage(Vertical):
 
     def compose(self):
         color = "cyan" if self.role == "user" else "spring_green3"
-        if self.role == "system": color = "gold1"
+        if self.role == "system":
+            color = "gold1"
         
         yield Label(f"[bold {color}]{escape(self.role.upper())}:[/]")
         if self.role == "assistant":

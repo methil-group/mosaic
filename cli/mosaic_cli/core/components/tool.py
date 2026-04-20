@@ -49,7 +49,7 @@ class ToolBlock(Widget):
             if result.strip().startswith(("{", "[")):
                 data = json.loads(result)
                 display_text = json.dumps(data, indent=2, ensure_ascii=False)
-        except:
+        except Exception:
             pass
         
         truncated = display_text[:1000] + "..." if len(display_text) > 1000 else display_text

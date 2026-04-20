@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict, Any
+from typing import List, Any
 from .tools.base import Tool
 
 class PromptBuilder:
@@ -48,7 +48,7 @@ Do not include any text inside the <tool_call> tags other than the JSON object.
         if isinstance(result, str):
             try:
                 content = json.loads(result)
-            except:
+            except Exception:
                 content = {"message": result}
         else:
             content = result

@@ -1,12 +1,12 @@
 import os
 from typing import Union
-import asyncio
 import sys
 import json
+from datetime import datetime
 from dotenv import load_dotenv, set_key
 from textual.app import App, ComposeResult
-from textual.containers import Container, Vertical, Horizontal
-from textual.widgets import Header, Footer, Input, RichLog, Static, Button, Select, Label, LoadingIndicator, Markdown
+from textual.containers import Vertical, Horizontal
+from textual.widgets import Header, Footer, Input, Static, Button, Select, Label, LoadingIndicator, Markdown
 from textual.widget import Widget
 from textual.suggester import Suggester
 from textual.binding import Binding
@@ -14,7 +14,8 @@ from textual import on, work
 from textual.message import Message
 
 from .core.agent import Agent
-from .core.components import ChatMessage, ToolExecution, ToolResult, ToolBlock, TodoSidebar, TodoItem
+from .core.memory import MemoryManager
+from .core.components import ChatMessage, ToolBlock, TodoSidebar, HistorySidebar, HistoryItem, MemorySidebar, MemoryItem, ToolsSidebar
 from .core.tools.read_file import ReadFileTool
 from .core.tools.write_file import WriteFileTool
 from .core.tools.edit_file import EditFileTool
@@ -23,16 +24,14 @@ from .core.tools.run_command import RunCommandTool
 from .core.tools.create_todo import CreateTodoTool
 from .core.tools.update_todo import UpdateTodoTool
 from .core.tools.sync_todo_list import SyncTodoListTool
+from .core.tools.store_memory import StoreMemoryTool
+from .core.tools.recall_memories import RecallMemoriesTool
 
 from .framework.llm.openrouter import OpenRouter
 from .framework.llm.openai import OpenAiProvider
 from .framework.llm.llama_provider import LlamaProvider
 from .framework.llm.lmstudio import LmStudioProvider
 
-from rich.panel import Panel
-from rich.text import Text
-from rich.box import ROUNDED
-from rich.console import Group
 from rich.markup import escape
 
 class FileSuggester(Suggester):
@@ -58,7 +57,7 @@ class FileSuggester(Suggester):
                     rel_path = os.path.relpath(os.path.join(root, f), self.workspace)
                     if rel_path.startswith(to_complete):
                         matches.append(rel_path)
-        except:
+        except Exception:
             return None
             
         if not matches:
@@ -94,15 +93,15 @@ class SidebarResizer(Static):
 class Mosaic(App):
     CSS = """
     Screen {
-        background: #0f172a;
+        background: #1c1917;
     }
     #chat-area {
         width: 1fr;
     }
     #chat-log {
         height: 1fr;
-        border: tall #1e293b;
-        background: #1e293b 10%;
+        border: tall #2b2621;
+        background: #2b2621 10%;
         margin: 0 1 1 1;
         padding: 0 1;
         overflow-y: scroll;
@@ -110,10 +109,10 @@ class Mosaic(App):
     }
     #sidebar-resizer {
         width: 1;
-        background: #1e293b;
+        background: #2b2621;
     }
     #sidebar-resizer:hover, #sidebar-resizer.dragging {
-        background: $accent;
+        background: #a8917d;
     }
     #input-area {
         height: auto;
@@ -121,123 +120,301 @@ class Mosaic(App):
         padding: 0 2 1 2;
     }
     #user-input {
-        border: tall #334155;
-        background: #1e293b;
+        border: tall #453c35;
+        background: #26211e;
+        color: #d1bda2;
     }
     #user-input:focus {
-        border: tall $accent;
+        border: tall #a8917d;
     }
     .status-bar {
-        background: $accent;
-        color: white;
+        background: #a8917d;
+        color: #1c1917;
         padding: 0 1;
     }
     #settings-pane {
         width: 40;
         dock: right;
-        border-left: tall #334155;
-        background: #0f172a;
+        border-left: tall #453c35;
+        background: #1c1917;
         display: none;
         padding: 1 2;
     }
     #todo-sidebar {
         width: 35;
         dock: right;
-        border-left: tall #1e293b;
-        background: #0f172a;
+        border-left: tall #2b2621;
+        background: #1c1917;
         padding: 0 1;
     }
     #todo-sidebar-title {
         text-style: bold;
-        color: #8b5cf6;
+        color: #a8917d;
         margin-bottom: 1;
-        padding: 0 1;
+        padding: 1 1;
+        border-bottom: dashed #453c35;
     }
     #todo-list {
         height: 1fr;
+        padding: 0 1;
     }
+    
     TodoItem {
         height: auto;
+        margin-bottom: 1;
+        background: #26211e 20%;
+        border-left: solid #453c35;
+        padding: 0 1;
     }
+    TodoItem:hover {
+        background: #3d352e 30%;
+        border-left: solid #a8917d;
+    }
+    TodoItem.completed {
+        opacity: 0.6;
+    }
+    TodoItem.completed Label {
+        text-style: strike;
+        color: #7d6e5e;
+    }
+    
     TodoItem Vertical {
         width: 1fr;
         height: auto;
+        padding-left: 1;
     }
-    TodoItem Label, TodoItem Static {
-        width: 100%;
-        height: auto;
+    .todo-item-title {
+        color: #d1bda2;
+        text-style: bold;
     }
+    .todo-item-desc {
+        color: #8b7e6f;
+    }
+    
     #settings-pane Label {
         margin-top: 1;
         text-style: bold;
-        color: #94a3b8;
+        color: #a68f78;
     }
     #save-settings {
         margin-top: 2;
         width: 100%;
+        background: #a8917d;
+        color: #1c1917;
     }
     #workspace-info {
         margin-top: 1;
-        color: #64748b;
+        color: #7d6e5e;
         text-style: italic;
     }
     .tool-block {
-        background: #1e293b;
-        border: solid #334155;
-        border-left: solid #8b5cf6;
+        background: #26211e;
+        border: solid #453c35;
+        border-left: solid #a8917d;
         margin: 0 0 1 0;
         padding: 0;
         height: auto;
     }
     .tool-header {
         padding: 0 1;
-        background: #334155 40%;
+        background: #3d352e 60%;
         height: 1;
     }
     .tool-header:hover {
-        background: #8b5cf6 30%;
-        /* cursor: pointer; (Not supported in Textual) */
+        background: #a8917d 20%;
     }
     .tool-header #tool-title {
         width: 1fr;
-        color: #c084fc;
+        color: #d1bda2;
     }
     .tool-header #tool-chevron {
         width: 3;
         text-align: right;
-        color: #64748b;
+        color: #8b7e6f;
     }
     #tool-details {
         padding: 1 2;
-        background: #0f172a 50%;
+        background: #1c1917 50%;
         height: auto;
     }
     .tool-block.collapsed #tool-details {
         display: none;
     }
     .tool-params {
-        color: #94a3b8;
+        color: #8b7e6f;
         margin-bottom: 1;
         height: auto;
     }
     #tool-result-static {
-        border-top: dashed #334155;
+        border-top: dashed #453c35;
         padding-top: 1;
         height: auto;
     }
     .tool-header.has-result #tool-title {
-        color: #4ade80;
+        color: #d1bda2;
+        text-style: italic;
     }
     LoadingIndicator {
         height: 3;
-        color: #8b5cf6;
+        color: #a8917d;
         background: transparent;
     }
-
+    .provider-settings {
+        height: auto;
+        display: none;
+    }
+    #history-sidebar {
+        width: 30;
+        dock: left;
+        border-right: tall #2b2621;
+        background: #1c1917;
+        padding: 0 1;
+        display: none;
+    }
+    #history-sidebar-title {
+        text-style: bold;
+        color: #a8917d;
+        margin-bottom: 1;
+        padding: 1 1;
+        border-bottom: dashed #453c35;
+    }
+    #new-chat-btn {
+        width: 100%;
+        margin-bottom: 1;
+        background: #a8917d;
+        color: #1c1917;
+        margin-top: 1;
+    }
+    #history-list {
+        height: 1fr;
+    }
+    HistoryItem {
+        height: auto;
+        margin-bottom: 1;
+        padding: 1 1;
+        background: #26211e 20%;
+        border-left: solid #453c35;
+    }
+    HistoryItem:hover {
+        background: #3d352e 30%;
+        border-left: solid #a8917d;
+    }
+    .history-item-title {
+        color: #d1bda2;
+        text-style: bold;
+    }
+    .history-item-date {
+        color: #8b7e6f;
+    }
+    #memory-sidebar {
+        width: 35;
+        dock: left;
+        border-right: tall #2b2621;
+        background: #1c1917;
+        padding: 0 1;
+        display: none;
+    }
+    #memory-sidebar-title {
+        text-style: bold;
+        color: #a8917d;
+        margin-bottom: 1;
+        padding: 1 1;
+        border-bottom: dashed #453c35;
+    }
+    #memory-list {
+        height: 1fr;
+    }
+    MemoryItem {
+        height: auto;
+        margin-bottom: 1;
+        background: #26211e 20%;
+        border-left: solid #453c35;
+        padding: 0;
+    }
+    MemoryItem:hover {
+        background: #3d352e 30%;
+        border-left: solid #a8917d;
+    }
+    .memory-item-content {
+        width: 1fr;
+        padding: 0 1;
+    }
+    .memory-text {
+        color: #d1bda2;
+    }
+    .memory-footer {
+        height: 1;
+    }
+    .memory-date {
+        color: #7d6e5e;
+        font-size: 80%;
+    }
+    .memory-tags {
+        color: #a8917d;
+        font-size: 80%;
+    }
+    .delete-mem-btn {
+        min-width: 3;
+        width: 3;
+        height: 100%;
+        background: #451a1a;
+        color: #ff6b6b;
+        border: none;
+    }
+    #memory-input-area {
+        height: auto;
+        border-top: dashed #453c35;
+        padding: 1 0;
+    }
+    #memory-manual-input {
+        background: #26211e;
+        border: tall #453c35;
+    }
+    #tools-sidebar {
+        width: 35;
+        dock: left;
+        border-right: tall #2b2621;
+        background: #1c1917;
+        padding: 0 1;
+        display: none;
+    }
+    #tools-sidebar-title {
+        text-style: bold;
+        color: #a8917d;
+        margin-bottom: 1;
+        padding: 1 1;
+        border-bottom: dashed #453c35;
+    }
+    #tools-list {
+        height: 1fr;
+        padding: 0 1;
+    }
+    ToolItem {
+        height: auto;
+        margin-bottom: 1;
+        padding: 1 1;
+        background: #26211e 40%;
+        border-left: solid #453c35;
+    }
+    ToolItem:hover {
+        background: #3d352e 50%;
+        border-left: solid #a8917d;
+    }
+    .tool-item-name {
+        color: #a8917d;
+        text-style: bold;
+    }
+    .tool-item-desc {
+        color: #8b7e6f;
+        font-size: 90%;
+    }
     """
 
     BINDINGS = [
         Binding("ctrl+s", "toggle_settings", "Settings"),
+        Binding("ctrl+h", "toggle_history", "History"),
+        Binding("ctrl+m", "toggle_memory", "Memory"),
+        Binding("ctrl+t", "toggle_tools", "Tools"),
         Binding("ctrl+q", "quit", "Quit"),
         Binding("ctrl+c", "copy_last_message", "Copy Last", show=True),
         Binding("ctrl+l", "clear_log", "Clear"),
@@ -274,7 +451,15 @@ class Mosaic(App):
         self.workspace = os.path.abspath(workspace) if workspace else os.getcwd()
         self.model = os.getenv("MOSAIC_MODEL", "qwen/qwen3.5-27b")
         
+        # Session & Storage
+        self.chats_dir = os.path.join(self.workspace, ".mosaic", "chats")
+        os.makedirs(self.chats_dir, exist_ok=True)
+        self.current_session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
         self._init_llm()
+        
+        # Memory Manager
+        self.memory_manager = MemoryManager(self.workspace, self.llm)
 
         self.tools = [
             ReadFileTool(),
@@ -284,7 +469,9 @@ class Mosaic(App):
             RunCommandTool(),
             CreateTodoTool(),
             UpdateTodoTool(),
-            SyncTodoListTool()
+            SyncTodoListTool(),
+            StoreMemoryTool(self.memory_manager),
+            RecallMemoriesTool(self.memory_manager)
         ]
         self.history = []
 
@@ -304,6 +491,9 @@ class Mosaic(App):
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal():
+            yield HistorySidebar(id="history-sidebar")
+            yield MemorySidebar(id="memory-sidebar")
+            yield ToolsSidebar(id="tools-sidebar")
             with Vertical(id="chat-area"):
                 yield Vertical(id="chat-log")
                 with Horizontal(id="input-area"):
@@ -323,14 +513,17 @@ class Mosaic(App):
                     ("LM Studio", "lmstudio")
                 ], value=self.provider_type, id="provider-select")
 
-                yield Label("OpenRouter API Key")
-                yield Input(placeholder="sk-or-v1-...", value=self.api_key, id="api-key-input", password=True)
+                with Vertical(id="openrouter-settings", classes="provider-settings"):
+                    yield Label("OpenRouter API Key")
+                    yield Input(placeholder="sk-or-v1-...", value=self.api_key, id="api-key-input", password=True)
                 
-                yield Label("OpenAI API Key")
-                yield Input(placeholder="sk-...", value=self.openai_key, id="openai-key-input", password=True)
+                with Vertical(id="openai-settings", classes="provider-settings"):
+                    yield Label("OpenAI API Key")
+                    yield Input(placeholder="sk-...", value=self.openai_key, id="openai-key-input", password=True)
 
-                yield Label("LM Studio URL")
-                yield Input(placeholder="http://localhost:1234/v1", value=self.lmstudio_url, id="lmstudio-url-input")
+                with Vertical(id="lmstudio-settings", classes="provider-settings"):
+                    yield Label("LM Studio URL")
+                    yield Input(placeholder="http://localhost:1234/v1", value=self.lmstudio_url, id="lmstudio-url-input")
 
                 yield Label("Model")
                 yield Select([
@@ -348,6 +541,10 @@ class Mosaic(App):
         yield Footer()
 
     def on_mount(self):
+        self.update_provider_settings_visibility(self.provider_type)
+        self.query_one("#history-sidebar").refresh_history(self.chats_dir)
+        self.query_one("#memory-sidebar").refresh_memories(self.memory_manager.memories)
+        self.query_one("#tools-sidebar").refresh_tools(self.tools)
         self.add_message("[bold gold1]Welcome to Mosaic[/]")
         self.add_message("[dim]Press Ctrl+S for settings, Ctrl+Q to quit[/]\n")
         if self.provider_type == "openrouter" and not self.api_key:
@@ -372,6 +569,37 @@ class Mosaic(App):
         pane = self.query_one("#settings-pane")
         pane.display = not pane.display
 
+    def action_toggle_history(self):
+        sidebar = self.query_one("#history-sidebar")
+        memory = self.query_one("#memory-sidebar")
+        tools = self.query_one("#tools-sidebar")
+        if not sidebar.display:
+            memory.display = False 
+            tools.display = False
+        sidebar.display = not sidebar.display
+
+    def action_toggle_memory(self):
+        sidebar = self.query_one("#history-sidebar")
+        memory = self.query_one("#memory-sidebar")
+        tools = self.query_one("#tools-sidebar")
+        if not memory.display:
+            sidebar.display = False
+            tools.display = False
+        memory.display = not memory.display
+        if memory.display:
+            memory.refresh_memories(self.memory_manager.memories)
+
+    def action_toggle_tools(self):
+        sidebar = self.query_one("#history-sidebar")
+        memory = self.query_one("#memory-sidebar")
+        tools = self.query_one("#tools-sidebar")
+        if not tools.display:
+            sidebar.display = False
+            memory.display = False
+        tools.display = not tools.display
+        if tools.display:
+            tools.refresh_tools(self.tools)
+
     def action_clear_log(self):
         self.query_one("#chat-log").clear()
 
@@ -389,11 +617,11 @@ class Mosaic(App):
             return
         
         if self.provider_type == "openrouter" and not self.api_key:
-            self.query_one("#chat-log").write("[red]Error: Please set your OpenRouter API Key in settings (Ctrl+S)[/]")
+            self.add_message("[red]Error: Please set your OpenRouter API Key in settings (Ctrl+S)[/]")
             return
         
         if self.provider_type == "openai" and not self.openai_key:
-            self.query_one("#chat-log").write("[red]Error: Please set your OpenAI API Key in settings (Ctrl+S)[/]")
+            self.add_message("[red]Error: Please set your OpenAI API Key in settings (Ctrl+S)[/]")
             return
 
         event.input.value = ""
@@ -403,7 +631,7 @@ class Mosaic(App):
     @work(description="Agent processing")
     async def run_agent(self, prompt: str):
         log = self.query_one("#chat-log")
-        agent = Agent(self.llm, self.model, self.workspace, "User", self.tools)
+        agent = Agent(self.llm, self.model, self.workspace, "User", self.tools, memory_manager=self.memory_manager)
         
         current_assistant_static = None
         assistant_content = "" # Rich-formatted content for streaming
@@ -422,7 +650,7 @@ class Mosaic(App):
             if event["type"] in ["token", "tool_started", "error"]:
                 try:
                     loading.remove()
-                except:
+                except Exception:
                     pass
             
             if event["type"] == "token":
@@ -505,12 +733,112 @@ class Mosaic(App):
                         log.mount(Label("[bold spring_green3]ASSISTANT:[/]\n"))
                         log.mount(Markdown(raw_assistant_content))
                         log.scroll_end()
-                    except:
+                    except Exception:
                         pass
+                
+                # Save chat to history
+                self.save_chat()
 
         await agent.run(prompt, self.history, on_event)
         self.history.extend(agent.messages[1:]) # Skip system prompt in history
+        self.save_chat() # Final save to be sure
 
+    def save_chat(self):
+        if not self.history:
+            return
+        
+        filename = f"chat_{self.current_session_id}.json"
+        path = os.path.join(self.chats_dir, filename)
+        data = {
+            "session_id": self.current_session_id,
+            "last_updated": datetime.now().isoformat(),
+            "history": self.history
+        }
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+        
+        # Refresh the sidebar if it exists
+        try:
+            self.query_one("#history-sidebar").refresh_history(self.chats_dir)
+            self.query_one("#memory-sidebar").refresh_memories(self.memory_manager.memories)
+        except Exception:
+            pass
+
+    @on(MemorySidebar.AddRequested)
+    async def handle_memory_add(self, message: MemorySidebar.AddRequested):
+        self.notify("Generating embedding for memory...")
+        success = await self.memory_manager.store(message.text, tags=["manual"])
+        if success:
+            self.notify("Memory stored!")
+            self.query_one("#memory-sidebar").refresh_memories(self.memory_manager.memories)
+        else:
+            self.notify("Failed to store memory", severity="error")
+
+    @on(MemoryItem.DeleteRequested)
+    def handle_memory_delete(self, message: MemoryItem.DeleteRequested):
+        if self.memory_manager.delete(message.index):
+            self.notify("Memory deleted")
+            self.query_one("#memory-sidebar").refresh_memories(self.memory_manager.memories)
+        else:
+            self.notify("Failed to delete memory", severity="error")
+
+
+    @on(HistoryItem.Selected)
+    def handle_chat_selected(self, message: HistoryItem.Selected):
+        self.load_chat(message.session_id)
+
+    def load_chat(self, session_id: str):
+        path = os.path.join(self.chats_dir, f"chat_{session_id}.json")
+        if not os.path.exists(path):
+            self.notify("Chat file not found", severity="error")
+            return
+
+        try:
+            with open(path, "r") as f:
+                data = json.load(f)
+                self.history = data.get("history", [])
+                self.current_session_id = session_id
+                
+                # Refresh UI
+                log = self.query_one("#chat-log")
+                log.query("*").remove()
+                
+                for msg in self.history:
+                    # Filter out tool calls/results from view if they are too noisy?
+                    # For now, let's just show standard messages
+                    role = msg.get("role")
+                    content = msg.get("content", "")
+                    if role in ["user", "assistant"]:
+                        log.mount(ChatMessage(role, content))
+                
+                log.scroll_end()
+                self.notify(f"Loaded chat session: {session_id}")
+        except Exception as e:
+            self.notify(f"Failed to load chat: {str(e)}", severity="error")
+
+    @on(HistorySidebar.NewChatRequested)
+    def handle_new_chat(self):
+        # Save current before clearing
+        self.save_chat()
+        
+        # Reset
+        self.current_session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.history = []
+        self.query_one("#chat-log").query("*").remove()
+        self.add_message("[dim]New chat session started.[/]\n")
+        self.query_one("#history-sidebar").refresh_history(self.chats_dir)
+
+    @on(Select.Changed, "#provider-select")
+    def on_provider_changed(self, event: Select.Changed):
+        self.update_provider_settings_visibility(event.value)
+
+    def update_provider_settings_visibility(self, provider: str):
+        try:
+            self.query_one("#openrouter-settings").display = provider == "openrouter"
+            self.query_one("#openai-settings").display = provider == "openai"
+            self.query_one("#lmstudio-settings").display = provider == "lmstudio"
+        except Exception:
+            pass
 
     @on(Button.Pressed, "#save-settings")
     async def save_settings(self):
@@ -532,6 +860,7 @@ class Mosaic(App):
         set_key(self.config_path, "MOSAIC_PROVIDER", self.provider_type)
         
         self._init_llm()
+        self.memory_manager.llm_provider = self.llm
         self.add_message("[yellow]Settings saved and LLM re-initialized.[/]")
 
 

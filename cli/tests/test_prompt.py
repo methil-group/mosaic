@@ -1,4 +1,3 @@
-import pytest
 import json
 from mosaic_cli.core.prompt import PromptBuilder
 

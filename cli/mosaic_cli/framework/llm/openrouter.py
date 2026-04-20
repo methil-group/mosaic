@@ -69,6 +69,9 @@ class OpenRouter(LlmProvider):
                 if response.status_code == 200:
                     data = response.json()
                     return [m["id"] for m in data.get("data", [])]
-            except:
+            except Exception:
                 pass
         return []
+    async def get_embedding(self, text: str) -> List[float]:
+        # OpenRouter does not currently support a unified embeddings API.
+        raise NotImplementedError("Embeddings are not supported by the OpenRouter provider. Please use OpenAI for memories.")
