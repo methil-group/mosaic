@@ -7,6 +7,21 @@ Screen {
 #chat-area {
     width: 1fr;
 }
+#todo-container {
+    height: auto;
+    border-bottom: dashed #453c35;
+    margin-bottom: 1;
+    padding-bottom: 1;
+}
+#todo-container:empty {
+    display: none;
+}
+#todo-header {
+    color: #a8917d;
+    text-style: bold;
+    margin-bottom: 1;
+    padding: 0 1;
+}
 #chat-log {
     height: 1fr;
     border: tall #2b2621;

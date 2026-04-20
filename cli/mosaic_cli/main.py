@@ -148,7 +148,8 @@ class Mosaic(App):
             yield MemorySidebar(id="memory-sidebar")
             yield ToolsSidebar(id="tools-sidebar")
             with Vertical(id="chat-area"):
-                yield Vertical(id="chat-log")
+                with Vertical(id="chat-log"):
+                    yield Vertical(id="todo-container")
                 with Horizontal(id="input-area"):
                     yield Input(
                         placeholder="Ask anything... (@ to autocomplete files)", 
@@ -366,28 +367,26 @@ class Mosaic(App):
                     try:
                         data = json.loads(res)
                         if data.get("status") == "success":
-                            for todo in data["todos"]:
-                                item = TodoItem(
-                                    todo.get("title", "Task"),
-                                    todo.get("description", ""),
-                                    todo.get("id", "0"),
-                                    completed=todo.get("completed", False)
-                                )
-                                if todo.get("completed"):
-                                    item.add_class("completed")
+                            # Clear existing todos and replace with the full list
+                            try:
+                                todo_container = self.query_one("#todo-container")
+                                todo_container.query("*").remove()
                                 
-                                if turn_widgets:
-                                    log.mount(item, before=turn_widgets[0])
-                                else:
-                                    log.mount(item)
-                                    turn_widgets.append(item)
-                            
-                            sync_label = Label("[bold gold1]TODO LIST SYNCED:[/]")
-                            if turn_widgets:
-                                log.mount(sync_label, before=turn_widgets[0])
-                            else:
-                                log.mount(sync_label)
-                                turn_widgets.append(sync_label)
+                                todos = data.get("todos", [])
+                                if todos:
+                                    todo_container.mount(Label("[bold gold1]✔ TODO LIST[/]", id="todo-header"))
+                                    for todo in todos:
+                                        item = TodoItem(
+                                            todo.get("title", "Task"),
+                                            todo.get("description", ""),
+                                            todo.get("id", "0"),
+                                            completed=todo.get("completed", False)
+                                        )
+                                        if todo.get("completed"):
+                                            item.add_class("completed")
+                                        todo_container.mount(item)
+                            except Exception as e:
+                                self.notify(f"UI Error: todo container - {str(e)}", severity="error")
                     except Exception as e:
                         self.notify(f"UI Error: Failed to sync todo list - {str(e)}", severity="error")
 
