@@ -23,6 +23,9 @@ dev = [
 [project.scripts]
 mosaic = "mosaic_cli.main:run"
 
+[tool.setuptools.package-data]
+mosaic_cli = ["*.css"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["mosaic_cli*"]

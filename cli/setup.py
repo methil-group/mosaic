@@ -15,4 +15,8 @@ setup(
             "mosaic=mosaic_cli.main:run",
         ],
     },
+    include_package_data=True,
+    package_data={
+        "mosaic_cli": ["*.css"],
+    },
 )
