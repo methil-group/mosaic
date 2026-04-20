@@ -32,7 +32,20 @@ spinner() {
         i=$(( (i + 1) % ${#frames[@]} ))
         sleep $delay
     done
-    printf "\r"  # clear the spinner line — caller will print the Done! line
+    printf "\r"  # clear the spinner line
+}
+
+draw_progress_bar() {
+    local percentage=$1
+    local msg=$2
+    local width=30
+    local filled=$(( width * percentage / 100 ))
+    local empty=$(( width - filled ))
+    printf "\r  ${BOLD}${PURPLE}📥${NC} %-30s ${BOLD}[${PURPLE}" "$msg"
+    for ((i=0; i<$filled; i++)); do printf "█"; done
+    printf "${DIM}"
+    for ((i=0; i<$empty; i++)); do printf "░"; done
+    printf "${NC}${BOLD}]${NC} ${CYAN}%3d%%${NC}" "$percentage"
 }
 
 # Function to check for commands
@@ -41,8 +54,15 @@ check_command() {
 }
 
 clear
-echo -e "${PURPLE}${BOLD}🧩 Mosaic Installer${NC}"
-echo -e "${DIM}----------------------------------------${NC}"
+echo -e "${PURPLE}${BOLD}"
+echo "  __  __  ____   _____         _____  _____  "
+echo " |  \/  |/ __ \ / ____|  /\   |_   _|/ ____| "
+echo " | \  / | |  | | (___   /  \    | | | |      "
+echo " | |\/| | |  | |\___ \ / /\ \   | | | |      "
+echo " | |  | | |__| |____) / ____ \ _| |_| ____  "
+echo " |_|  |_|\____/|_____/_/    \_\_____|\_____| "
+echo -e "${NC}"
+echo -e "${DIM}------------------------------------------------------------${NC}"
 
 # Check requirements
 if ! check_command git; then
@@ -92,18 +112,22 @@ INSTALL_TEMP=$(mktemp -d 2>/dev/null || mktemp -d -t 'mosaic')
 echo -e "📂 Preparing build space in ${BLUE}$INSTALL_TEMP${NC}..."
 
 # Clone with depth 1
-printf "📥 Downloading Mosaic...\n"
-git clone "$REPO_URL" "$INSTALL_TEMP" --depth 1 &>/dev/null &
-spinner $! "Downloading Mosaic..."
-echo -e "   ${GREEN}✓ Downloaded!${NC}"
+printf "📥 Downloading Mosaic Assets...\n"
+# Using git clone --progress and parsing stderr for percentage
+git clone --progress "$REPO_URL" "$INSTALL_TEMP" --depth 1 2>&1 | while read -d $'\r' -r line; do
+    if [[ "$line" =~ ([0-9]+)% ]]; then
+        draw_progress_bar "${BASH_REMATCH[1]}" "Downloading repository"
+    fi
+done
+echo -e "\n   ${GREEN}✓ Downloaded!${NC}"
 
 cd "$INSTALL_TEMP"
 
 # Clean up
 printf "🧹 Cleaning environment...\n"
 $PYTHON_CMD -m pip uninstall -y mosaic-tui &>/dev/null &
-spinner $! "Cleaning old install..."
-echo -e "   ${GREEN}✓ Done!${NC}"
+spinner $! "Removing old installation"
+echo -e "   ${GREEN}✓ Environment clean!${NC}"
 
 # Install CLI
 INSTALL_FLAGS=""
@@ -141,4 +165,4 @@ if ! check_command mosaic; then
 else
     echo -e "🚀 Run ${PURPLE}${BOLD}mosaic${NC} to start."
 fi
-echo -e "${DIM}----------------------------------------${NC}"
+echo -e "${DIM}------------------------------------------------------------${NC}"
