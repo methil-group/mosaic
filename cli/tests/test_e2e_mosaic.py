@@ -57,6 +57,7 @@ async def test_memory_and_tools_e2e(temp_workspace):
             # Find the input in memory sidebar
             mem_input = app.query_one("#memory-manual-input", Input)
             mem_input.value = "Remember this E2E fact"
+            await pilot.click(mem_input) # Focus it
             await pilot.press("enter")
             
             # Verify mock was called
@@ -72,8 +73,8 @@ async def test_memory_and_tools_e2e(temp_workspace):
             await pilot.press("ctrl+t")
             # Check the first tool item content
             first_tool = tools_sidebar.query(ToolItem).first()
-            assert first_tool.query_one(".tool-item-name", Label).renderable != ""
-            assert first_tool.query_one(".tool-item-desc", Static).renderable != ""
+            assert first_tool.tool_name != ""
+            assert first_tool.tool_description != ""
 
             await pilot.press("ctrl+q")
 

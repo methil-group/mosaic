@@ -347,11 +347,9 @@ class Mosaic(App):
     }
     .memory-date {
         color: #7d6e5e;
-        font-size: 80%;
     }
     .memory-tags {
         color: #a8917d;
-        font-size: 80%;
     }
     .delete-mem-btn {
         min-width: 3;
@@ -406,7 +404,6 @@ class Mosaic(App):
     }
     .tool-item-desc {
         color: #8b7e6f;
-        font-size: 90%;
     }
     """
 
