@@ -50,6 +50,9 @@ TodoItem {
     border-left: solid #453c35;
     padding: 0 1;
 }
+TodoItem Vertical {
+    height: auto;
+}
 TodoItem:hover {
     background: #3d352e 50%;
     border-left: solid #a8917d;
@@ -175,9 +178,12 @@ LoadingIndicator {
 HistoryItem {
     height: auto;
     margin-bottom: 1;
-    padding: 1 1;
+    padding: 0 1;
     background: #26211e 20%;
     border-left: solid #453c35;
+}
+HistoryItem Vertical {
+    height: auto;
 }
 HistoryItem:hover {
     background: #3d352e 30%;
@@ -215,6 +221,9 @@ MemoryItem {
     background: #26211e 20%;
     border-left: solid #453c35;
     padding: 0;
+}
+MemoryItem Vertical {
+    height: auto;
 }
 MemoryItem:hover {
     background: #3d352e 30%;
@@ -276,9 +285,12 @@ MemoryItem:hover {
 ToolItem {
     height: auto;
     margin-bottom: 1;
-    padding: 1 1;
+    padding: 0 1;
     background: #26211e 40%;
     border-left: solid #453c35;
+}
+ToolItem Vertical {
+    height: auto;
 }
 ToolItem:hover {
     background: #3d352e 50%;
