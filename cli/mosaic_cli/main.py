@@ -287,8 +287,12 @@ class Mosaic(App):
         log.mount(loading)
         log.scroll_end()
         
-        def on_event(event):
-            nonlocal current_assistant_static, assistant_content, current_tool_block, raw_assistant_content
+        turn_widgets = []
+        
+        async def on_event(event):
+            nonlocal current_assistant_static, assistant_content, raw_assistant_content, current_tool_block
+            
+            log = self.query_one("#chat-log")
             
             # Remove loading indicator on first relevant event
             if event["type"] in ["token", "tool_started", "error"]:
@@ -300,7 +304,11 @@ class Mosaic(App):
             if event["type"] == "token":
                 if not current_assistant_static:
                     current_assistant_static = Static("")
-                    log.mount(current_assistant_static)
+                    if turn_widgets:
+                        log.mount(current_assistant_static, before=turn_widgets[0])
+                    else:
+                        log.mount(current_assistant_static)
+                    turn_widgets.append(current_assistant_static)
                     assistant_content = "[bold spring_green3]ASSISTANT:[/]\n"
                 
                 raw_assistant_content += event["data"]
@@ -315,7 +323,11 @@ class Mosaic(App):
                 
                 # Create the collapsible tool block
                 current_tool_block = ToolBlock(event['name'], event['parameters'])
-                log.mount(current_tool_block)
+                if turn_widgets:
+                    log.mount(current_tool_block, before=turn_widgets[0])
+                else:
+                    log.mount(current_tool_block)
+                turn_widgets.append(current_tool_block)
                 log.scroll_end()
                 
             elif event["type"] == "tool_finished":
@@ -326,12 +338,20 @@ class Mosaic(App):
                     try:
                         data = json.loads(res)
                         if data.get("status") == "success":
-                            log.mount(Label("[bold gold1]NEW TODO:[/]"))
-                            log.mount(TodoItem(
+                            label = Label("[bold gold1]NEW TODO:[/]")
+                            item = TodoItem(
                                 data["todo"]["title"],
                                 data["todo"]["description"],
                                 data["todo"].get("id", "0")
-                            ))
+                            )
+                            if turn_widgets:
+                                log.mount(label, before=turn_widgets[0])
+                                log.mount(item, before=turn_widgets[0])
+                            else:
+                                log.mount(label)
+                                log.mount(item)
+                                turn_widgets.append(label)
+                                turn_widgets.append(item)
                     except Exception as e:
                         self.notify(f"UI Error: Failed to show todo - {str(e)}", severity="error")
                 
@@ -339,16 +359,28 @@ class Mosaic(App):
                     try:
                         data = json.loads(res)
                         if data.get("status") == "success":
-                            log.mount(Label("[bold gold1]TODO LIST SYNCED:[/]"))
                             for todo in data["todos"]:
                                 item = TodoItem(
                                     todo.get("title", "Task"),
                                     todo.get("description", ""),
-                                    todo.get("id", "0")
+                                    todo.get("id", "0"),
+                                    completed=todo.get("completed", False)
                                 )
                                 if todo.get("completed"):
                                     item.add_class("completed")
-                                log.mount(item)
+                                
+                                if turn_widgets:
+                                    log.mount(item, before=turn_widgets[0])
+                                else:
+                                    log.mount(item)
+                                    turn_widgets.append(item)
+                            
+                            sync_label = Label("[bold gold1]TODO LIST SYNCED:[/]")
+                            if turn_widgets:
+                                log.mount(sync_label, before=turn_widgets[0])
+                            else:
+                                log.mount(sync_label)
+                                turn_widgets.append(sync_label)
                     except Exception as e:
                         self.notify(f"UI Error: Failed to sync todo list - {str(e)}", severity="error")
 
