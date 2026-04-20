@@ -86,6 +86,9 @@ class Mosaic(App):
     Screen {
         background: #1c1917;
     }
+    #main-container {
+        height: 1fr;
+    }
     #chat-area {
         width: 1fr;
     }
@@ -133,7 +136,6 @@ class Mosaic(App):
     }
     #todo-sidebar {
         width: 35;
-        dock: right;
         border-left: tall #2b2621;
         background: #1c1917;
         padding: 0 1;
@@ -148,6 +150,8 @@ class Mosaic(App):
     #todo-list {
         height: 1fr;
         padding: 0 1;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
     }
     
     TodoItem {
@@ -256,11 +260,9 @@ class Mosaic(App):
     }
     #history-sidebar {
         width: 30;
-        dock: left;
         border-right: tall #2b2621;
         background: #1c1917;
         padding: 0 1;
-        display: none;
     }
     #history-sidebar-title {
         text-style: bold;
@@ -278,6 +280,8 @@ class Mosaic(App):
     }
     #history-list {
         height: 1fr;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
     }
     HistoryItem {
         height: auto;
@@ -299,7 +303,6 @@ class Mosaic(App):
     }
     #memory-sidebar {
         width: 35;
-        dock: left;
         border-right: tall #2b2621;
         background: #1c1917;
         padding: 0 1;
@@ -314,6 +317,8 @@ class Mosaic(App):
     }
     #memory-list {
         height: 1fr;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
     }
     MemoryItem {
         height: auto;
@@ -361,7 +366,6 @@ class Mosaic(App):
     }
     #tools-sidebar {
         width: 35;
-        dock: left;
         border-right: tall #2b2621;
         background: #1c1917;
         padding: 0 1;
@@ -377,6 +381,8 @@ class Mosaic(App):
     #tools-list {
         height: 1fr;
         padding: 0 1;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
     }
     ToolItem {
         height: auto;
@@ -395,6 +401,93 @@ class Mosaic(App):
     }
     .tool-item-desc {
         color: #8b7e6f;
+    }
+    Header {
+        background: #2b2621;
+        color: #a8917d;
+        text-style: bold;
+    }
+    Footer {
+        background: #2b2621;
+        color: #7d6e5e;
+    }
+    Footer > .footer--highlight {
+        background: #a8917d;
+        color: #1c1917;
+    }
+    Footer > .footer--key {
+        color: #a8917d;
+        text-style: bold;
+    }
+    Button {
+        background: #3d352e;
+        color: #d1bda2;
+        border: none;
+        height: 3;
+    }
+    Button:hover {
+        background: #a8917d;
+        color: #1c1917;
+    }
+    Button.-active {
+        background: #a8917d;
+        color: #1c1917;
+    }
+    Select {
+        background: #26211e;
+        border: tall #453c35;
+        color: #d1bda2;
+    }
+    Select:focus {
+        border: tall #a8917d;
+    }
+    Input {
+        background: #26211e;
+        border: tall #453c35;
+        color: #d1bda2;
+    }
+    Input:focus {
+        border: tall #a8917d;
+    }
+    Checkbox {
+        color: #a8917d;
+    }
+    Checkbox > .checkbox--label {
+        color: #d1bda2;
+    }
+    Checkbox.-on .checkbox--toggle {
+        color: #a8917d;
+    }
+    Markdown {
+        background: transparent;
+        color: #d1bda2;
+        padding: 0 1;
+    }
+    Markdown h1, Markdown h2, Markdown h3 {
+        color: #a8917d;
+        text-style: bold;
+        border-bottom: dashed #453c35;
+        width: 100%;
+    }
+    Markdown code {
+        background: #26211e;
+        color: #e6dbb2;
+        text-style: italic;
+    }
+    Markdown fence {
+        background: #1c1917;
+        border: solid #453c35;
+        margin: 1 0;
+    }
+    Markdown blockquote {
+        background: #2b2621;
+        border-left: solid #a8917d;
+        color: #8b7e6f;
+        italic: yes;
+    }
+    Markdown link {
+        color: #a8917d;
+        text-decoration: underline;
     }
     """
 
@@ -465,7 +558,7 @@ class Mosaic(App):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        with Horizontal():
+        with Horizontal(id="main-container"):
             yield HistorySidebar(id="history-sidebar")
             yield MemorySidebar(id="memory-sidebar")
             yield ToolsSidebar(id="tools-sidebar")
