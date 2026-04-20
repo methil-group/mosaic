@@ -240,12 +240,6 @@ class Mosaic(App):
     def action_clear_log(self):
         self.query_one("#chat-log").clear()
 
-    @on(SidebarResizer.Resized)
-    def handle_sidebar_resize(self, message: SidebarResizer.Resized):
-        sidebar = self.query_one("#todo-sidebar")
-        new_width = self.size.width - message.screen_x
-        if 15 < new_width < self.size.width - 20:
-            sidebar.styles.width = new_width
 
     @on(Input.Submitted, "#user-input")
     async def on_input_submitted(self, event: Input.Submitted):
