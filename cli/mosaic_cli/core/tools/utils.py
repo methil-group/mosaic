@@ -10,12 +10,13 @@ def resolve_path(path: str, workspace: str) -> str:
             return normalized_path
             
     # Otherwise, treat it as relative to workspace
-    # Remove any absolute path prefix or leading slashes to force relative to workspace
-    clean_path = path.lstrip("/").lstrip("\\")
+    # Normalize separators to / then to OS default
+    path = path.replace("\\", "/")
+    clean_path = path.lstrip("/")
     
-    # On Windows, if a path starts with a drive letter, strip it
+    # On Windows, if a path starts with a drive letter (e.g. C:), strip it
     if len(clean_path) > 1 and clean_path[1] == ":":
-        clean_path = clean_path[2:].lstrip("/").lstrip("\\")
+        clean_path = clean_path[2:].lstrip("/")
         
     resolved = os.path.normpath(os.path.join(abs_workspace, clean_path))
     

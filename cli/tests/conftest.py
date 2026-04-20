@@ -1,5 +1,6 @@
 import os
 import pytest
+import tempfile
 
 @pytest.fixture
 def temp_workspace(tmp_path):
@@ -11,7 +12,8 @@ def temp_workspace(tmp_path):
 def clean_env():
     # Ensure tests don't touch the user's actual .mosaic.env
     old_env = os.environ.get("MOSAIC_CONFIG_PATH")
-    os.environ["MOSAIC_CONFIG_PATH"] = "/tmp/.mosaic_test.env"
+    temp_env_path = os.path.join(tempfile.gettempdir(), ".mosaic_test.env")
+    os.environ["MOSAIC_CONFIG_PATH"] = temp_env_path
     yield
     if old_env:
         os.environ["MOSAIC_CONFIG_PATH"] = old_env

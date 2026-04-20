@@ -437,7 +437,8 @@ class Mosaic(App):
         if os.path.exists(self.config_path):
             load_dotenv(self.config_path)
         else:
-            open(self.config_path, 'a').close()
+            with open(self.config_path, 'a', encoding='utf-8') as f:
+                pass
 
         self.api_key = os.getenv("OPENROUTER_API_KEY", "")
         self.openai_key = os.getenv("OPENAI_API_KEY", "")
@@ -751,8 +752,8 @@ class Mosaic(App):
             "last_updated": datetime.now().isoformat(),
             "history": self.history
         }
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
         
         # Refresh the sidebar if it exists
         try:
@@ -791,7 +792,7 @@ class Mosaic(App):
             return
 
         try:
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 self.history = data.get("history", [])
                 self.current_session_id = session_id
