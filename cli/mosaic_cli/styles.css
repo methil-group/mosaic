@@ -352,7 +352,19 @@ Markdown {
     color: #d1bda2;
     padding: 0 1;
 }
-Markdown h1, Markdown h2, Markdown h3 {
+Markdown h1 {
+    color: #a8917d;
+    text-style: bold;
+    border-bottom: dashed #453c35;
+    width: 100%;
+}
+Markdown h2 {
+    color: #a8917d;
+    text-style: bold;
+    border-bottom: dashed #453c35;
+    width: 100%;
+}
+Markdown h3 {
     color: #a8917d;
     text-style: bold;
     border-bottom: dashed #453c35;
@@ -377,4 +389,55 @@ Markdown blockquote {
 Markdown link {
     color: #a8917d;
     text-decoration: underline;
+}
+
+/* 
+ * ==========================================
+ * MOSAIC PREMIUM THEME - GOLD & DARK BROWN
+ * ==========================================
+ * 
+ * Palette:
+ * - Background: #1c1917 (Stone 950)
+ * - Secondary:  #2b2621 (Stone 900)
+ * - Border:     #453c35 (Stone 800)
+ * - Accent:     #a8917d (Gold/Copper)
+ * - Text:       #d1bda2 (Light Stone)
+ * 
+ * This theme is designed for high-contrast readability 
+ * while maintaining a premium, "Gold & Leather" aesthetic.
+ */
+
+/* Micro-animations and hover states for all interactive elements */
+Button:hover {
+    background: #a8917d;
+    color: #1c1917;
+}
+
+Input:focus {
+    border: tall #a8917d;
+}
+
+Select:focus {
+    border: tall #a8917d;
+}
+
+/* Tool Result Styling */
+#tool-result-static {
+    background: #1c1917;
+    color: #d1bda2;
+}
+
+/* Chat Log Scrollbar styling */
+#chat-log {
+    scrollbar-color: #a8917d;
+    scrollbar-background: #1c1917;
+}
+
+/* Ensure consistent borders across all components */
+HistoryItem, MemoryItem, ToolItem, TodoItem {
+    border-left: solid #453c35;
+}
+
+HistoryItem:hover, MemoryItem:hover, ToolItem:hover, TodoItem:hover {
+    border-left: solid #a8917d;
 }
