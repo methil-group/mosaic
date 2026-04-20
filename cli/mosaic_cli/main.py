@@ -148,8 +148,8 @@ class Mosaic(App):
             yield MemorySidebar(id="memory-sidebar")
             yield ToolsSidebar(id="tools-sidebar")
             with Vertical(id="chat-area"):
-                with Vertical(id="chat-log"):
-                    yield Vertical(id="todo-container")
+                yield Vertical(id="todo-container")
+                yield Vertical(id="chat-log")
                 with Horizontal(id="input-area"):
                     yield Input(
                         placeholder="Ask anything... (@ to autocomplete files)", 
@@ -341,54 +341,44 @@ class Mosaic(App):
             elif event["type"] == "tool_finished":
                 res = event['result']
                 
-                # Check for todo tools
-                if event['name'] == "create_todo":
+                # Unified TODO handling
+                if event['name'] in ["create_todo", "sync_todo_list", "update_todo"]:
                     try:
                         data = json.loads(res)
                         if data.get("status") == "success":
-                            label = Label("[bold gold1]NEW TODO:[/]")
-                            item = TodoItem(
-                                data["todo"]["title"],
-                                data["todo"]["description"],
-                                data["todo"].get("id", "0")
-                            )
-                            if turn_widgets:
-                                log.mount(label, before=turn_widgets[0])
-                                log.mount(item, before=turn_widgets[0])
-                            else:
-                                log.mount(label)
-                                log.mount(item)
-                                turn_widgets.append(label)
-                                turn_widgets.append(item)
+                            todo_container = self.query_one("#todo-container")
+                            todo_container.query("*").remove()
+                            
+                            # Fetch list from result (sync_todo_list) or use internal logic
+                            # For create/update, we usually want to trigger a sync or show the new state
+                            # But most todo tools return the full list or enough info
+                            todos = data.get("todos", [])
+                            # If it's a single todo (create_todo), the tool might return it in data['todo']
+                            if not todos and "todo" in data:
+                                # This is a fallback but ideally the model calls sync_todo_list
+                                # Or we could ask the agent to always sync.
+                                # For now, let's just use what we have.
+                                pass 
+                            
+                            if todos:
+                                todo_container.mount(Label("[bold gold1]✔ TODO LIST[/]", id="todo-header"))
+                                for todo in todos:
+                                    item = TodoItem(
+                                        todo.get("title", "Task"),
+                                        todo.get("description", ""),
+                                        todo.get("id", "0"),
+                                        completed=todo.get("completed", False)
+                                    )
+                                    if todo.get("completed"):
+                                        item.add_class("completed")
+                                    todo_container.mount(item)
+                            elif "todo" in data:
+                                # If it's just one todo from create_todo, we still want to show the container
+                                # but usually we want the full list. 
+                                # Best practice: agent should call sync_todo_list.
+                                pass
                     except Exception as e:
-                        self.notify(f"UI Error: Failed to show todo - {str(e)}", severity="error")
-                
-                if event['name'] == "sync_todo_list":
-                    try:
-                        data = json.loads(res)
-                        if data.get("status") == "success":
-                            # Clear existing todos and replace with the full list
-                            try:
-                                todo_container = self.query_one("#todo-container")
-                                todo_container.query("*").remove()
-                                
-                                todos = data.get("todos", [])
-                                if todos:
-                                    todo_container.mount(Label("[bold gold1]✔ TODO LIST[/]", id="todo-header"))
-                                    for todo in todos:
-                                        item = TodoItem(
-                                            todo.get("title", "Task"),
-                                            todo.get("description", ""),
-                                            todo.get("id", "0"),
-                                            completed=todo.get("completed", False)
-                                        )
-                                        if todo.get("completed"):
-                                            item.add_class("completed")
-                                        todo_container.mount(item)
-                            except Exception as e:
-                                self.notify(f"UI Error: todo container - {str(e)}", severity="error")
-                    except Exception as e:
-                        self.notify(f"UI Error: Failed to sync todo list - {str(e)}", severity="error")
+                        self.notify(f"UI Error: todo sync - {str(e)}", severity="error")
 
                 file_modified = any(x in event['name'] for x in ["edit_file", "write_file", "create_todo", "update_todo"])
                 

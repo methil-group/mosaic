@@ -9,9 +9,12 @@ Screen {
 }
 #todo-container {
     height: auto;
-    border-bottom: dashed #453c35;
-    margin-bottom: 1;
-    padding-bottom: 1;
+    max-height: 12;
+    overflow-y: scroll;
+    border-bottom: tall #453c35;
+    margin: 0 1 1 1;
+    padding: 0 1;
+    background: #2b2621 15%;
 }
 #todo-container:empty {
     display: none;

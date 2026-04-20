@@ -12,9 +12,9 @@ class TodoItem(Horizontal):
 
     def compose(self):
         status = "[x]" if self.completed else "[ ]"
-        yield Label(status, id=f"todo-status-{self.todo_id}", classes="todo-status")
+        status_color = "spring_green3" if self.completed else "gold1"
+        yield Label(f"[{status_color}]{status}[/]", id=f"todo-status-{self.todo_id}", classes="todo-status")
         with Vertical():
             yield Label(self.todo_title, classes="todo-item-title")
-            if self.description:
-                yield Static(self.description, classes="todo-item-desc", id=f"todo-desc-{self.todo_id}")
+            # Description is hidden in the summary list for cleanliness
 
