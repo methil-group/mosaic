@@ -192,6 +192,7 @@ class Mosaic(App):
 
                 yield Button("Save & Refresh", variant="primary", id="save-settings")
                 yield Static(f"Workspace: {escape(self.workspace)}", id="workspace-info")
+                yield Label("Made by Methil", id="methil-credit")
         yield Footer()
 
     def on_mount(self):
@@ -199,7 +200,7 @@ class Mosaic(App):
         self.query_one("#history-sidebar").refresh_history(self.session.chats_dir)
         self.query_one("#memory-sidebar").refresh_memories(self.memory_manager.memories)
         self.query_one("#tools-sidebar").refresh_tools(self.tools)
-        self.add_message("[bold gold1]Welcome to Mosaic[/]")
+        self.add_message("[bold gold1]Welcome to Mosaic[/] [dim](Made by Methil)[/]")
         self.add_message("[dim]Press Ctrl+S for settings, Ctrl+Q to quit[/]\n")
         if self.provider_type == "openrouter" and not self.api_key:
             self.add_message("[red]Warning: OpenRouter API Key not set. Use Ctrl+S to enter it.[/]")

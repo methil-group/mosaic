@@ -162,6 +162,14 @@ TodoItem Vertical {
     color: #7d6e5e;
     text-style: italic;
 }
+#methil-credit {
+    width: 100%;
+    text-align: center;
+    margin-top: 1;
+    color: #7d6e5e;
+    opacity: 0.5;
+    text-style: italic;
+}
 .tool-block {
     background: #26211e;
     border: solid #453c35;
