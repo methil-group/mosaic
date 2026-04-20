@@ -7,6 +7,8 @@ from typing import List, Dict, Any, Callable, Optional, Tuple
 from .memory import MemoryManager
 from .prompt import PromptBuilder
 from .tools.base import Tool
+from .parser import ToolCallParser
+from .stream import StreamProcessor
 from ..framework.llm.base import LlmProvider
 
 class Agent:
@@ -73,79 +75,28 @@ class Agent:
                 on_event({"type": "error", "message": "Max steps reached"})
                 break
             
-            full_text = ""
-            buffer = ""
-            masking = False
+            processor = StreamProcessor(on_event)
             try:
                 async for event in self.llm.stream_chat(self.model, self.messages):
                     if self.stopped:
                         break
                     
                     if event["type"] == "token":
-                        token = event["data"]
-                        full_text += token
-                        
-                        # Buffering logic for tool masking
-                        buffer += token
-                        
-                        while buffer:
-                            if not masking:
-                                if "<tool_call>" in buffer:
-                                    # Start of a tool call found
-                                    pre_tag, post_tag = buffer.split("<tool_call>", 1)
-                                    if pre_tag:
-                                        on_event({"type": "token", "data": pre_tag})
-                                    masking = True
-                                    buffer = "<tool_call>" + post_tag
-                                elif "<" in buffer:
-                                    # Potential tag starting
-                                    idx = buffer.find("<")
-                                    if idx > 0:
-                                        # Emit everything before the first "<"
-                                        on_event({"type": "token", "data": buffer[:idx]})
-                                        buffer = buffer[idx:]
-                                        continue
-                                    
-                                    # Buffer starts with "<". Check if it's still a possible prefix of "<tool_call>"
-                                    if not "<tool_call>".startswith(buffer):
-                                        # It's not a tool call tag (might be <thought> or something else)
-                                        # Emit the first character and continue
-                                        on_event({"type": "token", "data": buffer[0]})
-                                        buffer = buffer[1:]
-                                        continue
-                                    else:
-                                        # It's a prefix of "<tool_call>", wait for more tokens
-                                        break
-                                else:
-                                    # No tags at all, emit everything
-                                    on_event({"type": "token", "data": buffer})
-                                    buffer = ""
-                            else:
-                                # We are masking content inside <tool_call> tags
-                                end_match = re.search(r"</(?:tool_call|tool_answer|tool_response)>", buffer)
-                                if end_match:
-                                    # End of tool call found
-                                    idx = end_match.end()
-                                    # We don't emit the tool call itself
-                                    masking = False
-                                    buffer = buffer[idx:]
-                                    # Continue processing the rest of the buffer
-                                    continue
-                                else:
-                                    # Still inside a tool call, wait for the closing tag
-                                    break
-                    
+                        processor.process_token(event["data"])
                     elif event["type"] == "usage":
                         on_event({"type": "usage", "data": event["data"]})
                     elif event["type"] == "error":
                         on_event({"type": "error", "message": event["message"]})
                         return
                 
-                # If anything left in buffer, flush it (only if not masking)
-                if buffer and not masking:
-                    on_event({"type": "token", "data": buffer})
+                processor.flush()
+                full_text = processor.full_text
                 
                 self._log(f"Raw LLM Response:\n{full_text}", "LLM_RESPONSE")
+            except Exception as e:
+                self._log(f"Error in stream: {str(e)}", "ERROR")
+                on_event({"type": "error", "message": str(e)})
+                return
             except Exception as e:
                 self._log(f"Error in stream: {str(e)}", "ERROR")
                 on_event({"type": "error", "message": str(e)})
@@ -170,7 +121,7 @@ class Agent:
             if full_text.strip():
                 consecutive_empty_responses = 0
 
-            tool_call = self.parse_tool_call(full_text)
+            tool_call = ToolCallParser.parse(full_text)
             if tool_call:
                 consecutive_retries = 0
                 name, params = tool_call
@@ -211,43 +162,3 @@ class Agent:
                 on_event({"type": "final_answer", "data": full_text})
                 break
 
-    def parse_tool_call(self, content: str) -> Optional[Tuple[str, Dict[str, Any]]]:
-        try:
-            match = re.search(r"<tool_call>(.*?)</(?:tool_call|tool_answer|tool_response)>", content, re.DOTALL)
-            if not match:
-                return None
-            
-            inner = match.group(1).strip()
-            
-            json_str = inner
-            
-            # Robust JSON extraction:
-            # Try to find all possible JSON objects within the tags by attempting to parse 
-            # every substring starting with '{' and ending with '}'.
-            
-            starts = [m.start() for m in re.finditer(r"\{", json_str)]
-            ends = [m.start() for m in re.finditer(r"\}", json_str)]
-            
-            # Try from longest to shortest to catch outer objects first
-            for start in starts:
-                for end in reversed(ends):
-                    if end <= start:
-                        continue
-                    
-                    block = json_str[start:end+1].strip()
-                    try:
-                        data = json.loads(block)
-                        if isinstance(data, dict) and "name" in data:
-                            name = str(data["name"])
-                            args = data.get("arguments", {})
-                            if not isinstance(args, dict):
-                                args = {}
-                            return name, args
-                    except Exception:
-                        continue
-            
-            self._log(f"No valid tool call JSON found in content: {inner[:200]}...", "PARSE_ERROR")
-            return None
-        except Exception as e:
-            self._log(f"Unexpected error in parse_tool_call: {str(e)}", "PARSE_ERROR")
-            return None

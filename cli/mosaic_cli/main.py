@@ -2,8 +2,6 @@ import os
 from typing import Union
 import sys
 import json
-from datetime import datetime
-from dotenv import load_dotenv, set_key
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal
 from textual.widgets import Header, Footer, Input, Static, Button, Select, Label, LoadingIndicator, Markdown
@@ -15,17 +13,10 @@ from textual.message import Message
 
 from .core.agent import Agent
 from .core.memory import MemoryManager
+from .core.config import ConfigManager
+from .core.session import SessionManager
+from .core.tools.registry import ToolRegistry
 from .core.components import ChatMessage, ToolBlock, TodoSidebar, HistorySidebar, HistoryItem, MemorySidebar, MemoryItem, ToolsSidebar
-from .core.tools.read_file import ReadFileTool
-from .core.tools.write_file import WriteFileTool
-from .core.tools.edit_file import EditFileTool
-from .core.tools.list_directory import ListDirectoryTool
-from .core.tools.run_command import RunCommandTool
-from .core.tools.create_todo import CreateTodoTool
-from .core.tools.update_todo import UpdateTodoTool
-from .core.tools.sync_todo_list import SyncTodoListTool
-from .core.tools.store_memory import StoreMemoryTool
-from .core.tools.recall_memories import RecallMemoriesTool
 
 from .framework.llm.openrouter import OpenRouter
 from .framework.llm.openai import OpenAiProvider
@@ -433,44 +424,30 @@ class Mosaic(App):
 
     def __init__(self, workspace: str = None):
         super().__init__()
-        self.config_path = os.path.expanduser("~/.mosaic.env")
-        if os.path.exists(self.config_path):
-            load_dotenv(self.config_path)
-        else:
-            with open(self.config_path, 'a', encoding='utf-8') as f:
-                pass
-
-        self.api_key = os.getenv("OPENROUTER_API_KEY", "")
-        self.openai_key = os.getenv("OPENAI_API_KEY", "")
-        self.openai_base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-        self.lmstudio_url = os.getenv("LM_STUDIO_URL", "http://localhost:1234/v1")
-        self.provider_type = os.getenv("MOSAIC_PROVIDER", "openrouter")
-        
         self.workspace = os.path.abspath(workspace) if workspace else os.getcwd()
-        self.model = os.getenv("MOSAIC_MODEL", "qwen/qwen3.5-27b")
         
-        # Session & Storage
-        self.chats_dir = os.path.join(self.workspace, ".mosaic", "chats")
-        os.makedirs(self.chats_dir, exist_ok=True)
-        self.current_session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Initialize Services
+        self.config = ConfigManager("~/.mosaic.env")
+        self.session = SessionManager(self.workspace)
+        
+        # Load State from Config
+        self.api_key = self.config.api_key
+        self.openai_key = self.config.openai_key
+        self.lmstudio_url = self.config.lmstudio_url
+        self.provider_type = self.config.provider
+        self.model = self.config.model
+        self.openai_base_url = self.config.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        
+        # App State
+        self.current_session_id = self.session.generate_session_id()
+        self.history = []
         
         self._init_llm()
         
         # Memory Manager
         self.memory_manager = MemoryManager(self.workspace, self.llm)
 
-        self.tools = [
-            ReadFileTool(),
-            WriteFileTool(),
-            EditFileTool(),
-            ListDirectoryTool(),
-            RunCommandTool(),
-            CreateTodoTool(),
-            UpdateTodoTool(),
-            SyncTodoListTool(),
-            StoreMemoryTool(self.memory_manager),
-            RecallMemoriesTool(self.memory_manager)
-        ]
+        self.tools = ToolRegistry.get_default_tools(self.memory_manager)
         self.history = []
 
     def _init_llm(self):
@@ -527,10 +504,11 @@ class Mosaic(App):
                 yield Select([
                     ("Qwen 3.5 9b", "qwen/qwen3.5-9b"),
                     ("Qwen 3.5 27b", "qwen/qwen3.5-27b"),
+                    ("Qwen 3.6 35B A3B", "qwen/qwen3.6-35B-A3B"),
                     ("Qwen 3.6 Plus", "qwen/qwen3.6-plus"),
                     ("Qwen Coder Next", "qwen/qwen3-coder-next"),
                     ("Custom...", "custom")
-                ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else ("custom" if self.model else "qwen/qwen3.5-27b"), id="model-select")
+                ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-35B-A3B", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else ("custom" if self.model else "qwen/qwen3.5-27b"), id="model-select")
                 
                 yield Input(placeholder="Enter model name...", value=self.model, id="custom-model-input")
 
@@ -540,7 +518,7 @@ class Mosaic(App):
 
     def on_mount(self):
         self.update_provider_settings_visibility(self.provider_type)
-        self.query_one("#history-sidebar").refresh_history(self.chats_dir)
+        self.query_one("#history-sidebar").refresh_history(self.session.chats_dir)
         self.query_one("#memory-sidebar").refresh_memories(self.memory_manager.memories)
         self.query_one("#tools-sidebar").refresh_tools(self.tools)
         self.add_message("[bold gold1]Welcome to Mosaic[/]")
@@ -744,20 +722,11 @@ class Mosaic(App):
     def save_chat(self):
         if not self.history:
             return
-        
-        filename = f"chat_{self.current_session_id}.json"
-        path = os.path.join(self.chats_dir, filename)
-        data = {
-            "session_id": self.current_session_id,
-            "last_updated": datetime.now().isoformat(),
-            "history": self.history
-        }
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        self.session.save_chat(self.current_session_id, self.history)
         
         # Refresh the sidebar if it exists
         try:
-            self.query_one("#history-sidebar").refresh_history(self.chats_dir)
+            self.query_one("#history-sidebar").refresh_history(self.session.chats_dir)
             self.query_one("#memory-sidebar").refresh_memories(self.memory_manager.memories)
         except Exception:
             pass
@@ -786,31 +755,27 @@ class Mosaic(App):
         self.load_chat(message.session_id)
 
     def load_chat(self, session_id: str):
-        path = os.path.join(self.chats_dir, f"chat_{session_id}.json")
-        if not os.path.exists(path):
+        history = self.session.load_chat(session_id)
+        if history is None:
             self.notify("Chat file not found", severity="error")
             return
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                self.history = data.get("history", [])
-                self.current_session_id = session_id
-                
-                # Refresh UI
-                log = self.query_one("#chat-log")
-                log.query("*").remove()
-                
-                for msg in self.history:
-                    # Filter out tool calls/results from view if they are too noisy?
-                    # For now, let's just show standard messages
-                    role = msg.get("role")
-                    content = msg.get("content", "")
-                    if role in ["user", "assistant"]:
-                        log.mount(ChatMessage(role, content))
-                
-                log.scroll_end()
-                self.notify(f"Loaded chat session: {session_id}")
+            self.history = history
+            self.current_session_id = session_id
+            
+            # Refresh UI
+            log = self.query_one("#chat-log")
+            log.query("*").remove()
+            
+            for msg in self.history:
+                role = msg.get("role")
+                content = msg.get("content", "")
+                if role in ["user", "assistant"]:
+                    log.mount(ChatMessage(role, content))
+            
+            log.scroll_end()
+            self.notify(f"Loaded chat session: {session_id}")
         except Exception as e:
             self.notify(f"Failed to load chat: {str(e)}", severity="error")
 
@@ -820,11 +785,11 @@ class Mosaic(App):
         self.save_chat()
         
         # Reset
-        self.current_session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.current_session_id = self.session.generate_session_id()
         self.history = []
         self.query_one("#chat-log").query("*").remove()
         self.add_message("[dim]New chat session started.[/]\n")
-        self.query_one("#history-sidebar").refresh_history(self.chats_dir)
+        self.query_one("#history-sidebar").refresh_history(self.session.chats_dir)
 
     @on(Select.Changed, "#provider-select")
     def on_provider_changed(self, event: Select.Changed):
@@ -851,11 +816,11 @@ class Mosaic(App):
         else:
             self.model = model_selection
         
-        set_key(self.config_path, "OPENROUTER_API_KEY", self.api_key)
-        set_key(self.config_path, "OPENAI_API_KEY", self.openai_key)
-        set_key(self.config_path, "LM_STUDIO_URL", self.lmstudio_url)
-        set_key(self.config_path, "MOSAIC_MODEL", self.model)
-        set_key(self.config_path, "MOSAIC_PROVIDER", self.provider_type)
+        self.config.set("OPENROUTER_API_KEY", self.api_key)
+        self.config.set("OPENAI_API_KEY", self.openai_key)
+        self.config.set("LM_STUDIO_URL", self.lmstudio_url)
+        self.config.set("MOSAIC_MODEL", self.model)
+        self.config.set("MOSAIC_PROVIDER", self.provider_type)
         
         self._init_llm()
         self.memory_manager.llm_provider = self.llm

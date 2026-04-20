@@ -39,7 +39,7 @@ async def test_chat_persistence(temp_workspace):
     
     # Test saving
     app.save_chat()
-    chat_file = os.path.join(app.chats_dir, f"chat_{app.current_session_id}.json")
+    chat_file = os.path.join(app.session.chats_dir, f"chat_{app.current_session_id}.json")
     assert os.path.exists(chat_file)
     
     with open(chat_file, "r") as f:
