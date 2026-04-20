@@ -3,7 +3,7 @@ import json
 import pytest
 from unittest.mock import MagicMock
 from mosaic_cli.main import Mosaic
-from mosaic_cli.core.components.todo import TodoItem, TodoSidebar
+from mosaic_cli.core.components.todo import TodoItem
 from mosaic_cli.core.components.history import HistorySidebar
 from textual.widgets import Select
 
@@ -56,17 +56,8 @@ async def test_chat_persistence(temp_workspace):
     assert app.history[0]["role"] == "user"
 
 @pytest.mark.asyncio
-async def test_todo_management(temp_workspace):
-    sidebar = TodoSidebar()
-    # Mocking todo list
-    todo_list = MagicMock()
-    sidebar.query_one = MagicMock(return_value=todo_list)
-    
-    # Test adding todo
-    sidebar.add_todo("Task 1", "Desc 1", "1")
-    assert todo_list.mount.called
-    
-    # Test updating todo state (CSS class)
+async def test_todo_items(temp_workspace):
+    # Test todo state (CSS class)
     item = TodoItem("Task 2", "Desc 2", "2")
     # Manually check class addition
     item.add_class("completed")

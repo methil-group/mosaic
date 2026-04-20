@@ -16,7 +16,7 @@ from .core.memory import MemoryManager
 from .core.config import ConfigManager
 from .core.session import SessionManager
 from .core.tools.registry import ToolRegistry
-from .core.components import ChatMessage, ToolBlock, TodoSidebar, HistorySidebar, HistoryItem, MemorySidebar, MemoryItem, ToolsSidebar
+from .core.components import ChatMessage, ToolBlock, HistorySidebar, HistoryItem, MemorySidebar, MemoryItem, ToolsSidebar, TodoItem
 
 from .framework.llm.openrouter import OpenRouter
 from .framework.llm.openai import OpenAiProvider
@@ -57,439 +57,9 @@ class FileSuggester(Suggester):
         # Return first match
         return prefix + "@" + matches[0]
 
-class SidebarResizer(Static):
-    def __init__(self, **kwargs):
-        super().__init__("", **kwargs)
-        self.dragging = False
-
-    def on_mouse_down(self, event):
-        self.dragging = True
-        self.capture_mouse()
-        self.add_class("dragging")
-
-    def on_mouse_move(self, event):
-        if self.dragging:
-            self.post_message(self.Resized(event.screen_x))
-
-    def on_mouse_up(self, event):
-        self.dragging = False
-        self.release_mouse()
-        self.remove_class("dragging")
-
-    class Resized(Message):
-        def __init__(self, screen_x: int):
-            self.screen_x = screen_x
-            super().__init__()
 
 class Mosaic(App):
-    CSS = """
-    Screen {
-        background: #1c1917;
-    }
-    #main-container {
-        height: 1fr;
-    }
-    #chat-area {
-        width: 1fr;
-    }
-    #chat-log {
-        height: 1fr;
-        border: tall #2b2621;
-        background: #2b2621 10%;
-        margin: 0 1 1 1;
-        padding: 0 1;
-        overflow-y: scroll;
-        scrollbar-gutter: stable;
-    }
-    #sidebar-resizer {
-        width: 1;
-        background: #2b2621;
-    }
-    #sidebar-resizer:hover, #sidebar-resizer.dragging {
-        background: #a8917d;
-    }
-    #input-area {
-        height: auto;
-        dock: bottom;
-        padding: 0 2 1 2;
-    }
-    #user-input {
-        border: tall #453c35;
-        background: #26211e;
-        color: #d1bda2;
-    }
-    #user-input:focus {
-        border: tall #a8917d;
-    }
-    .status-bar {
-        background: #a8917d;
-        color: #1c1917;
-        padding: 0 1;
-    }
-    #settings-pane {
-        width: 40;
-        dock: right;
-        border-left: tall #453c35;
-        background: #1c1917;
-        display: none;
-        padding: 1 2;
-    }
-    #todo-sidebar {
-        width: 35;
-        border-left: tall #2b2621;
-        background: #1c1917;
-        padding: 0 1;
-    }
-    #todo-sidebar-title {
-        text-style: bold;
-        color: #a8917d;
-        margin-bottom: 1;
-        padding: 1 1;
-        border-bottom: dashed #453c35;
-    }
-    #todo-list {
-        height: 1fr;
-        padding: 0 1;
-        overflow-y: auto;
-        scrollbar-gutter: stable;
-    }
-    
-    TodoItem {
-        height: auto;
-        margin-bottom: 1;
-        background: #26211e 20%;
-        border-left: solid #453c35;
-        padding: 0 1;
-    }
-    TodoItem:hover {
-        background: #3d352e 30%;
-        border-left: solid #a8917d;
-    }
-    TodoItem.completed {
-        opacity: 0.6;
-    }
-    TodoItem.completed Label {
-        text-style: strike;
-        color: #7d6e5e;
-    }
-    
-    TodoItem Vertical {
-        width: 1fr;
-        height: auto;
-        padding-left: 1;
-    }
-    .todo-item-title {
-        color: #d1bda2;
-        text-style: bold;
-    }
-    .todo-item-desc {
-        color: #8b7e6f;
-    }
-    
-    #settings-pane Label {
-        margin-top: 1;
-        text-style: bold;
-        color: #a68f78;
-    }
-    #save-settings {
-        margin-top: 2;
-        width: 100%;
-        background: #a8917d;
-        color: #1c1917;
-    }
-    #workspace-info {
-        margin-top: 1;
-        color: #7d6e5e;
-        text-style: italic;
-    }
-    .tool-block {
-        background: #26211e;
-        border: solid #453c35;
-        border-left: solid #a8917d;
-        margin: 0 0 1 0;
-        padding: 0;
-        height: auto;
-    }
-    .tool-header {
-        padding: 0 1;
-        background: #3d352e 60%;
-        height: 1;
-    }
-    .tool-header:hover {
-        background: #a8917d 20%;
-    }
-    .tool-header #tool-title {
-        width: 1fr;
-        color: #d1bda2;
-    }
-    .tool-header #tool-chevron {
-        width: 3;
-        text-align: right;
-        color: #8b7e6f;
-    }
-    #tool-details {
-        padding: 1 2;
-        background: #1c1917 50%;
-        height: auto;
-    }
-    .tool-block.collapsed #tool-details {
-        display: none;
-    }
-    .tool-params {
-        color: #8b7e6f;
-        margin-bottom: 1;
-        height: auto;
-    }
-    #tool-result-static {
-        border-top: dashed #453c35;
-        padding-top: 1;
-        height: auto;
-    }
-    .tool-header.has-result #tool-title {
-        color: #d1bda2;
-        text-style: italic;
-    }
-    LoadingIndicator {
-        height: 3;
-        color: #a8917d;
-        background: transparent;
-    }
-    .provider-settings {
-        height: auto;
-        display: none;
-    }
-    #history-sidebar {
-        width: 30;
-        border-right: tall #2b2621;
-        background: #1c1917;
-        padding: 0 1;
-    }
-    #history-sidebar-title {
-        text-style: bold;
-        color: #a8917d;
-        margin-bottom: 1;
-        padding: 1 1;
-        border-bottom: dashed #453c35;
-    }
-    #new-chat-btn {
-        width: 100%;
-        margin-bottom: 1;
-        background: #a8917d;
-        color: #1c1917;
-        margin-top: 1;
-    }
-    #history-list {
-        height: 1fr;
-        overflow-y: auto;
-        scrollbar-gutter: stable;
-    }
-    HistoryItem {
-        height: auto;
-        margin-bottom: 1;
-        padding: 1 1;
-        background: #26211e 20%;
-        border-left: solid #453c35;
-    }
-    HistoryItem:hover {
-        background: #3d352e 30%;
-        border-left: solid #a8917d;
-    }
-    .history-item-title {
-        color: #d1bda2;
-        text-style: bold;
-    }
-    .history-item-date {
-        color: #8b7e6f;
-    }
-    #memory-sidebar {
-        width: 35;
-        border-right: tall #2b2621;
-        background: #1c1917;
-        padding: 0 1;
-        display: none;
-    }
-    #memory-sidebar-title {
-        text-style: bold;
-        color: #a8917d;
-        margin-bottom: 1;
-        padding: 1 1;
-        border-bottom: dashed #453c35;
-    }
-    #memory-list {
-        height: 1fr;
-        overflow-y: auto;
-        scrollbar-gutter: stable;
-    }
-    MemoryItem {
-        height: auto;
-        margin-bottom: 1;
-        background: #26211e 20%;
-        border-left: solid #453c35;
-        padding: 0;
-    }
-    MemoryItem:hover {
-        background: #3d352e 30%;
-        border-left: solid #a8917d;
-    }
-    .memory-item-content {
-        width: 1fr;
-        padding: 0 1;
-    }
-    .memory-text {
-        color: #d1bda2;
-    }
-    .memory-footer {
-        height: 1;
-    }
-    .memory-date {
-        color: #7d6e5e;
-    }
-    .memory-tags {
-        color: #a8917d;
-    }
-    .delete-mem-btn {
-        min-width: 3;
-        width: 3;
-        height: 100%;
-        background: #451a1a;
-        color: #ff6b6b;
-        border: none;
-    }
-    #memory-input-area {
-        height: auto;
-        border-top: dashed #453c35;
-        padding: 1 0;
-    }
-    #memory-manual-input {
-        background: #26211e;
-        border: tall #453c35;
-    }
-    #tools-sidebar {
-        width: 35;
-        border-right: tall #2b2621;
-        background: #1c1917;
-        padding: 0 1;
-        display: none;
-    }
-    #tools-sidebar-title {
-        text-style: bold;
-        color: #a8917d;
-        margin-bottom: 1;
-        padding: 1 1;
-        border-bottom: dashed #453c35;
-    }
-    #tools-list {
-        height: 1fr;
-        padding: 0 1;
-        overflow-y: auto;
-        scrollbar-gutter: stable;
-    }
-    ToolItem {
-        height: auto;
-        margin-bottom: 1;
-        padding: 1 1;
-        background: #26211e 40%;
-        border-left: solid #453c35;
-    }
-    ToolItem:hover {
-        background: #3d352e 50%;
-        border-left: solid #a8917d;
-    }
-    .tool-item-name {
-        color: #a8917d;
-        text-style: bold;
-    }
-    .tool-item-desc {
-        color: #8b7e6f;
-    }
-    Header {
-        background: #2b2621;
-        color: #a8917d;
-        text-style: bold;
-    }
-    Footer {
-        background: #2b2621;
-        color: #7d6e5e;
-    }
-    Footer > .footer--highlight {
-        background: #a8917d;
-        color: #1c1917;
-    }
-    Footer > .footer--key {
-        color: #a8917d;
-        text-style: bold;
-    }
-    Button {
-        background: #3d352e;
-        color: #d1bda2;
-        border: none;
-        height: 3;
-    }
-    Button:hover {
-        background: #a8917d;
-        color: #1c1917;
-    }
-    Button.-active {
-        background: #a8917d;
-        color: #1c1917;
-    }
-    Select {
-        background: #26211e;
-        border: tall #453c35;
-        color: #d1bda2;
-    }
-    Select:focus {
-        border: tall #a8917d;
-    }
-    Input {
-        background: #26211e;
-        border: tall #453c35;
-        color: #d1bda2;
-    }
-    Input:focus {
-        border: tall #a8917d;
-    }
-    Checkbox {
-        color: #a8917d;
-    }
-    Checkbox > .checkbox--label {
-        color: #d1bda2;
-    }
-    Checkbox.-on .checkbox--toggle {
-        color: #a8917d;
-    }
-    Markdown {
-        background: transparent;
-        color: #d1bda2;
-        padding: 0 1;
-    }
-    Markdown h1, Markdown h2, Markdown h3 {
-        color: #a8917d;
-        text-style: bold;
-        border-bottom: dashed #453c35;
-        width: 100%;
-    }
-    Markdown code {
-        background: #26211e;
-        color: #e6dbb2;
-        text-style: italic;
-    }
-    Markdown fence {
-        background: #1c1917;
-        border: solid #453c35;
-        margin: 1 0;
-    }
-    Markdown blockquote {
-        background: #2b2621;
-        border-left: solid #a8917d;
-        color: #8b7e6f;
-        italic: yes;
-    }
-    Markdown link {
-        color: #a8917d;
-        text-decoration: underline;
-    }
-    """
+    CSS_PATH = "styles.css"
 
     BINDINGS = [
         Binding("ctrl+s", "toggle_settings", "Settings"),
@@ -570,8 +140,6 @@ class Mosaic(App):
                         id="user-input",
                         suggester=FileSuggester(self.workspace)
                     )
-            yield SidebarResizer(id="sidebar-resizer")
-            yield TodoSidebar(id="todo-sidebar")
             with Vertical(id="settings-pane"):
                 yield Label("SETTINGS")
                 yield Label("Provider")
@@ -751,30 +319,29 @@ class Mosaic(App):
                     try:
                         data = json.loads(res)
                         if data.get("status") == "success":
-                            self.query_one("#todo-sidebar").add_todo(
+                            log.mount(Label("[bold gold1]NEW TODO:[/]"))
+                            log.mount(TodoItem(
                                 data["todo"]["title"],
                                 data["todo"]["description"],
-                                data["todo"].get("id", str(len(self.query_one("#todo-list").children)))
-                            )
+                                data["todo"].get("id", "0")
+                            ))
                     except Exception as e:
-                        self.notify(f"UI Error: Failed to add todo - {str(e)}", severity="error")
-                
-                if event['name'] == "update_todo":
-                    try:
-                        data = json.loads(res)
-                        if data.get("status") == "success":
-                            self.query_one("#todo-sidebar").update_todo(
-                                data["todo"]["id"],
-                                data["todo"]["completed"]
-                            )
-                    except Exception as e:
-                        self.notify(f"UI Error: Failed to update todo - {str(e)}", severity="error")
+                        self.notify(f"UI Error: Failed to show todo - {str(e)}", severity="error")
                 
                 if event['name'] == "sync_todo_list":
                     try:
                         data = json.loads(res)
                         if data.get("status") == "success":
-                            self.query_one("#todo-sidebar").sync_todos(data["todos"])
+                            log.mount(Label("[bold gold1]TODO LIST SYNCED:[/]"))
+                            for todo in data["todos"]:
+                                item = TodoItem(
+                                    todo.get("title", "Task"),
+                                    todo.get("description", ""),
+                                    todo.get("id", "0")
+                                )
+                                if todo.get("completed"):
+                                    item.add_class("completed")
+                                log.mount(item)
                     except Exception as e:
                         self.notify(f"UI Error: Failed to sync todo list - {str(e)}", severity="error")
 
