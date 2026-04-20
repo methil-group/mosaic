@@ -1,6 +1,6 @@
 import os
 from .base import Tool
-from .utils import resolve_path
+from .utils import resolve_path, ensure_not_protected_path
 from typing import Dict, Any
 
 class WriteFileTool(Tool):
@@ -16,6 +16,7 @@ class WriteFileTool(Tool):
         if not path:
             return "Error: Missing path parameter"
         
+        ensure_not_protected_path(path, workspace)
         file_path = resolve_path(path, workspace)
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         

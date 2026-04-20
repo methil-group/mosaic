@@ -1,6 +1,6 @@
 import os
 from .base import Tool
-from .utils import resolve_path
+from .utils import resolve_path, ensure_not_protected_path
 from typing import Dict, Any
 
 class EditFileTool(Tool):
@@ -22,6 +22,7 @@ class EditFileTool(Tool):
         if not old_content:
             return "Error: Missing 'old_content' parameter (the text you want to replace)."
         
+        ensure_not_protected_path(path, workspace)
         file_path = resolve_path(path, workspace)
         if not os.path.exists(file_path):
             return f"Error: File not found: {path}"

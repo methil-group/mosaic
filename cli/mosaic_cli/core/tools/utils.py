@@ -38,3 +38,28 @@ def truncate_result(content: str, max_chars: int = 10000) -> str:
 def format_with_line_numbers(content: str) -> str:
     lines = content.splitlines()
     return "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
+
+def is_protected_path(path: str, workspace: str) -> bool:
+    """
+    Returns True if the path targets a hidden file or directory 
+    (starts with '.' and is not the current directory '.').
+    """
+    abs_workspace = os.path.abspath(workspace)
+    try:
+        resolved = resolve_path(path, workspace)
+        rel_path = os.path.relpath(resolved, abs_workspace)
+        
+        parts = rel_path.split(os.sep)
+        for part in parts:
+            # We allow '.' as it's the current directory, but block '.anything'
+            if part.startswith(".") and part != "." and part != "..":
+                return True
+        return False
+    except Exception:
+        # If we can't resolve it, assume it's risky if it starts with .
+        return path.startswith(".")
+
+def ensure_not_protected_path(path: str, workspace: str):
+    """Raises ValueError if the path is protected."""
+    if is_protected_path(path, workspace):
+        raise ValueError(f"Access denied: {path} is a hidden/protected file or directory.")
