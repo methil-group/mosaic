@@ -4,6 +4,7 @@ from .todo import TodoItem
 from .history import HistorySidebar, HistoryItem
 from .memory_sidebar import MemorySidebar, MemoryItem
 from .tools_sidebar import ToolsSidebar, ToolItem
+from .file_tree import FileTreeSidebar
 
 __all__ = [
     "ChatMessage", 
@@ -11,5 +12,6 @@ __all__ = [
     "TodoItem", 
     "HistorySidebar", "HistoryItem", 
     "MemorySidebar", "MemoryItem", 
-    "ToolsSidebar", "ToolItem"
+    "ToolsSidebar", "ToolItem",
+    "FileTreeSidebar",
 ]

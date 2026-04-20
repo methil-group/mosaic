@@ -3,7 +3,7 @@ import uuid
 import json
 import os
 from datetime import datetime
-from typing import List, Dict, Any, Callable, Optional, Tuple
+from typing import List, Dict, Any, Callable, Optional, Awaitable
 from .memory import MemoryManager
 from .prompt import PromptBuilder
 from .tools.base import Tool
@@ -51,7 +51,7 @@ class Agent:
         self,
         user_prompt: str,
         history: List[Dict[str, str]],
-        on_event: Callable[[Dict[str, Any]], None]
+        on_event: Callable[[Dict[str, Any]], Awaitable[None]]
     ):
         system_prompt = PromptBuilder.create_system_prompt(self.tools, self.workspace, self.user_name)
         self.messages = [
@@ -65,14 +65,14 @@ class Agent:
         
         await self.reasoning_loop(on_event)
 
-    async def reasoning_loop(self, on_event: Callable[[Dict[str, Any]], None]):
+    async def reasoning_loop(self, on_event: Callable[[Dict[str, Any]], Awaitable[None]]):
         total_steps = 0
         consecutive_retries = 0
         consecutive_empty_responses = 0
         while not self.stopped:
             total_steps += 1
             if total_steps > 30:
-                on_event({"type": "error", "message": "Max steps reached"})
+                await on_event({"type": "error", "message": "Max steps reached"})
                 break
             
             processor = StreamProcessor(on_event)
@@ -84,9 +84,9 @@ class Agent:
                     if event["type"] == "token":
                         processor.process_token(event["data"])
                     elif event["type"] == "usage":
-                        on_event({"type": "usage", "data": event["data"]})
+                        await on_event({"type": "usage", "data": event["data"]})
                     elif event["type"] == "error":
-                        on_event({"type": "error", "message": event["message"]})
+                        await on_event({"type": "error", "message": event["message"]})
                         return
                 
                 processor.flush()
@@ -95,11 +95,11 @@ class Agent:
                 self._log(f"Raw LLM Response:\n{full_text}", "LLM_RESPONSE")
             except Exception as e:
                 self._log(f"Error in stream: {str(e)}", "ERROR")
-                on_event({"type": "error", "message": str(e)})
+                await on_event({"type": "error", "message": str(e)})
                 return
             except Exception as e:
                 self._log(f"Error in stream: {str(e)}", "ERROR")
-                on_event({"type": "error", "message": str(e)})
+                await on_event({"type": "error", "message": str(e)})
                 return
 
             # Check for empty response
@@ -109,7 +109,7 @@ class Agent:
                     consecutive_empty_responses += 1
                     if consecutive_empty_responses > 2:
                         self._log("Too many empty responses. Stopping.", "ERROR")
-                        on_event({"type": "error", "message": "Too many consecutive empty responses from model."})
+                        await on_event({"type": "error", "message": "Too many consecutive empty responses from model."})
                         break
                     
                     retry_msg = "Error: You returned an empty response. If the previous tool failed, please address the error. If it succeeded, please continue your task or provide a final answer."
@@ -127,7 +127,7 @@ class Agent:
                 name, params = tool_call
                 call_id = f"toolu-{uuid.uuid4().hex[:12]}"
                 self._log(f"Tool Call Detected: {name}({json.dumps(params)})", "TOOL_CALL")
-                on_event({"type": "tool_started", "name": name, "parameters": params, "call_id": call_id})
+                await on_event({"type": "tool_started", "name": name, "parameters": params, "call_id": call_id})
                 
                 tool = next((t for t in self.tools if t.name() == name), None)
                 if tool:
@@ -141,7 +141,7 @@ class Agent:
                 # Enhanced logging for tool results
                 status = "SUCCESS" if not result.startswith("Error:") else "FAILURE"
                 self._log(f"Tool Result ({name}) [{status}]: {result[:1000]}", "TOOL_RESULT")
-                on_event({"type": "tool_finished", "name": name, "result": result, "call_id": call_id})
+                await on_event({"type": "tool_finished", "name": name, "result": result, "call_id": call_id})
                 
                 self.messages.append({"role": "assistant", "content": full_text})
                 self.messages.append({"role": "user", "content": PromptBuilder.format_tool_result(name, result, call_id)})
@@ -154,11 +154,11 @@ class Agent:
                     break
                 
                 error_msg = "Error: Invalid tool call format. Ensure you provide a valid JSON object with 'name' and 'arguments' keys inside the <tool_call> tags."
-                on_event({"type": "token", "data": f"\n[System: {error_msg}]\n"})
+                await on_event({"type": "token", "data": f"\n[System: {error_msg}]\n"})
                 self.messages.append({"role": "assistant", "content": full_text})
                 self.messages.append({"role": "user", "content": error_msg})
                 continue
             else:
-                on_event({"type": "final_answer", "data": full_text})
+                await on_event({"type": "final_answer", "data": full_text})
                 break
 

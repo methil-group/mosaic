@@ -17,7 +17,7 @@ from .core.memory import MemoryManager
 from .core.config import ConfigManager
 from .core.session import SessionManager
 from .core.tools.registry import ToolRegistry
-from .core.components import ChatMessage, ToolBlock, HistorySidebar, HistoryItem, MemorySidebar, MemoryItem, ToolsSidebar, TodoItem
+from .core.components import ChatMessage, ToolBlock, HistorySidebar, HistoryItem, MemorySidebar, MemoryItem, ToolsSidebar, TodoItem, FileTreeSidebar
 
 from .framework.llm.openrouter import OpenRouter
 from .framework.llm.openai import OpenAiProvider
@@ -79,6 +79,7 @@ class Mosaic(App):
         Binding("ctrl+h", "toggle_history", "History"),
         Binding("ctrl+m", "toggle_memory", "Memory"),
         Binding("ctrl+t", "toggle_tools", "Tools"),
+        Binding("ctrl+f", "toggle_file_tree", "File Tree"),
         Binding("ctrl+q", "quit", "Quit"),
         Binding("ctrl+c", "copy_last_message", "Copy Last", show=True),
         Binding("ctrl+l", "clear_log", "Clear"),
@@ -154,6 +155,7 @@ class Mosaic(App):
                         id="user-input",
                         suggester=FileSuggester(self.workspace)
                     )
+            yield FileTreeSidebar(self.workspace, id="file-tree-sidebar")
             with Vertical(id="settings-pane"):
                 yield Label("SETTINGS")
                 yield Label("Provider")
@@ -239,6 +241,10 @@ class Mosaic(App):
         memory.display = not memory.display
         if memory.display:
             memory.refresh_memories(self.memory_manager.memories)
+
+    def action_toggle_file_tree(self):
+        sidebar = self.query_one("#file-tree-sidebar")
+        sidebar.display = not sidebar.display
 
     def action_toggle_tools(self):
         sidebar = self.query_one("#history-sidebar")
@@ -386,6 +392,13 @@ class Mosaic(App):
                         self.notify(f"UI Error: Failed to sync todo list - {str(e)}", severity="error")
 
                 file_modified = any(x in event['name'] for x in ["edit_file", "write_file", "create_todo", "update_todo"])
+                
+                # Auto-refresh file tree after file modifications
+                if file_modified:
+                    try:
+                        self.query_one("#file-tree-sidebar").refresh_tree()
+                    except Exception:
+                        pass
                 
                 # Update the tool block with results
                 if 'current_tool_block' in locals() and current_tool_block:

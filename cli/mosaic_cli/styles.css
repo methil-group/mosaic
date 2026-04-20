@@ -43,6 +43,53 @@ Screen {
     padding: 1 2;
 }
 
+/* File Tree Sidebar */
+#file-tree-sidebar {
+    width: 32;
+    border-left: tall #2b2621;
+    background: #1c1917;
+    padding: 0 1;
+    display: block;
+}
+#file-tree-title {
+    text-style: bold;
+    color: #a8917d;
+    margin-bottom: 1;
+    padding: 1 1;
+    border-bottom: dashed #453c35;
+}
+#refresh-tree-btn {
+    width: 100%;
+    margin-bottom: 1;
+    background: #2b2621;
+    color: #8b7e6f;
+    margin-top: 0;
+    height: 1;
+}
+#workspace-tree {
+    height: 1fr;
+    background: transparent;
+    color: #d1bda2;
+}
+DirectoryTree {
+    background: transparent;
+    color: #d1bda2;
+    scrollbar-color: #a8917d;
+}
+DirectoryTree > .tree--guides {
+    color: #453c35;
+}
+DirectoryTree > .tree--guides-selected {
+    color: #a8917d;
+}
+DirectoryTree .tree--label {
+    color: #d1bda2;
+}
+DirectoryTree .tree--highlight {
+    background: #3d352e;
+    color: #a8917d;
+}
+
 TodoItem {
     height: auto;
     margin-bottom: 1;
