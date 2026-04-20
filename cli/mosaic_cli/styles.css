@@ -352,44 +352,6 @@ Markdown {
     color: #d1bda2;
     padding: 0 1;
 }
-Markdown h1 {
-    color: #a8917d;
-    text-style: bold;
-    border-bottom: dashed #453c35;
-    width: 100%;
-}
-Markdown h2 {
-    color: #a8917d;
-    text-style: bold;
-    border-bottom: dashed #453c35;
-    width: 100%;
-}
-Markdown h3 {
-    color: #a8917d;
-    text-style: bold;
-    border-bottom: dashed #453c35;
-    width: 100%;
-}
-Markdown code {
-    background: #26211e;
-    color: #e6dbb2;
-    text-style: italic;
-}
-Markdown fence {
-    background: #1c1917;
-    border: solid #453c35;
-    margin: 1 0;
-}
-Markdown blockquote {
-    background: #2b2621;
-    border-left: solid #a8917d;
-    color: #8b7e6f;
-    italic: yes;
-}
-Markdown link {
-    color: #a8917d;
-    text-decoration: underline;
-}
 
 /* 
  * ==========================================

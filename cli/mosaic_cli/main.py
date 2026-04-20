@@ -24,6 +24,18 @@ from .framework.llm.llama_provider import LlamaProvider
 from .framework.llm.lmstudio import LmStudioProvider
 
 from rich.markup import escape
+from rich.theme import Theme
+from rich.style import Style
+from rich.console import Console
+
+MOSAIC_THEME = Theme({
+    "markdown.h1": Style(color="#a8917d", bold=True),
+    "markdown.h2": Style(color="#a8917d", bold=True),
+    "markdown.h3": Style(color="#a8917d", bold=True),
+    "markdown.code": Style(bgcolor="#26211e", color="#e6dbb2", italic=True),
+    "markdown.block_quote": Style(bgcolor="#2b2621", color="#8b7e6f", italic=True),
+    "markdown.link": Style(color="#a8917d", underline=True),
+})
 
 class FileSuggester(Suggester):
     def __init__(self, workspace: str):
@@ -87,6 +99,7 @@ class Mosaic(App):
 
     def __init__(self, workspace: str = None):
         super().__init__()
+        self.console = Console(theme=MOSAIC_THEME)
         self.workspace = os.path.abspath(workspace) if workspace else os.getcwd()
         
         # Initialize Services
