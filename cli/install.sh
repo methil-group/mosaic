@@ -20,19 +20,19 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m' # No Color
 
-# Spinner function
+# Spinner function — uses \r (carriage return) to avoid backspace corruption
 spinner() {
     local pid=$1
-    local delay=0.15
-    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-    while [ "$(ps -p $pid -o pid=)" ]; do
-        local temp=${spinstr#?}
-        printf " ${PURPLE}%c${NC} " "$spinstr"
-        local spinstr=$temp${spinstr%"$temp"}
+    local msg=$2
+    local delay=0.1
+    local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⦿' '⠧' '⠇' '⠏')
+    local i=0
+    while kill -0 "$pid" 2>/dev/null; do
+        printf "\r  ${PURPLE}${frames[$i]}${NC}  %s " "$msg"
+        i=$(( (i + 1) % ${#frames[@]} ))
         sleep $delay
-        printf "\b\b\b\b"
     done
-    printf "    \b\b\b\b"
+    printf "\r"  # clear the spinner line — caller will print the Done! line
 }
 
 # Function to check for commands
@@ -92,30 +92,28 @@ INSTALL_TEMP=$(mktemp -d 2>/dev/null || mktemp -d -t 'mosaic')
 echo -e "📂 Preparing build space in ${BLUE}$INSTALL_TEMP${NC}..."
 
 # Clone with depth 1
-printf "📥 Downloading Mosaic... "
+printf "📥 Downloading Mosaic...\n"
 git clone "$REPO_URL" "$INSTALL_TEMP" --depth 1 &>/dev/null &
-spinner $!
-echo -e "${GREEN}Done!${NC}"
+spinner $! "Downloading Mosaic..."
+echo -e "   ${GREEN}✓ Downloaded!${NC}"
 
 cd "$INSTALL_TEMP"
 
 # Clean up
-printf "🧹 Cleaning environment... "
+printf "🧹 Cleaning environment...\n"
 $PYTHON_CMD -m pip uninstall -y mosaic-tui &>/dev/null &
-spinner $!
-echo -e "${GREEN}Done!${NC}"
+spinner $! "Cleaning old install..."
+echo -e "   ${GREEN}✓ Done!${NC}"
 
 # Install CLI
-printf "📦 Installing Mosaic CLI... "
 INSTALL_FLAGS=""
 if [[ -f /etc/os-release ]] || [[ "$OSTYPE" == "darwin"* ]]; then
     INSTALL_FLAGS="--break-system-packages"
 fi
-
-# Executing install in background for spinner
+printf "📦 Installing Mosaic CLI...\n"
 $PYTHON_CMD -m pip install ./cli $INSTALL_FLAGS &>/dev/null &
 install_pid=$!
-spinner $install_pid
+spinner $install_pid "Installing Mosaic CLI..."
 wait $install_pid
 res=$?
 
@@ -124,7 +122,7 @@ if [[ $res -ne 0 ]]; then
     rm -rf "$INSTALL_TEMP"
     exit 1
 fi
-echo -e "${GREEN}Done!${NC}"
+echo -e "   ${GREEN}✓ Installed!${NC}"
 
 # Cleanup
 rm -rf "$INSTALL_TEMP"
