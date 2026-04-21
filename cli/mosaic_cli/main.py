@@ -212,6 +212,9 @@ class Mosaic(App):
         # Mandatory persistence: save the initial session
         self.save_chat()
 
+        if self.provider_type == "lmstudio":
+            self.refresh_models()
+
     def add_message(self, content: Union[str, Widget]):
         log = self.query_one("#chat-log")
         if isinstance(content, str):
@@ -220,10 +223,52 @@ class Mosaic(App):
             log.mount(content)
         log.scroll_end()
 
-    @work
+    @work(description="Refreshing models")
     async def refresh_models(self):
-        # We now use a hardcoded list of models as requested
-        pass
+        """Fetch available models from the current provider and update the select list."""
+        if not hasattr(self, "llm"):
+            return
+
+        # Show some indication
+        self.notify("Refreshing models...")
+        
+        try:
+            models = await self.llm.fetch_models()
+            
+            if not models:
+                # If no models found (common for new/invalid URLs), don't wipe the list but maybe notify
+                if self.provider_type == "lmstudio":
+                    self.notify("No models found at LM Studio URL. Is it running?", severity="warning")
+                return
+
+            # Prepare new options
+            new_options = []
+            for m in models:
+                # Display name vs internal ID
+                label = m.split("/")[-1] if "/" in m else m
+                new_options.append((label, m))
+            
+            new_options.append(("Custom...", "custom"))
+            
+            # Update the select widget
+            model_select = self.query_one("#model-select", Select)
+            
+            # Preserve current selection if it still exists in the new list
+            current_value = model_select.value
+            
+            model_select.set_options(new_options)
+            
+            if current_value in [val for _, val in new_options]:
+                model_select.value = current_value
+            elif new_options:
+                # If current selection is gone, pick the first one if it's not 'custom'
+                if new_options[0][1] != "custom":
+                    model_select.value = new_options[0][1]
+            
+            self.notify(f"Found {len(models)} models.")
+            
+        except Exception as e:
+            self.notify(f"Failed to refresh models: {str(e)}", severity="error")
 
     def action_toggle_settings(self):
         pane = self.query_one("#settings-pane")
@@ -626,7 +671,11 @@ class Mosaic(App):
 
     @on(Select.Changed, "#provider-select")
     def on_provider_changed(self, event: Select.Changed):
+        self.provider_type = event.value
         self.update_provider_settings_visibility(event.value)
+        self._init_llm()
+        if event.value == "lmstudio":
+            self.refresh_models()
 
     def update_provider_settings_visibility(self, provider: str):
         try:
@@ -635,6 +684,16 @@ class Mosaic(App):
             self.query_one("#lmstudio-settings").display = provider == "lmstudio"
         except Exception:
             pass
+
+    @on(Input.Changed, "#lmstudio-url-input")
+    def on_lmstudio_url_changed(self, event: Input.Changed):
+        """Handle URL changes with a simple debounce."""
+        self.lmstudio_url = event.value
+        # Use a timer to avoid spamming requests while typing
+        if hasattr(self, "_refresh_timer"):
+            self._refresh_timer.cancel()
+        
+        self._refresh_timer = self.set_timer(1.0, self.refresh_models)
 
     @on(Button.Pressed, "#save-settings")
     async def save_settings(self):
