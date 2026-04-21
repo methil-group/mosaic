@@ -1,0 +1,16 @@
+{
+  "name": "tui_microsoft",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx tui-test smoke.test.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@microsoft/tui-test": "^0.0.4"
+  }
+}

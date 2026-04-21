@@ -1,5 +1,6 @@
-from textual.widgets import Static, Label
+from textual.widgets import Static, Label, Button
 from textual.containers import Vertical, Horizontal
+from textual import on
 from typing import List, Any
 from ..tools.base import Tool
 
@@ -15,8 +16,14 @@ class ToolItem(Vertical):
 
 class ToolsSidebar(Vertical):
     def compose(self):
-        yield Label("AVAILABLE TOOLS", id="tools-sidebar-title")
+        with Horizontal(classes="sidebar-header"):
+            yield Label("AVAILABLE TOOLS", id="tools-sidebar-title")
+            yield Button("✕", id="close-tools-btn", classes="close-btn")
         yield Vertical(id="tools-list")
+
+    @on(Button.Pressed, "#close-tools-btn")
+    def on_close_sidebar(self):
+        self.display = False
 
     def refresh_tools(self, tools: List[Tool]):
         tools_list = self.query_one("#tools-list")

@@ -58,29 +58,55 @@ Screen {
     border-left: tall #453c35;
     background: #1c1917;
     display: none;
+    padding: 0;
+}
+#settings-pane > Vertical {
     padding: 1 2;
 }
 
-/* File Tree Sidebar */
+.sidebar-header {
+    height: 3;
+    padding: 0 1;
+    border-bottom: dashed #453c35;
+    background: #1c1917;
+}
+.sidebar-header Label {
+    width: 1fr;
+    text-style: bold;
+    color: #a8917d;
+    padding-top: 1;
+}
+.close-btn {
+    min-width: 4;
+    width: 4;
+    height: 1;
+    margin-top: 1;
+    background: transparent;
+    color: #8b7e6f;
+    border: none;
+    padding: 0;
+}
+.close-btn:hover {
+    color: #ff6b6b;
+    background: transparent;
+    text-style: bold;
+}
+
 #file-tree-sidebar {
     width: 32;
     border-left: tall #2b2621;
     background: #1c1917;
-    padding: 0 1;
+    padding: 0;
     display: block;
 }
 #file-tree-title {
-    text-style: bold;
-    color: #a8917d;
-    margin-bottom: 0;
-    padding: 1 1;
-    border-bottom: dashed #453c35;
+    /* Styles now inherited from .sidebar-header Label */
 }
 #workspace-tree {
     height: 1fr;
     background: transparent;
     color: #d1bda2;
-    margin-top: 1;
+    padding: 0 1;
 }
 DirectoryTree {
     background: transparent;
@@ -230,15 +256,10 @@ LoadingIndicator {
     width: 30;
     border-right: tall #2b2621;
     background: #1c1917;
-    padding: 0 1;
+    padding: 0;
     display: none;
 }
 #history-sidebar-title {
-    text-style: bold;
-    color: #a8917d;
-    margin-bottom: 1;
-    padding: 1 1;
-    border-bottom: dashed #453c35;
 }
 #new-chat-btn {
     width: 100%;
@@ -277,15 +298,10 @@ HistoryItem:hover {
     width: 35;
     border-right: tall #2b2621;
     background: #1c1917;
-    padding: 0 1;
+    padding: 0;
     display: none;
 }
 #memory-sidebar-title {
-    text-style: bold;
-    color: #a8917d;
-    margin-bottom: 1;
-    padding: 1 1;
-    border-bottom: dashed #453c35;
 }
 #memory-list {
     height: 1fr;
@@ -343,15 +359,10 @@ MemoryItem:hover {
     width: 35;
     border-right: tall #2b2621;
     background: #1c1917;
-    padding: 0 1;
+    padding: 0;
     display: none;
 }
 #tools-sidebar-title {
-    text-style: bold;
-    color: #a8917d;
-    margin-bottom: 1;
-    padding: 1 1;
-    border-bottom: dashed #453c35;
 }
 #tools-list {
     height: 1fr;

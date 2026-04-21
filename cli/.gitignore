@@ -42,3 +42,14 @@ htmlcov/
 
 # OS
 .DS_Store
+
+# Node.js
+node_modules/
+
+# Snapshots and Reports
+*report*
+*.html
+
+# Secrets
+.env
+.mosaic.env

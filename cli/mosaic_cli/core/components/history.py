@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 from textual.widgets import Static, Label, Button
-from textual.containers import Vertical
+from textual.containers import Vertical, Horizontal
 from textual.message import Message
 from textual import on
 
@@ -31,9 +31,15 @@ class HistorySidebar(Vertical):
         pass
 
     def compose(self):
-        yield Label("CHATS", id="history-sidebar-title")
+        with Horizontal(classes="sidebar-header"):
+            yield Label("CHATS", id="history-sidebar-title")
+            yield Button("✕", id="close-history-btn", classes="close-btn")
         yield Button("New Chat", id="new-chat-btn", variant="primary")
         yield Vertical(id="history-list")
+
+    @on(Button.Pressed, "#close-history-btn")
+    def on_close_sidebar(self):
+        self.display = False
 
     @on(Button.Pressed, "#new-chat-btn")
     def on_new_chat(self):

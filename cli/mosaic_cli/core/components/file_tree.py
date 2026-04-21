@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
-from textual.widgets import DirectoryTree, Label, Static
-from textual.containers import Vertical
+from textual.widgets import DirectoryTree, Label, Static, Button
+from textual.containers import Vertical, Horizontal
 from textual.message import Message
-from textual import work, events
+from textual import work, events, on
 
 # File type icons/colored indicators using Unicode + Rich markup
 FILE_ICONS: dict[str, str] = {
@@ -119,8 +119,14 @@ class FileTreeSidebar(Vertical):
         self.workspace = workspace
 
     def compose(self):
-        yield Label("FILE TREE", id="file-tree-title")
+        with Horizontal(classes="sidebar-header"):
+            yield Label("FILE TREE", id="file-tree-title")
+            yield Button("✕", id="close-file-tree-btn", classes="close-btn")
         yield FilteredDirectoryTree(self.workspace, id="workspace-tree")
+
+    @on(Button.Pressed, "#close-file-tree-btn")
+    def on_close_sidebar(self):
+        self.display = False
 
     def refresh_tree(self):
         try:

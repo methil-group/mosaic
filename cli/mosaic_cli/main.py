@@ -158,7 +158,9 @@ class Mosaic(App):
                     )
             yield FileTreeSidebar(self.workspace, id="file-tree-sidebar")
             with Vertical(id="settings-pane"):
-                yield Label("SETTINGS")
+                with Horizontal(classes="sidebar-header"):
+                    yield Label("SETTINGS", id="settings-title")
+                    yield Button("✕", id="close-settings-btn", classes="close-btn")
                 yield Label("Provider")
                 yield Select([
                     ("OpenRouter", "openrouter"),
@@ -225,39 +227,53 @@ class Mosaic(App):
 
     def action_toggle_settings(self):
         pane = self.query_one("#settings-pane")
+        sidebar = self.query_one("#file-tree-sidebar")
+        if not pane.display:
+            # Hide file tree if opening settings
+            sidebar.display = False
         pane.display = not pane.display
 
     def action_toggle_history(self):
         sidebar = self.query_one("#history-sidebar")
         memory = self.query_one("#memory-sidebar")
         tools = self.query_one("#tools-sidebar")
+        settings = self.query_one("#settings-pane")
         if not sidebar.display:
             memory.display = False 
             tools.display = False
+            settings.display = False
         sidebar.display = not sidebar.display
 
     def action_toggle_memory(self):
         sidebar = self.query_one("#history-sidebar")
         memory = self.query_one("#memory-sidebar")
         tools = self.query_one("#tools-sidebar")
+        settings = self.query_one("#settings-pane")
         if not memory.display:
             sidebar.display = False
             tools.display = False
+            settings.display = False
         memory.display = not memory.display
         if memory.display:
             memory.refresh_memories(self.memory_manager.memories)
 
     def action_toggle_file_tree(self):
         sidebar = self.query_one("#file-tree-sidebar")
+        settings = self.query_one("#settings-pane")
+        if not sidebar.display:
+            # Hide settings if opening file tree
+            settings.display = False
         sidebar.display = not sidebar.display
 
     def action_toggle_tools(self):
         sidebar = self.query_one("#history-sidebar")
         memory = self.query_one("#memory-sidebar")
         tools = self.query_one("#tools-sidebar")
+        settings = self.query_one("#settings-pane")
         if not tools.display:
             sidebar.display = False
             memory.display = False
+            settings.display = False
         tools.display = not tools.display
         if tools.display:
             tools.refresh_tools(self.tools)
@@ -435,11 +451,22 @@ class Mosaic(App):
         except Exception:
             pass
 
+    @on(Button.Pressed, "#close-settings-btn")
+    def handle_close_settings(self):
+        self.query_one("#settings-pane").display = False
+
     @on(FileTreeSidebar.FileCmdClicked)
     def handle_file_cmd_clicked(self, message: FileTreeSidebar.FileCmdClicked):
-        # Get relative path to workspace
+        self._insert_file_path(message.path)
+
+    @on(FileTreeSidebar.FileSelected)
+    def handle_file_selected(self, message: FileTreeSidebar.FileSelected):
+        # FileSelected handles both double-click and Enter
+        self._insert_file_path(message.path)
+
+    def _insert_file_path(self, abs_path: str):
         try:
-            rel_path = os.path.relpath(message.path, self.workspace)
+            rel_path = os.path.relpath(abs_path, self.workspace)
             user_input = self.query_one("#user-input", Input)
             
             current_val = user_input.value

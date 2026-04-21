@@ -37,12 +37,18 @@ class MemorySidebar(Vertical):
             super().__init__()
 
     def compose(self):
-        yield Label("BRAIN / MEMORIES", id="memory-sidebar-title")
+        with Horizontal(classes="sidebar-header"):
+            yield Label("BRAIN / MEMORIES", id="memory-sidebar-title")
+            yield Button("✕", id="close-memory-btn", classes="close-btn")
         with Vertical(id="memory-list"):
             pass
         with Vertical(id="memory-input-area"):
             yield Label("Add to memory:")
             yield Input(placeholder="Type a fact to remember...", id="memory-manual-input")
+
+    @on(Button.Pressed, "#close-memory-btn")
+    def on_close_sidebar(self):
+        self.display = False
 
     def refresh_memories(self, memories: List[Dict[str, Any]]):
         mem_list = self.query_one("#memory-list")

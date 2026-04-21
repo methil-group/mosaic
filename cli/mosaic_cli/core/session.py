@@ -17,7 +17,7 @@ class SessionManager:
         os.makedirs(self.chats_dir, exist_ok=True)
 
     def generate_session_id(self) -> str:
-        return datetime.now().strftime("%Y%m%d_%H%M%S")
+        return datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
     def save_chat(self, session_id: str, history: List[Dict[str, str]]):
         path = os.path.join(self.chats_dir, f"chat_{session_id}.json")
