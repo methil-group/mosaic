@@ -453,6 +453,17 @@ Markdown {
     padding: 0 1;
 }
 
+#version-display {
+    dock: bottom;
+    width: auto;
+    text-align: right;
+    color: #453c35;
+    background: transparent;
+    padding: 0 1;
+    text-style: italic;
+    opacity: 0.7;
+}
+
 /* 
  * ==========================================
  * MOSAIC PREMIUM THEME - GOLD & DARK BROWN

@@ -5,9 +5,10 @@
 
 set -e
 
-REPO_URL="https://github.com/methil-group/mosaic"
+REPO_URL="https://github.com/methil-mods/mosaic"
 
-echo "🧩 Installing Mosaic..."
+MOSAIC_VERSION="0.1.0"
+echo "🧩 Installing Mosaic v$MOSAIC_VERSION..."
 
 # Colors and formatting
 RED='\033[0;31m'
@@ -32,7 +33,7 @@ spinner() {
         i=$(( (i + 1) % ${#frames[@]} ))
         sleep $delay
     done
-    printf "\r"  # clear the spinner line
+    printf "\r\033[K"  # clear the spinner line
 }
 
 draw_progress_bar() {
@@ -61,7 +62,7 @@ echo " | \  / | |  | | (___   /  \    | | | |      "
 echo " | |\/| | |  | |\___ \ / /\ \   | | | |      "
 echo " | |  | | |__| |____) / ____ \ _| |_| ____  "
 echo " |_|  |_|\____/|_____/_/    \_\_____|\_____| "
-echo -e "${DIM}                                 Made by Methil${NC}"
+echo -e "${DIM}                                 v$MOSAIC_VERSION | Made by Methil${NC}"
 echo -e "${DIM}------------------------------------------------------------${NC}"
 
 # Check requirements

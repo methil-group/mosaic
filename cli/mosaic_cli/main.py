@@ -23,6 +23,7 @@ from .framework.llm.openrouter import OpenRouter
 from .framework.llm.openai import OpenAiProvider
 from .framework.llm.llama_provider import LlamaProvider
 from .framework.llm.lmstudio import LmStudioProvider
+from . import __version__
 
 from rich.markup import escape
 from rich.theme import Theme
@@ -195,6 +196,7 @@ class Mosaic(App):
                 yield Button("Save & Refresh", variant="primary", id="save-settings")
                 yield Static(f"Workspace: {escape(self.workspace)}", id="workspace-info")
                 yield Label("Made by Methil", id="methil-credit")
+        yield Static(f"v{__version__}", id="version-display")
         yield Footer()
 
     def on_mount(self):
