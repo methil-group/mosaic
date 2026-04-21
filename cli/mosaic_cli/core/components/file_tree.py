@@ -3,7 +3,7 @@ from pathlib import Path
 from textual.widgets import DirectoryTree, Label, Static
 from textual.containers import Vertical
 from textual.message import Message
-from textual import work
+from textual import work, events
 
 # File type icons/colored indicators using Unicode + Rich markup
 FILE_ICONS: dict[str, str] = {
@@ -81,6 +81,19 @@ class FilteredDirectoryTree(DirectoryTree):
     def filter_paths(self, paths):
         return [p for p in paths if not p.name.startswith(".")]
 
+    class FileCmdClicked(Message):
+        def __init__(self, path: str):
+            self.path = path
+            super().__init__()
+
+    def on_click(self, event: events.Click) -> None:
+        if event.meta or event.ctrl:
+            # get_node_at uses widget-relative y coordinate
+            node = self.get_node_at(event.y)
+            if node and node.data and not node.data.is_dir:
+                self.post_message(self.FileCmdClicked(str(node.data.path)))
+                event.stop()
+
     def render_label(self, node, base_style, style):
         label = super().render_label(node, base_style, style)
         return label
@@ -92,6 +105,11 @@ class FileTreeSidebar(Vertical):
     DEFAULT_CSS = ""
     
     class FileSelected(Message):
+        def __init__(self, path: str):
+            self.path = path
+            super().__init__()
+
+    class FileCmdClicked(Message):
         def __init__(self, path: str):
             self.path = path
             super().__init__()
@@ -113,3 +131,6 @@ class FileTreeSidebar(Vertical):
 
     def on_directory_tree_file_selected(self, event: FilteredDirectoryTree.FileSelected):
         self.post_message(self.FileSelected(str(event.path)))
+
+    def on_filtered_directory_tree_file_cmd_clicked(self, event: FilteredDirectoryTree.FileCmdClicked):
+        self.post_message(self.FileCmdClicked(str(event.path)))

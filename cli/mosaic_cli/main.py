@@ -206,6 +206,9 @@ class Mosaic(App):
             self.add_message("[red]Warning: OpenRouter API Key not set. Use Ctrl+S to enter it.[/]")
         elif self.provider_type == "openai" and not self.openai_key:
             self.add_message("[red]Warning: OpenAI API Key not set. Use Ctrl+S to enter it.[/]")
+        
+        # Mandatory persistence: save the initial session
+        self.save_chat()
 
     def add_message(self, content: Union[str, Widget]):
         log = self.query_one("#chat-log")
@@ -423,8 +426,6 @@ class Mosaic(App):
         self.save_chat() # Final save to be sure
 
     def save_chat(self):
-        if not self.history:
-            return
         self.session.save_chat(self.current_session_id, self.history)
         
         # Refresh the sidebar if it exists
@@ -433,6 +434,25 @@ class Mosaic(App):
             self.query_one("#memory-sidebar").refresh_memories(self.memory_manager.memories)
         except Exception:
             pass
+
+    @on(FileTreeSidebar.FileCmdClicked)
+    def handle_file_cmd_clicked(self, message: FileTreeSidebar.FileCmdClicked):
+        # Get relative path to workspace
+        try:
+            rel_path = os.path.relpath(message.path, self.workspace)
+            user_input = self.query_one("#user-input", Input)
+            
+            current_val = user_input.value
+            if current_val and not current_val.endswith(" "):
+                user_input.value += " "
+            
+            user_input.value += f"@{rel_path}"
+            user_input.focus()
+            
+            # Move cursor to end
+            user_input.cursor_position = len(user_input.value)
+        except Exception as e:
+            self.notify(f"Error adding file path: {str(e)}", severity="error")
 
     @on(MemorySidebar.AddRequested)
     async def handle_memory_add(self, message: MemorySidebar.AddRequested):
@@ -571,6 +591,10 @@ class Mosaic(App):
         self.history = []
         self.query_one("#chat-log").query("*").remove()
         self.add_message("[dim]New chat session started.[/]\n")
+        
+        # Force save the new empty session
+        self.save_chat()
+        
         self.query_one("#history-sidebar").refresh_history(self.session.chats_dir)
 
     @on(Select.Changed, "#provider-select")
