@@ -231,6 +231,7 @@ LoadingIndicator {
     border-right: tall #2b2621;
     background: #1c1917;
     padding: 0 1;
+    display: none;
 }
 #history-sidebar-title {
     text-style: bold;

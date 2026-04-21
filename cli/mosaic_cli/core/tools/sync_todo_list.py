@@ -22,9 +22,9 @@ class SyncTodoListTool(Tool):
         todos = []
         for attrs_str, title in todo_tags:
             # Extract id and completed from the attributes string
-            id_match = re.search(r"id=[\"'](.*?)[\"']", attrs_str)
-            comp_match = re.search(r"completed=[\"'](.*?)[\"']", attrs_str)
-            desc_match = re.search(r"description=[\"'](.*?)[\"']", attrs_str)
+            id_match = re.search(r"id=[\"'](.*?)[\"']", attrs_str, re.DOTALL)
+            comp_match = re.search(r"completed=[\"'](.*?)[\"']", attrs_str, re.DOTALL)
+            desc_match = re.search(r"description=[\"'](.*?)[\"']", attrs_str, re.DOTALL)
             
             if id_match:
                 todos.append({

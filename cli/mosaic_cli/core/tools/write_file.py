@@ -16,11 +16,11 @@ class WriteFileTool(Tool):
         if not path:
             return "Error: Missing path parameter"
         
-        ensure_not_protected_path(path, workspace)
-        file_path = resolve_path(path, workspace)
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
         try:
+            ensure_not_protected_path(path, workspace)
+            file_path = resolve_path(path, workspace)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
             return f"Successfully wrote to {path}"

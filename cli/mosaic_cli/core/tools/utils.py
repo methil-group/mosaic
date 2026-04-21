@@ -3,11 +3,13 @@ import os
 def resolve_path(path: str, workspace: str) -> str:
     abs_workspace = os.path.abspath(workspace)
     
-    # If the path is already absolute and within the workspace, just normalize it
+    # If the path is already absolute, it MUST be within the workspace
     if os.path.isabs(path):
         normalized_path = os.path.normpath(path)
         if normalized_path.startswith(abs_workspace):
             return normalized_path
+        else:
+            raise ValueError(f"Access denied: Absolute path {path} is outside the workspace {abs_workspace}")
             
     # Otherwise, treat it as relative to workspace
     # Normalize separators to / then to OS default

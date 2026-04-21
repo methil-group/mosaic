@@ -4,13 +4,20 @@ from typing import Callable, Any, Dict
 class StreamProcessor:
     """Handles stateful buffering and masking of tokens during streaming."""
     
-    def __init__(self, on_event: Callable[[Dict[str, Any]], None]):
+    def __init__(self, on_event: Callable[[Dict[str, Any]], Any]):
         self.on_event = on_event
         self.buffer = ""
         self.masking = False
         self.full_text = ""
 
-    def process_token(self, token: str):
+    async def _emit(self, event: Dict[str, Any]):
+        import asyncio
+        import inspect
+        res = self.on_event(event)
+        if asyncio.iscoroutine(res) or inspect.isawaitable(res):
+            await res
+
+    async def process_token(self, token: str):
         """Processes a new token, managing buffering and masking logic."""
         self.full_text += token
         self.buffer += token
@@ -21,7 +28,7 @@ class StreamProcessor:
                     # Start of a tool call found
                     pre_tag, post_tag = self.buffer.split("<tool_call>", 1)
                     if pre_tag:
-                        self.on_event({"type": "token", "data": pre_tag})
+                        await self._emit({"type": "token", "data": pre_tag})
                     self.masking = True
                     self.buffer = "<tool_call>" + post_tag
                 elif "<" in self.buffer:
@@ -29,14 +36,14 @@ class StreamProcessor:
                     idx = self.buffer.find("<")
                     if idx > 0:
                         # Emit everything before the first "<"
-                        self.on_event({"type": "token", "data": self.buffer[:idx]})
+                        await self._emit({"type": "token", "data": self.buffer[:idx]})
                         self.buffer = self.buffer[idx:]
                         continue
                     
                     # Buffer starts with "<". Check if it's still a possible prefix of "<tool_call>"
                     if not "<tool_call>".startswith(self.buffer):
                         # It's not a tool call tag
-                        self.on_event({"type": "token", "data": self.buffer[0]})
+                        await self._emit({"type": "token", "data": self.buffer[0]})
                         self.buffer = self.buffer[1:]
                         continue
                     else:
@@ -44,7 +51,7 @@ class StreamProcessor:
                         break
                 else:
                     # No tags at all, emit everything
-                    self.on_event({"type": "token", "data": self.buffer})
+                    await self._emit({"type": "token", "data": self.buffer})
                     self.buffer = ""
             else:
                 # Masking content inside <tool_call> tags
@@ -59,8 +66,8 @@ class StreamProcessor:
                     # Still inside a tool call, wait for closing tag
                     break
 
-    def flush(self):
+    async def flush(self):
         """Flushes any remaining content in the buffer (if not masking)."""
         if self.buffer and not self.masking:
-            self.on_event({"type": "token", "data": self.buffer})
+            await self._emit({"type": "token", "data": self.buffer})
             self.buffer = ""

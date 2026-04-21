@@ -22,12 +22,12 @@ class EditFileTool(Tool):
         if not old_content:
             return "Error: Missing 'old_content' parameter (the text you want to replace)."
         
-        ensure_not_protected_path(path, workspace)
-        file_path = resolve_path(path, workspace)
-        if not os.path.exists(file_path):
-            return f"Error: File not found: {path}"
-        
         try:
+            ensure_not_protected_path(path, workspace)
+            file_path = resolve_path(path, workspace)
+            if not os.path.exists(file_path):
+                return f"Error: File not found: {path}"
+            
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
             

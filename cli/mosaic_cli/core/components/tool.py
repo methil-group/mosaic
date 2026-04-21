@@ -9,14 +9,13 @@ from rich.markup import escape
 class ToolBlock(Widget):
     """A collapsible block representing a tool execution and its result."""
     
-    collapsed = reactive(True)
+    result_text = reactive("")
+    file_modified_status = reactive(False)
     
     def __init__(self, name: Any, params: dict):
         super().__init__()
         self.tool_name = str(name)
         self.params = params or {}
-        self.result = ""
-        self.file_status = ""
         self.add_class("tool-block")
         self.add_class("collapsed")
 
@@ -28,10 +27,8 @@ class ToolBlock(Widget):
         with Vertical(id="tool-details"):
             params_str = ", ".join([f"{k}={v}" for k,v in self.params.items()])
             yield Static(f"[bold]Parameters:[/] [dim]{escape(params_str)}[/]", classes="tool-params")
-            self.result_header = Static("", id="tool-result-header")
-            self.result_content = Static("Executing...", id="tool-result-content", markup=False)
-            yield self.result_header
-            yield self.result_content
+            yield Static("", id="tool-result-header")
+            yield Static("Executing...", id="tool-result-content", markup=False)
 
     def on_click(self) -> None:
         self.collapsed = not self.collapsed
@@ -40,25 +37,43 @@ class ToolBlock(Widget):
         chevron.update("▶" if self.collapsed else "▼")
 
     def set_result(self, result: str, file_modified: bool = False):
-        self.result = result
-        self.file_status = " ✓ File modified" if file_modified else ""
+        self.result_text = result
+        self.file_modified_status = file_modified
         
-        display_text = result
+    def watch_result_text(self, result: str):
+        self._update_ui()
+
+    def watch_file_modified_status(self, status: bool):
+        self._update_ui()
+
+    def _update_ui(self):
         try:
-            # Try to parse as JSON for pretty-printing and correct encoding
-            if result.strip().startswith(("{", "[")):
-                data = json.loads(result)
-                display_text = json.dumps(data, indent=2, ensure_ascii=False)
+            res_header = self.query_one("#tool-result-header")
+            res_content = self.query_one("#tool-result-content")
+            
+            file_status = " ✓ File modified" if self.file_modified_status else ""
+            header_text = f"↳ Result{file_status}"
+            res_header.update(f"[bold spring_green3]{escape(header_text)}[/]")
+            
+            display_text = self.result_text
+            try:
+                if display_text.strip().startswith(("{", "[")):
+                    data = json.loads(display_text)
+                    display_text = json.dumps(data, indent=2, ensure_ascii=False)
+            except Exception:
+                pass
+                
+            truncated = display_text[:1000] + "..." if len(display_text) > 1000 else display_text
+            res_content.markup = False
+            res_content.update(truncated)
+            self.query_one(".tool-header").add_class("has-result")
         except Exception:
+            # Widget not ready yet, Textual will call watches again or we can rely on on_mount
             pass
-        
-        truncated = display_text[:1000] + "..." if len(display_text) > 1000 else display_text
-        header_text = f"↳ Result{self.file_status}"
-        
-        self.result_header.update(f"[bold spring_green3]{escape(header_text)}[/]")
-        self.result_content.markup = False
-        self.result_content.update(truncated)
-        self.query_one(".tool-header").add_class("has-result")
+
+    def on_mount(self):
+        if self.result_text:
+            self._update_ui()
 
 # Maintain backward compatibility for imports if needed, though they aren't used yet
 class ToolExecution(Static):

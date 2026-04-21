@@ -502,7 +502,11 @@ class Mosaic(App):
                     if "<tool_response>" in content:
                         try:
                             # Extract JSON inside <tool_response>
-                            resp_json = content.replace("<tool_response>", "").replace("</tool_response>", "").strip()
+                            match = re.search(r"<tool_response>(.*?)</tool_response>", content, re.DOTALL)
+                            if not match:
+                                raise ValueError("Malformed tool response tags")
+                            
+                            resp_json = match.group(1).strip()
                             resp_data = json.loads(resp_json)
                             name = resp_data.get("name")
                             result = resp_data.get("content")
