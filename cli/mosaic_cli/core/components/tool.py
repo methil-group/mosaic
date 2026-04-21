@@ -11,6 +11,7 @@ class ToolBlock(Widget):
     
     result_text = reactive("")
     file_modified_status = reactive(False)
+    collapsed = reactive(True)
     
     def __init__(self, name: Any, params: dict):
         super().__init__()
