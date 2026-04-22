@@ -162,37 +162,34 @@ class Mosaic(App):
             yield FileTreeSidebar(self.workspace, id="file-tree-sidebar")
             with Vertical(id="settings-pane"):
                 with Horizontal(classes="sidebar-header"):
-                    yield Label(f"SETTINGS v{__version__}", id="settings-title")
+                    yield Label("SETTINGS", id="settings-title", classes="text-bold")
                     yield Button("✕", id="close-settings-btn", classes="close-btn")
                 
                 with Vertical(id="settings-container"):
                     yield Label("CORE SETTINGS", classes="settings-section-title")
                     
-                    with Horizontal(classes="setting-row"):
-                        yield Label("Agent Mode", classes="setting-label")
-                        yield Select([
-                            ("Agent-driven (Auto)", "agent"),
-                            ("Review-driven (Manual)", "review")
-                        ], value=self.agent_mode, id="mode-select")
+                    yield Label("Agent Mode", classes="setting-label")
+                    yield Select([
+                        ("Agent-driven (Auto)", "agent"),
+                        ("Review-driven (Manual)", "review")
+                    ], value=self.agent_mode, id="mode-select")
 
-                    with Horizontal(classes="setting-row"):
-                        yield Label("LLM Provider", classes="setting-label")
-                        yield Select([
-                            ("OpenRouter", "openrouter"),
-                            ("OpenAI", "openai"),
-                            ("LM Studio", "lmstudio")
-                        ], value=self.provider_type, id="provider-select")
+                    yield Label("LLM Provider", classes="setting-label")
+                    yield Select([
+                        ("OpenRouter", "openrouter"),
+                        ("OpenAI", "openai"),
+                        ("LM Studio", "lmstudio")
+                    ], value=self.provider_type, id="provider-select")
 
-                    with Horizontal(classes="setting-row"):
-                        yield Label("Model", classes="setting-label")
-                        yield Select([
-                            ("Qwen 3.5 9b", "qwen/qwen3.5-9b"),
-                            ("Qwen 3.5 27b", "qwen/qwen3.5-27b"),
-                            ("Qwen 3.6 35B A3B", "qwen/qwen3.6-35B-A3B"),
-                            ("Qwen 3.6 Plus", "qwen/qwen3.6-plus"),
-                            ("Qwen Coder Next", "qwen/qwen3-coder-next"),
-                            ("Custom...", "custom")
-                        ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-35B-A3B", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else ("custom" if self.model else "qwen/qwen3.5-27b"), id="model-select")
+                    yield Label("Model", classes="setting-label")
+                    yield Select([
+                        ("Qwen 3.5 9b", "qwen/qwen3.5-9b"),
+                        ("Qwen 3.5 27b", "qwen/qwen3.5-27b"),
+                        ("Qwen 3.6 35B A3B", "qwen/qwen3.6-35B-A3B"),
+                        ("Qwen 3.6 Plus", "qwen/qwen3.6-plus"),
+                        ("Qwen Coder Next", "qwen/qwen3-coder-next"),
+                        ("Custom...", "custom")
+                    ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-35B-A3B", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else ("custom" if self.model else "qwen/qwen3.5-27b"), id="model-select")
                     
                     yield Input(placeholder="Enter custom model name...", value=self.model, id="custom-model-input")
 
@@ -753,6 +750,8 @@ class Mosaic(App):
     def on_lmstudio_url_changed(self, event: Input.Changed):
         """Handle URL changes with a simple debounce."""
         self.lmstudio_url = event.value
+        if self.provider_type != "lmstudio":
+            return
         # Use a timer to avoid spamming requests while typing
         if hasattr(self, "_refresh_timer"):
             self._refresh_timer.cancel()

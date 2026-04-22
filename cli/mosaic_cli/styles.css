@@ -542,20 +542,23 @@ HistoryItem:hover, MemoryItem:hover, ToolItem:hover, TodoItem:hover {
     width: 100%;
 }
 
-.setting-row {
-    height: auto;
-    margin-bottom: 1;
-    align: left middle;
-}
-
 .setting-label {
-    width: 12;
+    width: 100%;
     color: #d1bda2;
-    margin-right: 2;
+    margin-top: 1;
 }
 
 #settings-container Select, #settings-container Input {
     width: 1fr;
+    margin-bottom: 1;
+    border: none;
+    border-bottom: solid #453c35;
+    background: transparent;
+}
+
+#settings-container Select:focus, #settings-container Input:focus {
+    border: none;
+    border-bottom: solid #a8917d;
 }
 
 /* Approval UI Styles */

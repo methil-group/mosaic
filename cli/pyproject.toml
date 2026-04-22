@@ -5,9 +5,6 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mosaic-tui"
 dynamic = ["version"]
-
-[tool.setuptools.dynamic]
-version = {file = "VERSION"}
 description = "A premium Agentic TUI for autonomous coding"
 dependencies = [
     "textual",
@@ -15,6 +12,9 @@ dependencies = [
     "rich",
     "python-dotenv",
 ]
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
 
 [project.optional-dependencies]
 dev = [

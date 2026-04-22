@@ -246,5 +246,7 @@ if ! check_command mosaic; then
     fi
 else
     echo -e "🚀 Run ${PURPLE}${BOLD}mosaic${NC} to start."
+    echo -e "\n💡 ${DIM}If the command still runs the old version, run this in your terminal:${NC}"
+    echo -e "   ${CYAN}hash -r${NC} ${DIM}(or reopen your terminal)${NC}"
 fi
 echo -e "${DIM}------------------------------------------------------------${NC}"
