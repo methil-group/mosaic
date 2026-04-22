@@ -2,6 +2,19 @@ import os
 from dotenv import load_dotenv, set_key
 from typing import Optional
 
+def _get_version():
+    try:
+        # VERSION file is at the root of the project
+        v_path = os.path.join(os.path.dirname(__file__), "..", "..", "VERSION")
+        if os.path.exists(v_path):
+            with open(v_path, "r") as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return "0.1.0"
+
+MOSAIC_VERSION = _get_version()
+
 class ConfigManager:
     """Handles global configuration and environment variables for Mosaic."""
     

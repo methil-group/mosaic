@@ -1,1 +1,2 @@
-__version__ = "0.1.0"
+from .core.config import MOSAIC_VERSION
+__version__ = MOSAIC_VERSION

@@ -1,8 +1,14 @@
 from setuptools import setup, find_packages
 
+import os
+
+def get_version():
+    with open("VERSION", "r") as f:
+        return f.read().strip()
+
 setup(
     name="mosaic-tui",
-    version="0.1.0",
+    version=get_version(),
     packages=find_packages(),
     install_requires=[
         "textual",
