@@ -161,42 +161,44 @@ class Mosaic(App):
             yield FileTreeSidebar(self.workspace, id="file-tree-sidebar")
             with Vertical(id="settings-pane"):
                 with Horizontal(classes="sidebar-header"):
-                    yield Label("SETTINGS", id="settings-title")
+                    yield Label(f"SETTINGS [dim]v{__version__}[/]", id="settings-title")
                     yield Button("✕", id="close-settings-btn", classes="close-btn")
-                yield Label("Provider")
-                yield Select([
-                    ("OpenRouter", "openrouter"),
-                    ("OpenAI", "openai"),
-                    ("LM Studio", "lmstudio")
-                ], value=self.provider_type, id="provider-select")
-
-                with Vertical(id="openrouter-settings", classes="provider-settings"):
-                    yield Label("OpenRouter API Key")
-                    yield Input(placeholder="sk-or-v1-...", value=self.api_key, id="api-key-input", password=True)
                 
-                with Vertical(id="openai-settings", classes="provider-settings"):
-                    yield Label("OpenAI API Key")
-                    yield Input(placeholder="sk-...", value=self.openai_key, id="openai-key-input", password=True)
+                with Vertical(id="settings-container"):
+                    yield Label("Provider")
+                    yield Select([
+                        ("OpenRouter", "openrouter"),
+                        ("OpenAI", "openai"),
+                        ("LM Studio", "lmstudio")
+                    ], value=self.provider_type, id="provider-select")
 
-                with Vertical(id="lmstudio-settings", classes="provider-settings"):
-                    yield Label("LM Studio URL")
-                    yield Input(placeholder="http://localhost:1234/v1", value=self.lmstudio_url, id="lmstudio-url-input")
+                    with Vertical(id="openrouter-settings", classes="provider-settings"):
+                        yield Label("OpenRouter API Key")
+                        yield Input(placeholder="sk-or-v1-...", value=self.api_key, id="api-key-input", password=True)
+                    
+                    with Vertical(id="openai-settings", classes="provider-settings"):
+                        yield Label("OpenAI API Key")
+                        yield Input(placeholder="sk-...", value=self.openai_key, id="openai-key-input", password=True)
 
-                yield Label("Model")
-                yield Select([
-                    ("Qwen 3.5 9b", "qwen/qwen3.5-9b"),
-                    ("Qwen 3.5 27b", "qwen/qwen3.5-27b"),
-                    ("Qwen 3.6 35B A3B", "qwen/qwen3.6-35B-A3B"),
-                    ("Qwen 3.6 Plus", "qwen/qwen3.6-plus"),
-                    ("Qwen Coder Next", "qwen/qwen3-coder-next"),
-                    ("Custom...", "custom")
-                ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-35B-A3B", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else ("custom" if self.model else "qwen/qwen3.5-27b"), id="model-select")
-                
-                yield Input(placeholder="Enter model name...", value=self.model, id="custom-model-input")
+                    with Vertical(id="lmstudio-settings", classes="provider-settings"):
+                        yield Label("LM Studio URL")
+                        yield Input(placeholder="http://localhost:1234/v1", value=self.lmstudio_url, id="lmstudio-url-input")
 
-                yield Button("Save & Refresh", variant="primary", id="save-settings")
-                yield Static(f"Workspace: {escape(self.workspace)}", id="workspace-info")
-                yield Label("Made by Methil", id="methil-credit")
+                    yield Label("Model")
+                    yield Select([
+                        ("Qwen 3.5 9b", "qwen/qwen3.5-9b"),
+                        ("Qwen 3.5 27b", "qwen/qwen3.5-27b"),
+                        ("Qwen 3.6 35B A3B", "qwen/qwen3.6-35B-A3B"),
+                        ("Qwen 3.6 Plus", "qwen/qwen3.6-plus"),
+                        ("Qwen Coder Next", "qwen/qwen3-coder-next"),
+                        ("Custom...", "custom")
+                    ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-35B-A3B", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else ("custom" if self.model else "qwen/qwen3.5-27b"), id="model-select")
+                    
+                    yield Input(placeholder="Enter model name...", value=self.model, id="custom-model-input")
+
+                    yield Button("Save & Refresh", variant="primary", id="save-settings")
+                    yield Static(f"Workspace: {escape(self.workspace)}", id="workspace-info")
+                    yield Label("Made by Methil", id="methil-credit")
         yield Static(f"v{__version__}", id="version-display")
         yield Footer()
 

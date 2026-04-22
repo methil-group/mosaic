@@ -61,7 +61,11 @@ Screen {
     padding: 0;
 }
 #settings-pane > Vertical {
+    padding: 0;
+}
+#settings-container {
     padding: 1 2;
+    height: auto;
 }
 
 .sidebar-header {
@@ -174,17 +178,24 @@ TodoItem Vertical {
 
 #settings-pane Label {
     margin-top: 1;
+    margin-bottom: 0;
     text-style: bold;
     color: #a68f78;
 }
+#settings-pane Select, #settings-pane Input {
+    margin-bottom: 1;
+}
 #save-settings {
     margin-top: 2;
+    margin-bottom: 1;
     width: 100%;
     background: #a8917d;
     color: #1c1917;
 }
 #workspace-info {
-    margin-top: 1;
+    margin-top: 2;
+    padding-top: 1;
+    border-top: dashed #453c35;
     color: #7d6e5e;
     text-style: italic;
 }
