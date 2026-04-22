@@ -19,7 +19,8 @@ class Agent:
         workspace: str,
         user_name: str,
         tools: List[Tool],
-        memory_manager: Optional[MemoryManager] = None
+        memory_manager: Optional[MemoryManager] = None,
+        verbose: bool = False
     ):
         self.llm = llm
         self.model = model
@@ -27,6 +28,7 @@ class Agent:
         self.user_name = user_name
         self.tools = tools
         self.memory_manager = memory_manager
+        self.verbose = verbose
         self.messages: List[Dict[str, str]] = []
         self.stopped = False
         
@@ -92,6 +94,9 @@ class Agent:
                     if self.stopped:
                         break
                     
+                    if self.verbose:
+                        self._log(f"Stream Event: {json.dumps(event)}", "VERBOSE")
+
                     if event["type"] == "token":
                         await processor.process_token(event["data"])
                     elif event["type"] == "usage":

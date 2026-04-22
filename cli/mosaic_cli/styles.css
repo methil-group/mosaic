@@ -545,7 +545,7 @@ HistoryItem:hover, MemoryItem:hover, ToolItem:hover, TodoItem:hover {
 .setting-row {
     height: auto;
     margin-bottom: 1;
-    align: middle left;
+    align: left middle;
 }
 
 .setting-label {

@@ -8,7 +8,6 @@ from .run_command import RunCommandTool
 from .create_todo import CreateTodoTool
 from .update_todo import UpdateTodoTool
 from .delete_todo import DeleteTodoTool
-from .sync_todo_list import SyncTodoListTool
 from .get_todo_list import GetTodoListTool
 from .delete_file import DeleteFileTool
 from .store_memory import StoreMemoryTool
@@ -30,7 +29,6 @@ class ToolRegistry:
             CreateTodoTool(),
             UpdateTodoTool(),
             DeleteTodoTool(),
-            SyncTodoListTool(),
             GetTodoListTool(),
             StoreMemoryTool(memory_manager),
             RecallMemoriesTool(memory_manager)

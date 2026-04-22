@@ -50,9 +50,11 @@ class OpenRouter(LlmProvider):
                             if "usage" in chunk:
                                 yield {"type": "usage", "data": chunk["usage"]}
                             
-                            delta = chunk.get("choices", [{}])[0].get("delta", {})
-                            if "content" in delta:
-                                yield {"type": "token", "data": delta["content"]}
+                            choices = chunk.get("choices", [])
+                            if choices:
+                                delta = choices[0].get("delta", {})
+                                if "content" in delta:
+                                    yield {"type": "token", "data": delta["content"]}
                         except json.JSONDecodeError:
                             continue
             except Exception as e:

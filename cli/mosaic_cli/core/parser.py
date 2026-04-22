@@ -13,12 +13,13 @@ class ToolCallParser:
         """
         try:
             match = re.search(r"<tool_call>(.*?)</(?:tool_call|tool_answer|tool_response)>", content, re.DOTALL)
-            if not match:
-                return None
+            if match:
+                inner = match.group(1).strip()
+            else:
+                # Fallback: check if the whole content or a large block is JSON
+                inner = content.strip()
             
-            inner = match.group(1).strip()
-            
-            # Robust JSON extraction within the tags
+            # Robust JSON extraction within the string
             starts = [m.start() for m in re.finditer(r"\{", inner)]
             ends = [m.start() for m in re.finditer(r"\}", inner)]
             
