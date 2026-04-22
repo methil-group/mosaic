@@ -23,6 +23,7 @@ from .framework.llm.openrouter import OpenRouter
 from .framework.llm.openai import OpenAiProvider
 from .framework.llm.llama_provider import LlamaProvider
 from .framework.llm.lmstudio import LmStudioProvider
+from .core.updater import check_for_updates
 from . import __version__
 
 from rich.markup import escape
@@ -199,6 +200,16 @@ class Mosaic(App):
         yield Static(f"v{__version__}", id="version-display")
         yield Footer()
 
+    @work(description="Checking for updates")
+    async def run_version_check(self):
+        """Check for updates on GitHub in the background."""
+        result = await check_for_updates(__version__)
+        if result:
+            latest_version, update_cmd = result
+            self.add_message(f"\n[bold gold1]🚀 A new version of Mosaic (v{latest_version}) is available![/]")
+            self.add_message(f"[dim]Run the following command to update:[/]\n[bold cyan]{update_cmd}[/]\n")
+            self.notify(f"Update available: v{latest_version}", severity="information", timeout=10.0)
+
     def on_mount(self):
         self.update_provider_settings_visibility(self.provider_type)
         self.query_one("#history-sidebar").refresh_history(self.session.chats_dir)
@@ -206,6 +217,10 @@ class Mosaic(App):
         self.query_one("#tools-sidebar").refresh_tools(self.tools)
         self.add_message("[bold gold1]Welcome to Mosaic[/] [dim](Made by Methil)[/]")
         self.add_message("[dim]Press Ctrl+S for settings, Ctrl+Q to quit[/]\n")
+        
+        # Start background update check
+        self.run_version_check()
+
         if self.provider_type == "openrouter" and not self.api_key:
             self.add_message("[red]Warning: OpenRouter API Key not set. Use Ctrl+S to enter it.[/]")
         elif self.provider_type == "openai" and not self.openai_key:
@@ -572,23 +587,34 @@ class Mosaic(App):
                 content = msg.get("content", "")
                 
                 if role == "assistant":
+                    # Improved regex to handle all possible closing tags
+                    tool_call_pattern = r"(<tool_call>.*?</(?:tool_call|tool_answer|tool_response)>)"
                     if "<tool_call>" in content:
-                        # Split by tool call tags
-                        parts = re.split(r"(<tool_call>.*?</tool_call>)", content, flags=re.DOTALL)
+                        parts = re.split(tool_call_pattern, content, flags=re.DOTALL)
+                        show_label = True
                         for part in parts:
+                            if not part.strip():
+                                continue
+                                
                             if part.startswith("<tool_call>"):
                                 # Parse tool call
                                 try:
-                                    json_str = part.replace("<tool_call>", "").replace("</tool_call>", "").strip()
+                                    # Strip any of the possible tags
+                                    json_str = re.sub(r"</?(?:tool_call|tool_answer|tool_response)>", "", part).strip()
                                     call_data = json.loads(json_str)
                                     name = call_data.get("name")
                                     params = call_data.get("arguments")
                                     last_tool_block = ToolBlock(name, params)
                                     log.mount(last_tool_block)
+                                    show_label = True # Next text part should probably show label again for clarity? 
+                                    # Actually, let's keep it False if it's the same message turn
+                                    show_label = False 
                                 except Exception:
-                                    log.mount(ChatMessage(role, part))
-                            elif part.strip():
-                                log.mount(ChatMessage(role, part.strip()))
+                                    log.mount(ChatMessage(role, part, show_label=show_label))
+                                    show_label = False
+                            else:
+                                log.mount(ChatMessage(role, part.strip(), show_label=show_label))
+                                show_label = False
                     else:
                         log.mount(ChatMessage(role, content))
                 

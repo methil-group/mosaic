@@ -7,7 +7,7 @@ set -e
 
 REPO_URL="https://github.com/methil-mods/mosaic"
 
-MOSAIC_VERSION="0.1.0"
+MOSAIC_VERSION="0.0.2"
 echo "🧩 Installing Mosaic v$MOSAIC_VERSION..."
 
 # Colors and formatting
