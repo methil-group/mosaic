@@ -228,8 +228,8 @@ class Mosaic(App):
         elif self.provider_type == "openai" and not self.openai_key:
             self.add_message("[red]Warning: OpenAI API Key not set. Use Ctrl+S to enter it.[/]")
         
-        # Mandatory persistence: save the initial session
-        self.save_chat()
+        # Initial session is handled dynamically (only saved on first message)
+        pass
 
         if self.provider_type == "lmstudio":
             self.refresh_models()
@@ -685,17 +685,11 @@ class Mosaic(App):
 
     @on(HistorySidebar.NewChatRequested)
     def handle_new_chat(self):
-        # Save current before clearing
-        self.save_chat()
-        
         # Reset
         self.current_session_id = self.session.generate_session_id()
         self.history = []
         self.query_one("#chat-log").query("*").remove()
         self.add_message("[dim]New chat session started.[/]\n")
-        
-        # Force save the new empty session
-        self.save_chat()
         
         self.query_one("#history-sidebar").refresh_history(self.session.chats_dir)
 

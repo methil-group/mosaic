@@ -20,6 +20,9 @@ class SessionManager:
         return datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
     def save_chat(self, session_id: str, history: List[Dict[str, str]]):
+        if not history:
+            return  # Skip saving empty sessions
+
         path = os.path.join(self.chats_dir, f"chat_{session_id}.json")
         data = {
             "session_id": session_id,
@@ -28,6 +31,11 @@ class SessionManager:
         }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+
+    def delete_chat(self, session_id: str):
+        path = os.path.join(self.chats_dir, f"chat_{session_id}.json")
+        if os.path.exists(path):
+            os.remove(path)
 
     def load_chat(self, session_id: str) -> Optional[List[Dict[str, str]]]:
         path = os.path.join(self.chats_dir, f"chat_{session_id}.json")
@@ -53,10 +61,17 @@ class SessionManager:
                     path = os.path.join(self.chats_dir, f)
                     with open(path, "r", encoding="utf-8") as file:
                         data = json.load(file)
+                        history = data.get("history", [])
+                        
+                        # Delete if it's empty history (useless)
+                        if not history:
+                            os.remove(path)
+                            continue
+                            
                         sessions.append({
                             "session_id": data.get("session_id"),
                             "last_updated": data.get("last_updated"),
-                            "preview": self._get_preview(data.get("history", []))
+                            "preview": self._get_preview(history)
                         })
                 except Exception:
                     continue
