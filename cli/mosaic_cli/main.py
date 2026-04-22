@@ -744,6 +744,9 @@ class Mosaic(App):
 
 
 def run():
+    if len(sys.argv) > 1 and sys.argv[1] in ["--version", "-v"]:
+        print(f"Mosaic v{__version__}")
+        sys.exit(0)
     workspace = sys.argv[1] if len(sys.argv) > 1 else None
     app = Mosaic(workspace=workspace)
     app.run()
