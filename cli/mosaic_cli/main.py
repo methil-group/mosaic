@@ -161,7 +161,7 @@ class Mosaic(App):
             yield FileTreeSidebar(self.workspace, id="file-tree-sidebar")
             with Vertical(id="settings-pane"):
                 with Horizontal(classes="sidebar-header"):
-                    yield Label(f"SETTINGS [dim]v{__version__}[/]", id="settings-title")
+                    yield Label(f"SETTINGS v{__version__}", id="settings-title")
                     yield Button("✕", id="close-settings-btn", classes="close-btn")
                 
                 with Vertical(id="settings-container"):
@@ -217,7 +217,7 @@ class Mosaic(App):
         self.query_one("#history-sidebar").refresh_history(self.session.chats_dir)
         self.query_one("#memory-sidebar").refresh_memories(self.memory_manager.memories)
         self.query_one("#tools-sidebar").refresh_tools(self.tools)
-        self.add_message("[bold gold1]Welcome to Mosaic[/] [dim](Made by Methil)[/]")
+        self.add_message(f"[bold gold1]Welcome to Mosaic[/] [dim]v{__version__} (Made by Methil)[/]")
         self.add_message("[dim]Press Ctrl+S for settings, Ctrl+Q to quit[/]\n")
         
         # Start background update check
