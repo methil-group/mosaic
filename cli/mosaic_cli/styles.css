@@ -531,3 +531,51 @@ HistoryItem, MemoryItem, ToolItem, TodoItem {
 HistoryItem:hover, MemoryItem:hover, ToolItem:hover, TodoItem:hover {
     border-left: solid #a8917d;
 }
+
+/* Redesigned Settings Styles */
+.settings-section-title {
+    color: #a8917d;
+    text-style: bold;
+    margin-top: 2;
+    margin-bottom: 1;
+    border-bottom: solid #453c35;
+    width: 100%;
+}
+
+.setting-row {
+    height: auto;
+    margin-bottom: 1;
+    align: middle left;
+}
+
+.setting-label {
+    width: 12;
+    color: #d1bda2;
+    margin-right: 2;
+}
+
+#settings-container Select, #settings-container Input {
+    width: 1fr;
+}
+
+/* Approval UI Styles */
+#approval-area {
+    margin: 1 0;
+    padding: 1;
+    background: #3d352e 30%;
+    border: dashed #f1fa8c;
+    height: auto;
+}
+
+.approval-msg {
+    width: 1fr;
+    color: #f1fa8c;
+}
+
+#approve-btn {
+    margin-right: 1;
+}
+
+.hidden {
+    display: none !important;
+}

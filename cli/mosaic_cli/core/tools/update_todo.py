@@ -1,5 +1,6 @@
 import json
 from .base import Tool
+from .utils import read_todos, write_todos
 from typing import Dict, Any
 
 class UpdateTodoTool(Tool):
@@ -7,22 +8,32 @@ class UpdateTodoTool(Tool):
         return "update_todo"
 
     def description(self) -> str:
-        return "Update a todo item status. Use 'id' and 'completed' (boolean) parameters. Use this to track your progress."
+        return "Update an existing todo item. Parameters: 'id' (required), 'title', 'description', 'completed' (boolean)."
 
     async def execute(self, params: Dict[str, Any], workspace: str) -> str:
         todo_id = params.get("id")
-        completed = params.get("completed")
-        
-        if todo_id is None:
+        if not todo_id:
             return "Error: Missing 'id' parameter."
-        if completed is None:
-            return "Error: Missing 'completed' parameter."
             
-        result = {
+        todos = read_todos(workspace)
+        updated = False
+        for todo in todos:
+            if todo.get("id") == str(todo_id):
+                if "title" in params:
+                    todo["title"] = params["title"]
+                if "description" in params:
+                    todo["description"] = params["description"]
+                if "completed" in params:
+                    todo["completed"] = str(params["completed"]).lower() == "true"
+                updated = True
+                break
+        
+        if not updated:
+            return f"Error: Todo with ID {todo_id} not found."
+            
+        write_todos(workspace, todos)
+        
+        return json.dumps({
             "status": "success",
-            "todo": {
-                "id": str(todo_id),
-                "completed": bool(completed)
-            }
-        }
-        return json.dumps(result, ensure_ascii=False)
+            "todos": todos
+        }, ensure_ascii=False)

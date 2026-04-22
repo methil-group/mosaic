@@ -15,15 +15,17 @@ class RunCommandTool(Tool):
         if not command:
             return "Error: Missing command parameter"
         
-        # Heuristic check for destructive commands on hidden files/directories
-        # Matches keywords like rm, mv, or redirection > accompanied by a dot-file pattern
-        destructive_op = re.search(r"\b(rm|mv|cp|tar|zip|sed|awk)\b|>", command)
-        hidden_target = re.search(r"(^|\s|/)\.[a-zA-Z0-9_-]+", command)
+        # Safety check: Block commands that target protected hidden files
+        from .utils import is_protected_path
         
-        if destructive_op and hidden_target:
-            # Check if it's just the current directory '.' or '..'
-            if not all(p.strip() in [".", "..", "./", "../"] for p in re.findall(r"(^|\s|/)\.[a-zA-Z0-9_-]*", command)):
-                return f"Error: Command denied. Operations targeting hidden files or directories (starting with '.') are restricted for safety."
+        # Find potential hidden targets in the command
+        hidden_targets = re.findall(r"(?:^|\s|/|'|\")(\.[a-zA-Z0-9_-]+)", command)
+        for target in hidden_targets:
+            # If the target is protected, check if the command is "destructive"
+            if is_protected_path(target, workspace):
+                destructive_op = re.search(r"\b(rm|mv|cp|tar|zip)\b|>", command)
+                if destructive_op:
+                    return f"Error: Command denied. Destructive operation targeting protected file/directory '{target}' is restricted."
         
         try:
             # Using shell=True can be dangerous, but it's often needed for complex commands

@@ -116,6 +116,7 @@ class Mosaic(App):
         self.lmstudio_url = self.config.lmstudio_url
         self.provider_type = self.config.provider
         self.model = self.config.model
+        self.agent_mode = self.config.agent_mode
         self.openai_base_url = self.config.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
         
         # App State
@@ -165,13 +166,38 @@ class Mosaic(App):
                     yield Button("✕", id="close-settings-btn", classes="close-btn")
                 
                 with Vertical(id="settings-container"):
-                    yield Label("Provider")
-                    yield Select([
-                        ("OpenRouter", "openrouter"),
-                        ("OpenAI", "openai"),
-                        ("LM Studio", "lmstudio")
-                    ], value=self.provider_type, id="provider-select")
+                    yield Label("CORE SETTINGS", classes="settings-section-title")
+                    
+                    with Horizontal(classes="setting-row"):
+                        yield Label("Agent Mode", classes="setting-label")
+                        yield Select([
+                            ("Agent-driven (Auto)", "agent"),
+                            ("Review-driven (Manual)", "review")
+                        ], value=self.agent_mode, id="mode-select")
 
+                    with Horizontal(classes="setting-row"):
+                        yield Label("LLM Provider", classes="setting-label")
+                        yield Select([
+                            ("OpenRouter", "openrouter"),
+                            ("OpenAI", "openai"),
+                            ("LM Studio", "lmstudio")
+                        ], value=self.provider_type, id="provider-select")
+
+                    with Horizontal(classes="setting-row"):
+                        yield Label("Model", classes="setting-label")
+                        yield Select([
+                            ("Qwen 3.5 9b", "qwen/qwen3.5-9b"),
+                            ("Qwen 3.5 27b", "qwen/qwen3.5-27b"),
+                            ("Qwen 3.6 35B A3B", "qwen/qwen3.6-35B-A3B"),
+                            ("Qwen 3.6 Plus", "qwen/qwen3.6-plus"),
+                            ("Qwen Coder Next", "qwen/qwen3-coder-next"),
+                            ("Custom...", "custom")
+                        ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-35B-A3B", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else ("custom" if self.model else "qwen/qwen3.5-27b"), id="model-select")
+                    
+                    yield Input(placeholder="Enter custom model name...", value=self.model, id="custom-model-input")
+
+                    yield Label("PROVIDER CREDENTIALS", classes="settings-section-title")
+                    
                     with Vertical(id="openrouter-settings", classes="provider-settings"):
                         yield Label("OpenRouter API Key")
                         yield Input(placeholder="sk-or-v1-...", value=self.api_key, id="api-key-input", password=True)
@@ -184,21 +210,9 @@ class Mosaic(App):
                         yield Label("LM Studio URL")
                         yield Input(placeholder="http://localhost:1234/v1", value=self.lmstudio_url, id="lmstudio-url-input")
 
-                    yield Label("Model")
-                    yield Select([
-                        ("Qwen 3.5 9b", "qwen/qwen3.5-9b"),
-                        ("Qwen 3.5 27b", "qwen/qwen3.5-27b"),
-                        ("Qwen 3.6 35B A3B", "qwen/qwen3.6-35B-A3B"),
-                        ("Qwen 3.6 Plus", "qwen/qwen3.6-plus"),
-                        ("Qwen Coder Next", "qwen/qwen3-coder-next"),
-                        ("Custom...", "custom")
-                    ], value=self.model if self.model in ["qwen/qwen3.5-9b", "qwen/qwen3.5-27b", "qwen/qwen3.6-35B-A3B", "qwen/qwen3.6-plus", "qwen/qwen3-coder-next"] else ("custom" if self.model else "qwen/qwen3.5-27b"), id="model-select")
-                    
-                    yield Input(placeholder="Enter model name...", value=self.model, id="custom-model-input")
-
-                    yield Button("Save & Refresh", variant="primary", id="save-settings")
+                    yield Button("Save & Apply Changes", variant="primary", id="save-settings")
                     yield Static(f"Workspace: {escape(self.workspace)}", id="workspace-info")
-                    yield Label("Made by Methil", id="methil-credit")
+                    yield Label("Created with love by Methil", id="methil-credit")
         yield Static(f"v{__version__}", id="version-display")
         yield Footer()
 
@@ -368,6 +382,13 @@ class Mosaic(App):
     async def run_agent(self, prompt: str):
         log = self.query_one("#chat-log")
         agent = Agent(self.llm, self.model, self.workspace, "User", self.tools, memory_manager=self.memory_manager)
+        self.current_agent = agent
+        
+        # Inject state for Review Mode
+        agent.agent_mode = self.agent_mode
+        if self.agent_mode == "review":
+            import asyncio
+            agent.approval_queue = asyncio.Queue()
         
         current_assistant_static = None
         assistant_content = "" # Rich-formatted content for streaming
@@ -414,13 +435,18 @@ class Mosaic(App):
                 raw_assistant_content = ""
                 
                 # Create the collapsible tool block
-                current_tool_block = ToolBlock(event['name'], event['parameters'])
+                current_tool_block = ToolBlock(event['name'], event['parameters'], call_id=event.get('call_id', ""))
                 if turn_widgets:
                     log.mount(current_tool_block, before=turn_widgets[0])
                 else:
                     log.mount(current_tool_block)
                 turn_widgets.append(current_tool_block)
                 log.scroll_end()
+
+            elif event["type"] == "awaiting_approval":
+                if current_tool_block:
+                    current_tool_block.awaiting_approval = True
+                    log.scroll_end()
                 
             elif event["type"] == "tool_finished":
                 res = event['result']
@@ -527,6 +553,20 @@ class Mosaic(App):
     def handle_file_selected(self, message: FileTreeSidebar.FileSelected):
         # FileSelected handles both double-click and Enter
         self._insert_file_path(message.path)
+
+    @on(ToolBlock.Approved)
+    async def handle_tool_approved(self, message: ToolBlock.Approved):
+        # We need to find the active agent and its queue.
+        # This is a bit tricky since workers don't expose the 'agent' instance directly.
+        # But wait, run_agent is a single-running worker usually?
+        # Actually, let's keep a reference to current_agent.
+        if hasattr(self, "current_agent") and self.current_agent:
+            await self.current_agent.approval_queue.put("approve")
+
+    @on(ToolBlock.Rejected)
+    async def handle_tool_rejected(self, message: ToolBlock.Rejected):
+        if hasattr(self, "current_agent") and self.current_agent:
+            await self.current_agent.approval_queue.put("reject")
 
     def _insert_file_path(self, abs_path: str):
         try:
@@ -725,6 +765,7 @@ class Mosaic(App):
         self.openai_key = self.query_one("#openai-key-input").value
         self.lmstudio_url = self.query_one("#lmstudio-url-input").value
         self.provider_type = self.query_one("#provider-select").value
+        self.agent_mode = self.query_one("#mode-select").value
         
         model_selection = self.query_one("#model-select").value
         if model_selection == "custom":
@@ -737,6 +778,7 @@ class Mosaic(App):
         self.config.set("LM_STUDIO_URL", self.lmstudio_url)
         self.config.set("MOSAIC_MODEL", self.model)
         self.config.set("MOSAIC_PROVIDER", self.provider_type)
+        self.config.set("MOSAIC_MODE", self.agent_mode)
         
         self._init_llm()
         self.memory_manager.llm_provider = self.llm

@@ -43,8 +43,8 @@ def format_with_line_numbers(content: str) -> str:
 
 def is_protected_path(path: str, workspace: str) -> bool:
     """
-    Returns True if the path targets a hidden file or directory 
-    (starts with '.' and is not the current directory '.').
+    Returns True if the path targets a sensitive hidden file or directory.
+    Allows .env and .mosaic files which are necessary for configuration.
     """
     abs_workspace = os.path.abspath(workspace)
     try:
@@ -53,15 +53,41 @@ def is_protected_path(path: str, workspace: str) -> bool:
         
         parts = rel_path.split(os.sep)
         for part in parts:
-            # We allow '.' as it's the current directory, but block '.anything'
+            # We allow specific hidden files/dirs
+            if part in [".env", ".mosaic.env", ".mosaic"]:
+                continue
+                
+            # Block other hidden items (like .git, .ssh, .vscode)
             if part.startswith(".") and part != "." and part != "..":
                 return True
         return False
     except Exception:
-        # If we can't resolve it, assume it's risky if it starts with .
-        return path.startswith(".")
+        # If we can't resolve it, assume it's risky if it starts with . 
+        # but NOT .env or .mosaic
+        return path.startswith(".") and not any(x in path for x in [".env", ".mosaic"])
 
 def ensure_not_protected_path(path: str, workspace: str):
     """Raises ValueError if the path is protected."""
     if is_protected_path(path, workspace):
         raise ValueError(f"Access denied: {path} is a hidden/protected file or directory.")
+
+def get_todo_store_path(workspace: str) -> str:
+    return os.path.join(workspace, ".mosaic", "todos.json")
+
+def read_todos(workspace: str) -> list:
+    import json
+    path = get_todo_store_path(workspace)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def write_todos(workspace: str, todos: list):
+    import json
+    path = get_todo_store_path(workspace)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(todos, f, indent=2, ensure_ascii=False)

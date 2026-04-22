@@ -1,6 +1,7 @@
 import json
 import re
 from .base import Tool
+from .utils import write_todos
 from typing import Dict, Any
 
 class SyncTodoListTool(Tool):
@@ -16,12 +17,10 @@ class SyncTodoListTool(Tool):
             return "Error: Empty or missing 'data' parameter."
             
         # Parse XML-like todos more robustly
-        # First find all <todo ...>...</todo> tags
         todo_tags = re.findall(r"<todo\s+(.*?)>(.*?)</todo>", data, re.DOTALL)
         
         todos = []
         for attrs_str, title in todo_tags:
-            # Extract id and completed from the attributes string
             id_match = re.search(r"id=[\"'](.*?)[\"']", attrs_str, re.DOTALL)
             comp_match = re.search(r"completed=[\"'](.*?)[\"']", attrs_str, re.DOTALL)
             desc_match = re.search(r"description=[\"'](.*?)[\"']", attrs_str, re.DOTALL)
@@ -35,7 +34,9 @@ class SyncTodoListTool(Tool):
                 })
             
         if not todos:
-            return f"Error: No valid <todo> elements found in data. Found raw content: {data[:100]}..."
+            return f"Error: No valid <todo> elements found in data."
+
+        write_todos(workspace, todos)
 
         return json.dumps({
             "status": "success",

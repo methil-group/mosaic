@@ -30,6 +30,10 @@ class Agent:
         self.messages: List[Dict[str, str]] = []
         self.stopped = False
         
+        # Mode settings (agent vs review)
+        self.agent_mode = "agent" # Default
+        self.approval_queue = None # Set by App if needed
+        
         # Initialize logging
         self.log_dir = os.path.join(self.workspace, ".mosaic", "logs")
         os.makedirs(self.log_dir, exist_ok=True)
@@ -130,16 +134,41 @@ class Agent:
                 name, params = tool_call
                 call_id = f"toolu-{uuid.uuid4().hex[:12]}"
                 self._log(f"Tool Call Detected: {name}({json.dumps(params)})", "TOOL_CALL")
+                
+                # Emit event to UI
                 await self._emit({"type": "tool_started", "name": name, "parameters": params, "call_id": call_id}, on_event)
                 
-                tool = next((t for t in self.tools if t.name() == name), None)
-                if tool:
-                    try:
-                        result = await tool.execute(params, self.workspace)
-                    except Exception as e:
-                        result = f"Error: {str(e)}"
+                # Check for Review Mode
+                if self.agent_mode == "review" and self.approval_queue:
+                    self._log(f"Review Mode: Awaiting approval for {name}", "SYSTEM")
+                    await self._emit({"type": "awaiting_approval", "name": name, "parameters": params, "call_id": call_id}, on_event)
+                    
+                    decision = await self.approval_queue.get()
+                    self._log(f"User Decision: {decision}", "SYSTEM")
+                    
+                    if decision == "reject":
+                        result = "Error: User rejected this tool call."
+                        await self._emit({"type": "tool_rejected", "name": name, "call_id": call_id}, on_event)
+                    else:
+                        # Proceed with execution
+                        tool = next((t for t in self.tools if t.name() == name), None)
+                        if tool:
+                            try:
+                                result = await tool.execute(params, self.workspace)
+                            except Exception as e:
+                                result = f"Error: {str(e)}"
+                        else:
+                            result = f"Error: Tool '{name}' not found"
                 else:
-                    result = f"Error: Tool '{name}' not found"
+                    # Agent-driven mode (Automatic execution)
+                    tool = next((t for t in self.tools if t.name() == name), None)
+                    if tool:
+                        try:
+                            result = await tool.execute(params, self.workspace)
+                        except Exception as e:
+                            result = f"Error: {str(e)}"
+                    else:
+                        result = f"Error: Tool '{name}' not found"
                 
                 # Enhanced logging for tool results
                 status = "SUCCESS" if not result.startswith("Error:") else "FAILURE"

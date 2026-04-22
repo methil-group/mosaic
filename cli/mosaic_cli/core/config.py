@@ -55,3 +55,7 @@ class ConfigManager:
     @property
     def provider(self) -> str:
         return self.get("MOSAIC_PROVIDER", "openrouter")
+
+    @property
+    def agent_mode(self) -> str:
+        return self.get("MOSAIC_MODE", "agent")
