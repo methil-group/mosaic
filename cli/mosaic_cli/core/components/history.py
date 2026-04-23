@@ -88,7 +88,8 @@ class HistorySidebar(Vertical):
                     # Use first user message as title if exists
                     for msg in history:
                         if msg.get("role") == "user":
-                            title = msg.get("content", "")[:30] + "..."
+                            raw = msg.get("content", "").strip().split("\n")[0].strip()
+                            title = (raw[:30] + "...") if len(raw) > 30 else raw
                             break
                     
                     # Try to parse timestamp from filename or metadata
