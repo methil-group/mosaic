@@ -44,7 +44,12 @@ body {
   justify-content: space-between;
 }
 
-#history-btn {
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+#history-btn, #new-chat-btn {
   background: transparent;
   border: none;
   cursor: pointer;
@@ -53,13 +58,17 @@ body {
   justify-content: center;
   padding: 4px;
   color: var(--vscode-descriptionForeground);
-  transition: all 0.15s ease;
+  transition: all 0.1s ease;
   border-radius: 4px;
 }
 
-#history-btn:hover {
+#history-btn:hover, #new-chat-btn:hover {
   color: var(--vscode-foreground);
   background: var(--vscode-toolbar-hoverBackground);
+}
+
+.header-actions svg, .history-header svg {
+  display: block;
 }
 
 #tasks-container {
@@ -535,6 +544,17 @@ body {
   border: none;
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.1s ease;
+}
+
+.history-header button:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground);
 }
 
 #history-list {

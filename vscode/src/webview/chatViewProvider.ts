@@ -96,6 +96,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'listChats': return this._handleListChats();
       case 'loadChat': return this._handleLoadChat(data.value);
       case 'listTodos': return this._handleListTodos();
+      case 'resetChat':
+        this.resetChat();
+        break;
       case 'webviewError':
         console.error(`[Mosaic WEBVIEW ERROR] ${data.message}`, data.stack);
         break;

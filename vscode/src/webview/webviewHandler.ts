@@ -50,6 +50,11 @@ export class WebviewHandler {
                             this.handleSaveSetup();
                         } else if (target.id === 'history-btn' || target.closest('#history-btn')) {
                             this.toggleModal('history-modal', 'listChats');
+                        } else if (target.id === 'new-chat-btn' || target.closest('#new-chat-btn')) {
+                            vscode.postMessage({ type: 'resetChat' });
+                        } else if (target.classList.contains('close-modal')) {
+                            const modalId = target.getAttribute('data-modal');
+                            if (modalId) document.getElementById(modalId).style.display = 'none';
                         } else if (target.classList.contains('history-item') && !target.classList.contains('task-item')) {
                             const chatId = target.getAttribute('data-id');
                             if (chatId) {
@@ -360,7 +365,14 @@ export class WebviewHandler {
         return `
         <div id="chat-header">
             <span id="active-chat-title">New Chat</span>
-            <button id="history-btn" title="Recent Chats">🕒</button>
+            <div class="header-actions">
+                <button id="new-chat-btn" title="New Chat">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M14 7v1H8v6H7V8H1V7h6V1h1v6h6z"/></svg>
+                </button>
+                <button id="history-btn" title="Recent Chats">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM1.5 8a6.5 6.5 0 116.5 6.5 6.5 0 01-6.5-6.5zM8 4v4.5l2.5 1.5-.5.8L7.2 9V4H8z"/></svg>
+                </button>
+            </div>
         </div>
         <div id="tasks-container" style="display:none">
             <div id="tasks-header">Active Tasks</div>
@@ -372,7 +384,9 @@ export class WebviewHandler {
             <div class="history-content">
                 <div class="history-header">
                   <span>History</span>
-                  <button onclick="document.getElementById('history-modal').style.display='none'">✕</button>
+                  <button class="close-modal" data-modal="history-modal">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1.146 1.146a.5.5 0 0 1 .708 0L8 7.293l6.146-6.147a.5.5 0 0 1 .708.708L8.707 8l6.147 6.146a.5.5 0 0 1-.708.708L8 8.707l-6.146 6.147a.5.5 0 0 1-.708-.708L7.293 8 1.146 1.854a.5.5 0 0 1 0-.708z"/></svg>
+                  </button>
                 </div>
                 <div id="history-list"></div>
             </div>
