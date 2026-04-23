@@ -43,7 +43,7 @@ draw_progress_bar() {
 }
 
 check_command() {
-    command -v "$1" &> /dev/null
+    command -v "$1" >/dev/null 2>&1
 }
 
 # ── Banner ──────────────────────────────────────────────
@@ -87,13 +87,13 @@ if [[ -z "$PYTHON_CMD" ]]; then
 fi
 echo -e "${GREEN}$($PYTHON_CMD --version 2>&1)${NC}"
 
-if ! $PYTHON_CMD -m pip --version </dev/null &>/dev/null; then
+if ! $PYTHON_CMD -m pip --version </dev/null >/dev/null 2>&1; then
     echo -e "${RED}❌ pip is not available for $PYTHON_CMD.${NC}"
     exit 1
 fi
 
 # ── Uninstall old version (silent) ─────────────────────
-$PYTHON_CMD -m pip uninstall -y mosaic-tui </dev/null &>/dev/null 2>&1
+$PYTHON_CMD -m pip uninstall -y mosaic-tui </dev/null >/dev/null 2>&1
 
 # ── Download ───────────────────────────────────────────
 INSTALL_TEMP=$(mktemp -d 2>/dev/null || mktemp -d -t 'mosaic')
@@ -113,7 +113,7 @@ if [[ -f /etc/os-release ]] || [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 printf "📦 Installing...\n"
-$PYTHON_CMD -m pip install "$INSTALL_TEMP/cli" $INSTALL_FLAGS </dev/null &>/dev/null &
+$PYTHON_CMD -m pip install "$INSTALL_TEMP/cli" $INSTALL_FLAGS </dev/null >/dev/null 2>&1 &
 install_pid=$!
 spinner $install_pid "Installing Mosaic CLI..."
 wait $install_pid
