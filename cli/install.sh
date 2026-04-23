@@ -89,11 +89,9 @@ CURRENT_VERSION="none"
 printf "🔎 Checking for existing installation... "
 if check_command mosaic; then
     IS_INSTALLED=true
-    # IMPORTANT: redirect stdin from /dev/null so mosaic (a TUI app) doesn't
-    # try to read from the pipe and hang forever
-    CURRENT_VERSION=$(mosaic --version </dev/null 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
-    if [ -z "$CURRENT_VERSION" ]; then CURRENT_VERSION="unknown"; fi
-    echo -e "${GREEN}Found (v$CURRENT_VERSION)${NC}"
+    # Don't run `mosaic --version` — it's a TUI app that can hang in pipe contexts.
+    # Just detect that the command exists; that's enough for reinstall logic.
+    echo -e "${GREEN}Found!${NC}"
 else
     echo -e "${DIM}Not found.${NC}"
 fi
@@ -102,7 +100,7 @@ fi
 ACTION="install"
 
 if [ "$IS_INSTALLED" = true ]; then
-    echo -e "🔄 ${YELLOW}Mosaic v$CURRENT_VERSION is already installed. Automatically updating to v$TARGET_VERSION...${NC}"
+    echo -e "🔄 ${YELLOW}Mosaic is already installed. Automatically updating to v$TARGET_VERSION...${NC}"
 else
     echo -e "🚀 ${CYAN}Preparing fresh installation of Mosaic v$TARGET_VERSION...${NC}"
 fi
