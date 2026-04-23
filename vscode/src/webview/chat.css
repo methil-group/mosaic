@@ -600,3 +600,44 @@ body {
   margin-bottom: 0.5rem;
   padding-bottom: 0.8rem;
 }
+
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.file-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  background: var(--vscode-editor-inactiveSelectionBackground);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-badge.directory {
+  font-weight: 600;
+  border-left: 3px solid var(--vscode-symbolIcon-folderForeground);
+}
+
+.file-badge.file {
+  border-left: 3px solid var(--vscode-symbolIcon-fileForeground);
+}
+
+.tool-output-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 0.4rem;
+  opacity: 0.8;
+  letter-spacing: 0.03em;
+}

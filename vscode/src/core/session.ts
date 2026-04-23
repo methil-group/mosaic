@@ -18,11 +18,13 @@ export class SessionManager {
   private chatDir: string;
   private logDir: string;
   private title: string = "New Chat";
-  private history: ChatMessage[] = [];
-
-  constructor(workspacePath: string) {
-    const timestamp = this.getTimestampForId();
-    this.sessionId = `${timestamp}_${Math.floor(Math.random() * 1000000)}`;
+  constructor(workspacePath: string, sessionId?: string) {
+    if (sessionId) {
+      this.sessionId = sessionId;
+    } else {
+      const timestamp = this.getTimestampForId();
+      this.sessionId = `${timestamp}_${Math.floor(Math.random() * 1000000)}`;
+    }
     
     if (workspacePath) {
       const mosaicDir = path.join(workspacePath, '.mosaic');
@@ -58,6 +60,18 @@ export class SessionManager {
     this.history.push({ role, content });
     if (this.chatDir) this.saveSession();
     this.log(role, content);
+  }
+
+  public getHistory(): ChatMessage[] {
+    return [...this.history];
+  }
+
+  public restoreHistory(history: ChatMessage[]) {
+    this.history = [...history];
+  }
+
+  public getSessionId(): string {
+    return this.sessionId;
   }
 
   private saveSession() {

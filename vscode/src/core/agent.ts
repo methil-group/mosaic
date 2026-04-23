@@ -31,8 +31,11 @@ export class Agent {
     private model: string,
     private workspace: string,
     private userName: string,
-    private tools: Tool[]
-  ) {}
+    private tools: Tool[],
+    initialMessages: Message[] = []
+  ) {
+    this.messages = initialMessages;
+  }
 
   async run(userPrompt: string, onEvent: (event: StreamEvent) => Promise<void>) {
     const systemPrompt = PromptBuilder.createSystemPrompt(
@@ -41,10 +44,11 @@ export class Agent {
       this.userName
     );
 
-    this.messages = [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt }
-    ];
+    if (this.messages.length === 0) {
+      this.messages.push({ role: "system", content: systemPrompt });
+    }
+    
+    this.messages.push({ role: "user", content: userPrompt });
 
     await this.reasoningLoop(onEvent);
   }
