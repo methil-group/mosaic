@@ -92,69 +92,24 @@ CURRENT_VERSION="none"
 printf "🔎 Checking for existing installation... "
 if check_command mosaic; then
     IS_INSTALLED=true
-    # Use a timeout to prevent hanging if the existing mosaic command is broken
-    if check_command timeout; then
-        CURRENT_VERSION=$(timeout 3s mosaic --version 2>/dev/null | awk '{print $NF}' | sed 's/[^0-9.]//g')
-    else
-        CURRENT_VERSION=$(mosaic --version 2>/dev/null | awk '{print $NF}' | sed 's/[^0-9.]//g')
-    fi
-    [ -z "$CURRENT_VERSION" ] && CURRENT_VERSION="unknown"
+    # Robust version extraction
+    v_out=$(mosaic --version 2>/dev/null | head -n1)
+    CURRENT_VERSION=$(echo "$v_out" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+    if [ -z "$CURRENT_VERSION" ]; then CURRENT_VERSION="unknown"; fi
     echo -e "${GREEN}Found (v$CURRENT_VERSION)${NC}"
 else
     echo -e "${DIM}Not found.${NC}"
 fi
 
-# Interactive Menu Replacement (Simple Read)
-ask_confirm() {
-    local prompt="$1"
-    local default="$2"
-    if [ "$YES_MODE" = true ]; then return 0; fi
-    
-    printf "\n${BOLD}${prompt}${NC} [y/N]: "
-    # Redirect stdin from /dev/tty to allow curl | bash interaction
-    if [ -c /dev/tty ]; then
-        read -r choice < /dev/tty
-    else
-        read -r choice
-    fi
-    case "$choice" in
-        [yY][eE][sS]|[yY]) return 0 ;;
-        *) return 1 ;;
-    esac
-}
+# (ask_confirm and interactive logic removed for non-interactive installation)
 
-# 3. Decision Logic
+# 3. Decision Logic (Everything is automatic now)
 ACTION="install"
 
 if [ "$IS_INSTALLED" = true ]; then
-    if [ "$YES_MODE" = true ]; then
-        ACTION="install"
-    else
-        echo -e "\n${BOLD}Mosaic is already installed (v$CURRENT_VERSION).${NC}"
-        printf "What would you like to do?\n"
-        printf "  1) Update/Reinstall to v$TARGET_VERSION\n"
-        printf "  2) Uninstall Mosaic\n"
-        printf "  3) Cancel\n"
-        printf "\nChoice [1-3]: "
-        if [ -c /dev/tty ]; then
-            read -r choice < /dev/tty
-        else
-            read -r choice
-        fi
-        
-        case $choice in
-            1) ACTION="install" ;;
-            2) ACTION="uninstall" ;;
-            *) echo -e "\nCancelled."; exit 0 ;;
-        esac
-    fi
+    echo -e "🔄 ${YELLOW}Mosaic v$CURRENT_VERSION is already installed. Automatically updating to v$TARGET_VERSION...${NC}"
 else
-    if [ "$YES_MODE" = false ]; then
-        if ! ask_confirm "Mosaic was not detected. Install v$TARGET_VERSION now?"; then
-            echo -e "\nInstallation cancelled."
-            exit 0
-        fi
-    fi
+    echo -e "🚀 ${CYAN}Preparing fresh installation of Mosaic v$TARGET_VERSION...${NC}"
 fi
 
 # 4. Execute Action
