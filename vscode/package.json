@@ -1,0 +1,85 @@
+{
+  "name": "mosaic-vscode",
+  "displayName": "Mosaic",
+  "description": "AI-powered coding assistant with full tool-calling capabilities.",
+  "version": "0.1.0",
+  "publisher": "methil-group",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Programming Languages",
+    "Education"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mosaic-sidebar",
+          "title": "Mosaic",
+          "icon": "assets/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "mosaic-sidebar": [
+        {
+          "type": "webview",
+          "id": "mosaic.chatView",
+          "name": "Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "mosaic.focusChat",
+        "title": "Focus Mosaic Chat"
+      },
+      {
+        "command": "mosaic.resetChat",
+        "title": "Reset Chat",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "mosaic.resetChat",
+          "group": "navigation",
+          "when": "view == mosaic.chatView"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./dist/test/runTest.js",
+    "unit-test": "jest"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/jest": "^30.0.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "16.x",
+    "@types/uuid": "^10.0.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^5.59.1",
+    "@typescript-eslint/parser": "^5.59.1",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^8.39.0",
+    "jest": "^29.5.0",
+    "mocha": "^11.7.5",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "uuid": "^9.0.0"
+  }
+}
