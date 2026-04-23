@@ -66,16 +66,27 @@ class HistorySidebar(Vertical):
         files.sort(key=lambda x: x[1], reverse=True)
 
         for filename, _ in files:
+            filepath = os.path.join(chats_dir, filename)
             session_id = filename.replace("chat_", "").replace(".json", "")
             
             # Extract basic info
             title = session_id
             timestamp = ""
             try:
-                with open(os.path.join(chats_dir, filename), "r") as f:
+                with open(filepath, "r") as f:
                     data = json.load(f)
+                    history = data.get("history", [])
+                    
+                    # Delete empty chats (no messages)
+                    if not history:
+                        try:
+                            os.remove(filepath)
+                        except Exception:
+                            pass
+                        continue
+                    
                     # Use first user message as title if exists
-                    for msg in data.get("history", []):
+                    for msg in history:
                         if msg.get("role") == "user":
                             title = msg.get("content", "")[:30] + "..."
                             break
