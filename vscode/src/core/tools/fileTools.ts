@@ -17,6 +17,12 @@ export class ReadFileTool extends BaseTool {
       : path.join(workspaceFolders[0].uri.fsPath, args.path);
 
     try {
+      const uri = vscode.Uri.file(fullPath);
+      const stat = await vscode.workspace.fs.stat(uri);
+      if (stat.type === vscode.FileType.Directory) {
+        return this.formatError(`'${args.path}' is a directory, not a file. Use 'list_directory' to see its contents.`);
+      }
+
       const document = await vscode.workspace.openTextDocument(fullPath);
       return document.getText();
     } catch (e: any) {

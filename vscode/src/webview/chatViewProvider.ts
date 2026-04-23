@@ -238,6 +238,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           case 'final_answer':
             this._view.webview.postMessage({ type: 'generationFinished' });
             break;
+          case 'error':
+            this._view.webview.postMessage({ type: 'addMessage', role: 'system', content: `❌ Agent Error: ${event.message}` });
+            this._view.webview.postMessage({ type: 'generationFinished' });
+            break;
         }
       });
     } catch (e: any) {

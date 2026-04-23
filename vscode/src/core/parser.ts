@@ -22,8 +22,8 @@ export class ToolCallParser {
           arguments: parsed.arguments || {}
         };
       }
-    } catch (e) {
-      console.error("Failed to parse tool call JSON:", e);
+    } catch (e: any) {
+      throw new Error(`Invalid JSON format in tool call: ${e.message}. Content: ${content}`);
     }
 
     return null;

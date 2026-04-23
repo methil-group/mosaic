@@ -28,10 +28,11 @@ export class BaseLlmProvider implements LlmProvider {
       );
 
       const stream = response.data;
+      const decoder = new TextDecoder("utf-8");
       let buffer = "";
       
       for await (const chunk of stream) {
-        buffer += chunk.toString();
+        buffer += typeof chunk === 'string' ? chunk : decoder.decode(chunk, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() || "";
 

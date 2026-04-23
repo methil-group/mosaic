@@ -31,7 +31,7 @@ body {
 }
 
 #chat-header {
-  padding: 0.6rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-color);
   font-size: 0.75rem;
@@ -41,13 +41,71 @@ body {
   color: var(--vscode-descriptionForeground);
   display: flex;
   align-items: center;
+  justify-content: space-between;
+}
+
+#history-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
   justify-content: center;
+  padding: 4px;
+  color: var(--vscode-descriptionForeground);
+  transition: all 0.15s ease;
+  border-radius: 4px;
+}
+
+#history-btn:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+#tasks-container {
+  position: absolute;
+  top: 40px; /* Header height */
+  left: 0;
+  right: 0;
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 100;
+  max-height: 120px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.2s ease-out;
+}
+
+#tasks-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+  padding: 0.4rem 0.75rem;
+  opacity: 0.8;
+}
+
+#tasks-list {
+  padding-bottom: 0.4rem;
+}
+
+#tasks-list .task-item {
+  padding: 0.3rem 0.75rem;
+  margin: 0;
+  border: none;
+  font-size: 0.75rem;
+}
+
+#tasks-list .task-item.done {
+  opacity: 0.5;
+  text-decoration: line-through;
 }
 
 #active-chat-title {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 #messages {
@@ -57,6 +115,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0;
+  position: relative;
 }
 
 .message {
@@ -185,6 +244,19 @@ body {
 
 #action-button.generating:hover {
   background: rgba(244, 63, 94, 0.12);
+}
+
+#chat-input:disabled,
+#action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input-wrapper.disabled {
+  background: var(--vscode-editor-inactiveSelectionBackground);
+  border-color: var(--border-color);
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .send-icon {
@@ -411,21 +483,6 @@ body {
   margin-top: 1rem;
 }
 
-#history-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 0.4rem;
-  color: var(--vscode-descriptionForeground);
-  transition: color 0.15s;
-}
-
-#history-btn:hover {
-  color: var(--vscode-foreground);
-}
 
 .history-header button:hover {
   color: var(--vscode-foreground);

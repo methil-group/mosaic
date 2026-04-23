@@ -44,11 +44,19 @@ export class Agent {
       this.userName
     );
 
-    if (this.messages.length === 0) {
-      this.messages.push({ role: "system", content: systemPrompt });
+    // Ensure system prompt is at the start
+    if (this.messages.length === 0 || this.messages[0].role !== "system") {
+      this.messages.unshift({ role: "system", content: systemPrompt });
+    } else {
+      // Update system prompt if it exists (in case workspace/tools changed, though unlikely here)
+      this.messages[0].content = systemPrompt;
     }
     
-    this.messages.push({ role: "user", content: userPrompt });
+    // Add user prompt if it's not already the last message
+    const lastMessage = this.messages[this.messages.length - 1];
+    if (!lastMessage || lastMessage.role !== "user" || lastMessage.content !== userPrompt) {
+      this.messages.push({ role: "user", content: userPrompt });
+    }
 
     await this.reasoningLoop(onEvent);
   }
@@ -106,7 +114,19 @@ export class Agent {
         }
       }
 
-      const toolCall = ToolCallParser.parse(fullText);
+      let toolCall;
+      try {
+        toolCall = ToolCallParser.parse(fullText);
+      } catch (e: any) {
+        // If parsing fails, inform the LLM and retry the loop
+        this.messages.push({ role: "assistant", content: fullText });
+        this.messages.push({ 
+          role: "user", 
+          content: `❌ ${e.message}\nPlease retry with a valid JSON object inside the <tool_call> tags.`
+        });
+        continue;
+      }
+
       if (toolCall) {
         const callId = `toolu-${uuidv4().substring(0, 12)}`;
         await onEvent({

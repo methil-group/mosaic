@@ -18,6 +18,7 @@ export class SessionManager {
   private chatDir: string;
   private logDir: string;
   private title: string = "New Chat";
+  private history: ChatMessage[] = [];
   constructor(workspacePath: string, sessionId?: string) {
     if (sessionId) {
       this.sessionId = sessionId;

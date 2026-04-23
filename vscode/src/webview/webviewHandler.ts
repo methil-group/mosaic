@@ -48,10 +48,8 @@ export class WebviewHandler {
                             this.handleAction();
                         } else if (target.id === 'save-setup-btn') {
                             this.handleSaveSetup();
-                        } else if (target.id === 'history-btn') {
+                        } else if (target.id === 'history-btn' || target.closest('#history-btn')) {
                             this.toggleModal('history-modal', 'listChats');
-                        } else if (target.id === 'tasks-btn') {
-                            this.toggleModal('tasks-modal', 'listTodos');
                         } else if (target.classList.contains('history-item') && !target.classList.contains('task-item')) {
                             const chatId = target.getAttribute('data-id');
                             if (chatId) {
@@ -136,7 +134,6 @@ export class WebviewHandler {
                     const isVisible = modal && modal.style.display === 'block';
                     
                     document.getElementById('history-modal').style.display = 'none';
-                    document.getElementById('tasks-modal').style.display = 'none';
                     
                     if (modal && !isVisible) {
                         modal.style.display = 'block';
@@ -278,8 +275,32 @@ export class WebviewHandler {
                 updateModels(msg) {
                     const select = document.getElementById('model-select');
                     if (!select) return;
+                    
+                    const hasModels = msg.models && msg.models.length > 0;
+                    this.updateInputAvailability(hasModels, msg.loading);
+
                     select.innerHTML = msg.loading ? '<option>Loading...</option>' : 
                         (msg.models.length ? msg.models.map(m => \`<option value="\${m}" \${m === this.currentModel ? 'selected' : ''}>\${m}</option>\`).join('') : '<option>No models found</option>');
+                }
+
+                updateInputAvailability(hasModels, isLoading) {
+                    const input = document.getElementById('chat-input');
+                    const btn = document.getElementById('action-button');
+                    const wrapper = input ? input.closest('.input-wrapper') : null;
+                    
+                    const disabled = !hasModels || isLoading;
+                    if (input) {
+                        input.disabled = disabled;
+                        if (isLoading) {
+                            input.placeholder = "Loading models...";
+                        } else if (!hasModels) {
+                            input.placeholder = "No models available. Check provider settings.";
+                        } else {
+                            input.placeholder = "Ask Mosaic...";
+                        }
+                    }
+                    if (btn) btn.disabled = disabled;
+                    if (wrapper) wrapper.classList.toggle('disabled', disabled);
                 }
 
                 updateChatList(chats) {
@@ -288,8 +309,14 @@ export class WebviewHandler {
                 }
 
                 updateTodoList(todos) {
+                    const container = document.getElementById('tasks-container');
                     const list = document.getElementById('tasks-list');
-                    if (list) list.innerHTML = todos.length ? todos.map(t => \`<div class="history-item task-item \${t.status}">\${t.title}</div>\`).join('') : '<div class="history-item">No tasks</div>';
+                    if (list) {
+                        list.innerHTML = todos.length ? todos.map(t => \`<div class="history-item task-item \${t.status}">\${t.title}</div>\`).join('') : '';
+                    }
+                    if (container) {
+                        container.style.display = todos.length ? 'block' : 'none';
+                    }
                 }
 
                 addSystemMessage(content) {
@@ -333,6 +360,11 @@ export class WebviewHandler {
         return `
         <div id="chat-header">
             <span id="active-chat-title">New Chat</span>
+            <button id="history-btn" title="Recent Chats">🕒</button>
+        </div>
+        <div id="tasks-container" style="display:none">
+            <div id="tasks-header">Active Tasks</div>
+            <div id="tasks-list"></div>
         </div>
         <div id="messages"></div>
         
@@ -346,16 +378,6 @@ export class WebviewHandler {
             </div>
         </div>
 
-        <div id="tasks-modal" class="history-modal" style="display:none">
-            <div class="history-content">
-                <div class="history-header">
-                  <span>Active Tasks</span>
-                  <button onclick="document.getElementById('tasks-modal').style.display='none'">✕</button>
-                </div>
-                <div id="tasks-list"></div>
-            </div>
-        </div>
-
         <div id="input-container">
             <div class="input-wrapper">
                 <textarea id="chat-input" placeholder="Ask Mosaic..." rows="1"></textarea>
@@ -363,10 +385,6 @@ export class WebviewHandler {
             </div>
         </div>
         <div id="settings-bar">
-            <div style="display:flex; gap:4px;">
-                <button id="history-btn" title="Recent Chats">🕒</button>
-                <button id="tasks-btn" title="Project Tasks">📋</button>
-            </div>
             <select id="provider-select">
                 <option value="openrouter" ${provider === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
                 <option value="lmstudio" ${provider === 'lmstudio' ? 'selected' : ''}>LM Studio</option>
