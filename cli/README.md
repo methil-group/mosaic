@@ -1,103 +1,110 @@
-# 🧩 Mosaic CLI
+# 🧩 Mosaic
 
-[![OS: Windows](https://img.shields.io/badge/OS-Windows-blue.svg)](https://www.microsoft.com/windows)
-[![OS: MacOS](https://img.shields.io/badge/OS-MacOS-lightgrey.svg)](https://www.apple.com/macos)
-[![OS: Linux](https://img.shields.io/badge/OS-Linux-orange.svg)](https://www.linux.org/)
-
-**Mosaic** is a premium, open-source Agentic Terminal User Interface (TUI) designed for autonomous coding and complex logic orchestration. Built with Python and the Textual framework, it provides a high-performance environment for interacting with LLMs while maintaining full control over your local filesystem and development workflow.
+An open-source agentic TUI for autonomous coding. Built with Python & [Textual](https://www.textualize.io/).
 
 ---
 
-## 🌟 Key Features
-
-### 🛡️ Semantic Memory (RAG-based)
-Mosaic features a local "Brain" capable of long-term memory.
-- **Technology**: Vector similarity search using **Cosine Similarity**.
-- **Persistence**: Local storage in `.mosaic/memories.json`.
-- **Embeddings**: Dynamically generated via the active LLM provider (default: `text-embedding-3-small`).
-- **Management**: Manual addition/deletion via the **Memory Sidebar (`Ctrl+M`)**.
-
-### 🛠️ Dynamic Tool Explorer
-Interact with a robust set of tools directly from the UI.
-- **Visibility**: Toggle the **Tools Sidebar (`Ctrl+T`)** to view all available capabilities.
-- **Capabilities**: File surgery (Read/Write/Edit), Command Execution, Todo management, and Semantic Recall.
-
-### 📜 Persistent Session History
-Never lose a thought. Every chat session is automatically persisted.
-- **Separation**: Chats are stored as individual JSON files in `.mosaic/chats/`.
-- **Restoration**: Reload past conversations via the **History Sidebar (`Ctrl+H`)**.
-- **Privacy**: History remains local to your project workspace.
-
-### 🎨 Premium TUI Aesthetic
-A carefully curated "Dark Dull Stone Brown" theme designed to reduce eye strain during long coding sessions. Includes interactive hover effects, smooth sidebar transitions, and real-time loading indicators.
-
----
-
-## 🏗️ Technical Architecture
-
-| Component | Technology | Description |
-| :--- | :--- | :--- |
-| **TUI Core** | [Textual](https://www.textualize.io/) | Async TUI framework with CSS support. |
-| **Agent Engine** | Custom Orchestrator | Handles tool selection, planning, and execution. |
-| **RAG System** | Naive Vector Store | JSON-based storage + Python-native Similarity ranking. |
-| **Persistence** | Flat-file JSON | Ensures maximum portability (No external DB required). |
-| **Providers** | HTTPX / OpenRouter | Robust multi-provider support (OpenRouter, OpenAI, LM Studio). |
-
----
-
-## ⌨️ Command Shortcuts
-
-| Key | Action | Description |
-| :--- | :--- | :--- |
-| `Ctrl+S` | **Settings** | Configure API keys, Providers, and Models. |
-| `Ctrl+H` | **History** | Browse and reload past chat sessions. |
-| `Ctrl+M` | **Memory** | Manage long-term "Brain" memories. |
-| `Ctrl+T` | **Tools** | Discover and explore available capabilities. |
-| `Ctrl+C` | **Copy Last** | Copy the latest assistant response to clipboard. |
-| `Ctrl+L` | **Clear Log** | Clear the TUI log (disk files are preserved). |
-| `Ctrl+Q` | **Quit** | Gracefully save and exit. |
-
----
-
-## 🚀 Getting Started
-
-### Installation
-
-1. **Clone the repository** and navigate to the CLI folder:
-   ```bash
-   cd cli
-   ```
-
-2. **Install the tool**:
-   ```bash
-   pip install -e .
-   ```
-
-3. **Global Config**:
-   Settings are saved in `~/.mosaic.env`. Workspace data remains in `./.mosaic/`.
-
-### Launching
+## Install
 
 ```bash
-# Start in current directory
-mosaic
-
-# Start in a specific workspace
-mosaic /path/to/your/project
+curl -sSL https://raw.githubusercontent.com/methil-mods/mosaic/main/cli/install.sh | bash
 ```
 
----
+Or manually:
+```bash
+cd cli && pip install -e .
+```
 
-## 🧪 Stability & Testing
+## Usage
 
-Mosaic is built for reliability. Run the full validation suite (Unit + E2E) with:
+```bash
+mosaic                        # Current directory
+mosaic /path/to/project       # Specific workspace
+mosaic --version              # Show version
+```
+
+## Shortcuts
+
+| Key | Action |
+| :--- | :--- |
+| `Ctrl+S` | Settings (API keys, providers, models) |
+| `Ctrl+H` | Chat history |
+| `Ctrl+M` | Memory (RAG brain) |
+| `Ctrl+T` | Tools explorer |
+| `Ctrl+F` | File tree |
+| `Ctrl+C` | Copy last response |
+| `Ctrl+L` | Clear log |
+| `Ctrl+Q` | Quit |
+
+## Features
+
+- **Semantic Memory** — Local RAG with cosine similarity, stored in `.mosaic/memories.json`
+- **Tool System** — File read/write/edit, command execution, todo management, semantic recall
+- **Session History** — Auto-persisted chats in `.mosaic/chats/`, reloadable from sidebar
+- **Multi-Provider** — OpenRouter, OpenAI, LM Studio
+- **Review Mode** — Approve/reject tool calls before execution (`Ctrl+S` → Agent Mode)
+
+## Architecture
+
+| Component | Stack |
+| :--- | :--- |
+| TUI | Textual (async, CSS) |
+| Agent | Custom orchestrator with tool loop |
+| Memory | JSON vector store + cosine similarity |
+| Providers | HTTPX → OpenRouter / OpenAI / LM Studio |
+
+## Testing
+
+All tests live in `tests/`. Install dev dependencies first:
+
+```bash
+pip install -e ".[dev]"
+```
+
+### Run all tests
+
 ```bash
 PYTHONPATH=. pytest tests/
 ```
 
-> [!NOTE]
-> Mosaic is fully **Cross-Platform**. It has been verified on Windows (CMD/PowerShell), macOS (Zsh), and Linux (Bash) with unified path resolution and UTF-8 encoding.
+### Run by category
+
+```bash
+# Unit tests
+PYTHONPATH=. pytest tests/test_parser.py tests/test_prompt.py tests/test_tools_utils.py tests/test_safety.py
+
+# Agent & memory
+PYTHONPATH=. pytest tests/test_agent.py tests/test_memory.py tests/test_todo_tools.py
+
+# UI components
+PYTHONPATH=. pytest tests/test_features.py tests/test_file_tree.py tests/test_sidebar_layout.py tests/test_history_rendering.py tests/test_ux_features.py
+
+# Provider tests
+PYTHONPATH=. pytest tests/test_providers.py tests/test_lmstudio_refresh.py
+
+# E2E tests
+PYTHONPATH=. pytest tests/test_e2e.py tests/test_e2e_advanced.py tests/test_e2e_mosaic.py
+
+# E2E with live LLM (requires API key)
+PYTHONPATH=. pytest tests/test_e2e_live.py
+
+# Snapshot tests
+PYTHONPATH=. pytest tests/test_snapshots.py --update-snaps  # update snapshots
+PYTHONPATH=. pytest tests/test_snapshots.py                 # verify snapshots
+
+# Integration validation
+PYTHONPATH=. python tests/validate_integration.py
+```
+
+### Run a single test
+
+```bash
+PYTHONPATH=. pytest tests/test_parser.py::test_name -v
+```
 
 ---
 
-*Built with ❤️ by the Mosaic Team.*
+> [!NOTE]
+> Config is saved in `~/.mosaic.env`. Workspace data stays in `./.mosaic/`.
+
+*Built with ❤️ by Methil.*
