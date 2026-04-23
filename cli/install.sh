@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Mosaic Installer Script
 # Optimized for curl -sSL ... | bash
+#
+# The entire script is wrapped in { } to ensure bash reads it fully
+# before executing. This prevents curl pipe data from leaking into
+# subprocesses' stdin (the classic curl|bash problem).
+
+{
 
 # Ensure terminal is capable
 if [ -z "$TERM" ]; then
@@ -20,15 +26,6 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m' # No Color
-
-# Parse arguments
-YES_MODE=false
-while [[ "$#" -gt 0 ]]; do
-    case $1 in
-        -y|--yes) YES_MODE=true ;;
-    esac
-    shift
-done
 
 # Spinner function
 spinner() {
@@ -79,7 +76,7 @@ if [[ -f VERSION ]]; then
     TARGET_VERSION=$(cat VERSION | tr -d '[:space:]')
 else
     # Fallback for curl | bash
-    TARGET_VERSION=$(curl -sSL "$RAW_VERSION_URL" | tr -d '[:space:]' || echo "0.1.0")
+    TARGET_VERSION=$(curl -sSL "$RAW_VERSION_URL" 2>/dev/null | tr -d '[:space:]' || echo "0.1.0")
 fi
 
 show_banner
@@ -92,18 +89,16 @@ CURRENT_VERSION="none"
 printf "🔎 Checking for existing installation... "
 if check_command mosaic; then
     IS_INSTALLED=true
-    # Robust version extraction
-    v_out=$(mosaic --version 2>/dev/null | head -n1)
-    CURRENT_VERSION=$(echo "$v_out" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+    # IMPORTANT: redirect stdin from /dev/null so mosaic (a TUI app) doesn't
+    # try to read from the pipe and hang forever
+    CURRENT_VERSION=$(mosaic --version </dev/null 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
     if [ -z "$CURRENT_VERSION" ]; then CURRENT_VERSION="unknown"; fi
     echo -e "${GREEN}Found (v$CURRENT_VERSION)${NC}"
 else
     echo -e "${DIM}Not found.${NC}"
 fi
 
-# (ask_confirm and interactive logic removed for non-interactive installation)
-
-# 3. Decision Logic (Everything is automatic now)
+# 3. Decision Logic (fully automatic, no user input needed)
 ACTION="install"
 
 if [ "$IS_INSTALLED" = true ]; then
@@ -112,20 +107,7 @@ else
     echo -e "🚀 ${CYAN}Preparing fresh installation of Mosaic v$TARGET_VERSION...${NC}"
 fi
 
-# 4. Execute Action
-if [ "$ACTION" = "uninstall" ]; then
-    printf "🧹 Uninstalling Mosaic...\n"
-    # Try to find python cmd used for installation or just python3
-    PY_CMD="python3"
-    check_command python3 || PY_CMD="python"
-    
-    $PY_CMD -m pip uninstall -y mosaic-tui &>/dev/null &
-    spinner $! "Removing Mosaic CLI..."
-    echo -e "\n${GREEN}✅ Mosaic has been uninstalled.${NC}"
-    exit 0
-fi
-
-# 5. Installation/Update Flow
+# 4. Installation/Update Flow
 # Check requirements
 if ! check_command git; then
     echo -e "${RED}❌ Error: git is not installed.${NC}"
@@ -145,7 +127,7 @@ fi
 for cmd in "${SEARCH_LIST[@]}"; do
     if check_command "$cmd"; then
         # Check if version is 3.10+
-        if $cmd -c 'import sys; exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
+        if $cmd -c 'import sys; exit(0 if sys.version_info >= (3, 10) else 1)' </dev/null 2>/dev/null; then
             PYTHON_CMD="$cmd"
             break
         fi
@@ -162,10 +144,10 @@ if [[ -z "$PYTHON_CMD" ]]; then
     exit 1
 fi
 echo -e "${GREEN}Found!${NC}"
-echo -e "🐍 Using ${YELLOW}$($PYTHON_CMD --version)${NC}"
+echo -e "🐍 Using ${YELLOW}$($PYTHON_CMD --version 2>&1)${NC}"
 
 # Check for pip
-if ! $PYTHON_CMD -m pip --version &> /dev/null; then
+if ! $PYTHON_CMD -m pip --version </dev/null &> /dev/null; then
     echo -e "${RED}❌ Error: pip is not available for $PYTHON_CMD.${NC}"
     exit 1
 fi
@@ -189,15 +171,15 @@ if [[ -f /etc/os-release ]] || [[ "$OSTYPE" == "darwin"* ]]; then
     INSTALL_FLAGS="--break-system-packages"
 fi
 
-# If already installed, we might want to uninstall first to be clean
+# If already installed, uninstall first to be clean
 if [ "$IS_INSTALLED" = true ]; then
     printf "🔄 Preparing update...\n"
-    $PYTHON_CMD -m pip uninstall -y mosaic-tui &>/dev/null &
+    $PYTHON_CMD -m pip uninstall -y mosaic-tui </dev/null &>/dev/null &
     spinner $! "Removing old version"
 fi
 
 printf "📦 Installing Mosaic CLI...\n"
-$PYTHON_CMD -m pip install "$INSTALL_TEMP/cli" $INSTALL_FLAGS &>/dev/null &
+$PYTHON_CMD -m pip install "$INSTALL_TEMP/cli" $INSTALL_FLAGS </dev/null &>/dev/null &
 install_pid=$!
 spinner $install_pid "Installing Mosaic CLI..."
 wait $install_pid
@@ -230,3 +212,6 @@ else
     echo -e "   ${CYAN}hash -r${NC} ${DIM}(or reopen your terminal)${NC}"
 fi
 echo -e "${DIM}------------------------------------------------------------${NC}"
+
+exit 0
+}
