@@ -94,9 +94,9 @@ if check_command mosaic; then
     IS_INSTALLED=true
     # Use a timeout to prevent hanging if the existing mosaic command is broken
     if check_command timeout; then
-        CURRENT_VERSION=$(timeout 3s mosaic --version 2>/dev/null | awk '{print $NF}' | sed 's/^v//' || echo "unknown")
+        CURRENT_VERSION=$(timeout 3s mosaic --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1 || echo "unknown")
     else
-        CURRENT_VERSION=$(mosaic --version 2>/dev/null | awk '{print $NF}' | sed 's/^v//' || echo "unknown")
+        CURRENT_VERSION=$(mosaic --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1 || echo "unknown")
     fi
     echo -e "${GREEN}Found (v$CURRENT_VERSION)${NC}"
 else
@@ -110,7 +110,8 @@ ask_confirm() {
     if [ "$YES_MODE" = true ]; then return 0; fi
     
     printf "\n${BOLD}${prompt}${NC} [y/N]: "
-    read -r choice
+    # Redirect stdin from /dev/tty to allow curl | bash interaction
+    read -r choice < /dev/tty
     case "$choice" in
         [yY][eE][sS]|[yY]) return 0 ;;
         *) return 1 ;;
@@ -130,7 +131,7 @@ if [ "$IS_INSTALLED" = true ]; then
         printf "  2) Uninstall Mosaic\n"
         printf "  3) Cancel\n"
         printf "\nChoice [1-3]: "
-        read -r choice
+        read -r choice < /dev/tty
         
         case $choice in
             1) ACTION="install" ;;
