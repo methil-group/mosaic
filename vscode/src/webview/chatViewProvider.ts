@@ -34,6 +34,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this._initializeWorkspace();
     this.refresh();
 
+    webviewView.onDidDispose(() => {
+      this._handleStopGeneration();
+    });
+
     webviewView.webview.onDidReceiveMessage(async (data) => {
       console.log(`[Mosaic DEBUG] Received: ${data.type}`);
       try {
@@ -93,6 +97,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.refresh();
         break;
       case 'fetchModels': return this._handleFetchModels();
+      case 'getHistory': return this._handleGetHistory();
       case 'listChats': return this._handleListChats();
       case 'loadChat': return this._handleLoadChat(data.value);
       case 'listTodos': return this._handleListTodos();
@@ -181,6 +186,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this._view.webview.postMessage({ type: 'todoList', todos: manager.getTodos() });
   }
 
+  private async _handleGetHistory() {
+    if (!this._view || !this._sessionManager) return;
+    
+    this._view.webview.postMessage({ type: 'clearMessages' });
+    this._sessionManager.getHistory().forEach((msg: any) => {
+      if (msg.role !== 'system') {
+        this._view?.webview.postMessage({ type: 'addMessage', role: msg.role, content: msg.content });
+      }
+    });
+  }
+
   private async _handleSendMessage(text: string) {
     if (!this._view) return;
 
@@ -218,13 +234,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     let fullContent = '';
     this._view.webview.postMessage({ type: 'addMessage', role: 'assistant', content: '', id: assistantId });
 
+    let startTime = Date.now();
+    let firstTokenTime: number | null = null;
+    let lastUsage: any = null;
+
     try {
       await this._activeAgent.run(text, async (event: StreamEvent) => {
         if (!this._view) return;
         switch (event.type) {
           case 'token':
+            if (firstTokenTime === null) firstTokenTime = Date.now();
             fullContent += event.data;
             this._view.webview.postMessage({ type: 'updateMessage', id: assistantId, content: event.data });
+            break;
+          case 'usage':
+            lastUsage = event.data;
             break;
           case 'tool_started': {
             const marker = `\n<tool_call name="${event.name}" id="${event.call_id}">\n${JSON.stringify(event.parameters, null, 2)}\n</tool_call>\n`;
@@ -238,9 +262,27 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             this._view.webview.postMessage({ type: 'updateMessage', id: assistantId, content: marker });
             break;
           }
-          case 'final_answer':
+          case 'final_answer': {
+            const endTime = Date.now();
+            const ttft = firstTokenTime ? (firstTokenTime - startTime) : 0;
+            const duration = firstTokenTime ? (endTime - firstTokenTime) : (endTime - startTime);
+            const outputTokens = lastUsage?.completion_tokens || 0;
+            const tps = duration > 0 ? (outputTokens / (duration / 1000)) : 0;
+
+            this._view.webview.postMessage({ 
+              type: 'generationMetadata', 
+              id: assistantId,
+              metadata: {
+                model,
+                ttft,
+                tps: tps.toFixed(1),
+                inputTokens: lastUsage?.prompt_tokens || 0,
+                outputTokens: outputTokens
+              }
+            });
             this._view.webview.postMessage({ type: 'generationFinished' });
             break;
+          }
           case 'error':
             this._view.webview.postMessage({ type: 'addMessage', role: 'system', content: `❌ Agent Error: ${event.message}` });
             this._view.webview.postMessage({ type: 'generationFinished' });

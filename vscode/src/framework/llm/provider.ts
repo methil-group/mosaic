@@ -15,7 +15,8 @@ export class BaseLlmProvider implements LlmProvider {
         {
           model: model,
           messages: messages,
-          stream: true
+          stream: true,
+          stream_options: { include_usage: true }
         },
         {
           headers: {
@@ -44,6 +45,12 @@ export class BaseLlmProvider implements LlmProvider {
             const data = trimmed.slice(6);
             try {
               const parsed = JSON.parse(data);
+              
+              // Handle usage
+              if (parsed.usage) {
+                yield { type: 'usage', data: parsed.usage };
+              }
+
               const content = parsed.choices[0]?.delta?.content;
               if (content) {
                 yield { type: 'token', data: content };

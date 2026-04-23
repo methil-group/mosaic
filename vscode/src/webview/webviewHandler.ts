@@ -103,6 +103,7 @@ export class WebviewHandler {
                     
                     if (document.getElementById('model-select')) {
                         vscode.postMessage({ type: 'fetchModels' });
+                        vscode.postMessage({ type: 'getHistory' });
                     }
                     
                     log("Mosaic UI Ready");
@@ -156,10 +157,11 @@ export class WebviewHandler {
 
                 handleMessage(msg) {
                     switch (msg.type) {
-                        case 'addMessage': this.addMessage(msg); break;
+                        case 'addMessage': this.addMessage(msg.role, msg.content, msg.id); break;
                         case 'updateMessage': this.updateMessage(msg); break;
                         case 'generationFinished': this.setGenerating(false); break;
                         case 'setAvailableModels': this.updateModels(msg); break;
+                        case 'generationMetadata': this.addMessageMetadata(msg.id, msg.metadata); break;
                         case 'chatList': this.updateChatList(msg.chats); break;
                         case 'todoList': this.updateTodoList(msg.todos); break;
                         case 'addSystemMessage': this.addSystemMessage(msg.content); break;
@@ -251,30 +253,63 @@ export class WebviewHandler {
                     });
                 }
 
-                addMessage(msg) {
-                    const container = document.getElementById('messages');
-                    if (!container) return;
+                addMessage(role, content, id) {
+                    const messagesContainer = document.getElementById('messages');
+                    if (!messagesContainer) return;
+                    
                     const div = document.createElement('div');
-                    div.className = 'message ' + msg.role;
-                    if (msg.id) {
-                        div.id = msg.id;
-                        this.assistantMessages[msg.id] = msg.content;
+                    div.className = \`message \${role}\`;
+                    if (id) {
+                        div.id = id;
+                        this.assistantMessages[id] = content;
                     }
-                    div.innerHTML = this.renderMarkdown(msg.content || '');
+                    
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'content';
+                    contentDiv.innerHTML = this.renderMarkdown(content || '');
+                    div.appendChild(contentDiv);
+                    
                     this.finalizeToolCalls(div);
-                    container.appendChild(div);
-                    requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });
+                    messagesContainer.appendChild(div);
+                    this.scrollToBottom();
                 }
 
+                addMessageMetadata(id, metadata) {
+                    const msgDiv = document.getElementById(id);
+                    if (!msgDiv) return;
+                    
+                    const metaDiv = document.createElement('div');
+                    metaDiv.className = 'message-metadata';
+                    metaDiv.innerHTML = \`
+                        <span>\${metadata.model}</span>
+                        <span>•</span>
+                        <span>\${metadata.tps} t/s</span>
+                        <span>•</span>
+                        <span>TTFT: \${metadata.ttft}ms</span>
+                        <span>•</span>
+                        <span>In: \${metadata.inputTokens}</span>
+                        <span>•</span>
+                        <span>Out: \${metadata.outputTokens}</span>
+                    \`;
+                    msgDiv.appendChild(metaDiv);
+                    this.scrollToBottom();
+                }
+                
                 updateMessage(msg) {
-                    const el = document.getElementById(msg.id);
-                    const container = document.getElementById('messages');
-                    if (el) {
-                        this.assistantMessages[msg.id] += msg.content;
-                        el.innerHTML = this.renderMarkdown(this.assistantMessages[msg.id]);
-                        this.finalizeToolCalls(el);
-                        if (container) requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });
+                    const msgDiv = document.getElementById(msg.id);
+                    if (!msgDiv) return;
+                    const contentDiv = msgDiv.querySelector('.content');
+                    if (contentDiv) {
+                        this.assistantMessages[msg.id] = (this.assistantMessages[msg.id] || '') + msg.content;
+                        contentDiv.innerHTML = this.renderMarkdown(this.assistantMessages[msg.id]);
+                        this.finalizeToolCalls(msgDiv);
                     }
+                    this.scrollToBottom();
+                }
+
+                scrollToBottom() {
+                    const container = document.getElementById('messages');
+                    if (container) container.scrollTop = container.scrollHeight;
                 }
 
                 updateModels(msg) {
@@ -370,7 +405,7 @@ export class WebviewHandler {
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M14 7v1H8v6H7V8H1V7h6V1h1v6h6z"/></svg>
                 </button>
                 <button id="history-btn" title="Recent Chats">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM1.5 8a6.5 6.5 0 116.5 6.5 6.5 0 01-6.5-6.5zM8 4v4.5l2.5 1.5-.5.8L7.2 9V4H8z"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 7 7 7 7 0 0 0-7-7zm0 12.6A5.6 5.6 0 1 1 13.6 8 5.6 5.6 0 0 1 8 13.6zm.7-5.3L11 10.5l-.7.7-2.7-2.7V4h1z"/></svg>
                 </button>
             </div>
         </div>

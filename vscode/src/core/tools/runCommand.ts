@@ -7,15 +7,23 @@ export class RunCommandTool extends BaseTool {
 
   async execute(args: { command: string }) {
     if (!args.command) return this.formatError("No command provided");
+    
+    let terminal = vscode.window.terminals.find(t => t.name === "Mosaic Terminal");
+    let isNew = false;
+    
+    if (!terminal) {
+      terminal = vscode.window.createTerminal("Mosaic Terminal");
+      isNew = true;
+    }
 
-    return new Promise((resolve) => {
-      const terminal = vscode.window.terminals.find(t => t.name === "Mosaic Terminal") || vscode.window.createTerminal("Mosaic Terminal");
-      terminal.show(true); // true = preserveFocus
-      terminal.sendText(args.command);
-      
-      // Note: Getting terminal output programmatically is tricky in VSCode without complex extensions.
-      // For now, we'll inform the LLM that the command was sent.
-      resolve({ message: `Command '${args.command}' has been sent to the terminal.` });
-    });
+    terminal.show(true);
+
+    if (isNew) {
+      // Wait for shell initialization (e.g., sourcing .zshrc)
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+
+    terminal.sendText(args.command);
+    return { message: `Command '${args.command}' has been sent to the terminal.` };
   }
 }
