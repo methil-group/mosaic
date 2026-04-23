@@ -49,8 +49,8 @@ export class SessionManager {
   public log(role: string, message: string) {
     if (!this.logDir) return;
     const timestamp = new Date().toISOString();
-    const logLine = \`[\${timestamp}] [\${role.toUpperCase()}] \${message}\\n\`;
-    const logFile = path.join(this.logDir, \`session_\${this.sessionId.split('_')[0]}.log\`);
+    const logLine = `[${timestamp}] [${role.toUpperCase()}] ${message}\n`;
+    const logFile = path.join(this.logDir, `session_${this.sessionId.split('_')[0]}.log`);
     fs.appendFileSync(logFile, logLine);
   }
 

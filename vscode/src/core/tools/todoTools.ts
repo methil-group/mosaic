@@ -12,7 +12,7 @@ interface Todo {
 }
 
 export class TodoManager {
-  private _todoFile: string;
+  private _todoFile: string | null;
 
   constructor(workspacePath: string) {
     const mosaicDir = workspacePath ? path.join(workspacePath, '.mosaic') : null;
@@ -32,7 +32,9 @@ export class TodoManager {
   }
 
   public saveTodos(todos: Todo[]) {
-    fs.writeFileSync(this._todoFile, JSON.stringify(todos, null, 2));
+    if (this._todoFile) {
+      fs.writeFileSync(this._todoFile, JSON.stringify(todos, null, 2));
+    }
   }
 
   public add(title: string, description?: string): Todo {
