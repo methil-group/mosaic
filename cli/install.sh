@@ -63,7 +63,6 @@ check_command() {
 }
 
 show_banner() {
-    clear
     echo -e "${PURPLE}${BOLD}"
     echo "  __  __  ____   _____         _____  _____  "
     echo " |  \/  |/ __ \ / ____|  /\   |_   _|/ ____| "
@@ -90,10 +89,18 @@ echo -e "🧩 Target Version: ${BOLD}v$TARGET_VERSION${NC}\n"
 IS_INSTALLED=false
 CURRENT_VERSION="none"
 
+printf "🔎 Checking for existing installation... "
 if check_command mosaic; then
     IS_INSTALLED=true
-    CURRENT_VERSION=$(mosaic --version 2>/dev/null | awk '{print $NF}' | sed 's/^v//' || echo "unknown")
-    echo -e "🔎 Detected existing installation: ${CYAN}v$CURRENT_VERSION${NC}"
+    # Use a timeout to prevent hanging if the existing mosaic command is broken
+    if check_command timeout; then
+        CURRENT_VERSION=$(timeout 3s mosaic --version 2>/dev/null | awk '{print $NF}' | sed 's/^v//' || echo "unknown")
+    else
+        CURRENT_VERSION=$(mosaic --version 2>/dev/null | awk '{print $NF}' | sed 's/^v//' || echo "unknown")
+    fi
+    echo -e "${GREEN}Found (v$CURRENT_VERSION)${NC}"
+else
+    echo -e "${DIM}Not found.${NC}"
 fi
 
 # Interactive Menu Replacement (Simple Read)
