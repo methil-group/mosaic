@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Mosaic Installer Script
 # Optimized for curl -sSL ... | bash
 
@@ -95,112 +96,18 @@ if check_command mosaic; then
     echo -e "🔎 Detected existing installation: ${CYAN}v$CURRENT_VERSION${NC}"
 fi
 
-# Interactive Menu Function
-interactive_menu() {
+# Interactive Menu Replacement (Simple Read)
+ask_confirm() {
     local prompt="$1"
-    shift
-    local options=("$@")
-    local selected=0
-    local num_options=${#options[@]}
-    local attempts=0
-    local max_attempts=3
-
-    # Fallback to simple read if not a TTY or too many failures
-    if [ ! -t 0 ] && [ ! -c /dev/tty ]; then
-        echo -e "\n${BOLD}${prompt}${NC}"
-        for i in "${!options[@]}"; do
-            echo -e "  $((i+1))) ${options[$i]}"
-        done
-        printf "\nChoice [1-$num_options]: "
-        read -r choice
-        return $choice
-    fi
-
-    # Hide cursor
-    printf "\033[?25l"
-
-    while true; do
-        # Clear previous menu and redraw
-        printf "\r\n${BOLD}%s${NC}\n" "$prompt"
-        for i in "${!options[@]}"; do
-            if [ "$i" -eq "$selected" ]; then
-                printf "  ${PURPLE}${BOLD}➜ %s${NC}\n" "${options[$i]}"
-            else
-                printf "    %s\n" "${options[$i]}"
-            fi
-        done
-
-        # Read key via Python targeting /dev/tty. Redirect stderr to keep menu clean.
-        local key=$(python3 -c "
-import sys, tty, termios, os
-
-def getch():
-    try:
-        if not os.path.exists('/dev/tty'): return 'FALLBACK'
-        fd = os.open('/dev/tty', os.O_RDONLY)
-        try:
-            old_settings = termios.tcgetattr(fd)
-            try:
-                tty.setraw(fd)
-                ch = os.read(fd, 1).decode('utf-8', errors='ignore')
-                if ch == '\x1b':
-                    ch += os.read(fd, 2).decode('utf-8', errors='ignore')
-                return ch
-            finally:
-                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        finally:
-            os.close(fd)
-    except Exception:
-        return 'FALLBACK'
-
-key = getch()
-if key == '\x1b[A': print('UP')
-elif key == '\x1b[B': print('DOWN')
-elif key == '\r' or key == '\n': print('ENTER')
-elif key == '\x03': print('SIGINT')
-elif key == 'FALLBACK': print('FALLBACK')
-else: print('OTHER')
-" 2>/dev/null)
-
-        case "$key" in
-            UP)
-                selected=$(( (selected - 1 + num_options) % num_options ))
-                attempts=0
-                ;;
-            DOWN)
-                selected=$(( (selected + 1) % num_options ))
-                attempts=0
-                ;;
-            ENTER)
-                printf "\033[?25h" # Show cursor
-                return $((selected + 1))
-                ;;
-            SIGINT)
-                printf "\033[?25h\nCancelled.\n"
-                exit 1
-                ;;
-            *)
-                attempts=$((attempts + 1))
-                if [ "$attempts" -ge "$max_attempts" ]; then
-                    printf "\033[?25h" # Restore cursor
-                    # Clean up the corrupted lines before fallback
-                    printf "\033[$((num_options + 2))A\033[J"
-                    
-                    # Manual fallback
-                    echo -e "\n${BOLD}${prompt}${NC} (Interactive mode failed, using number input)"
-                    for i in "${!options[@]}"; do
-                        echo -e "  $((i+1))) ${options[$i]}"
-                    done
-                    printf "\nChoice [1-$num_options]: "
-                    read -r choice
-                    return $choice
-                fi
-                sleep 0.1
-                ;;
-        esac
-        # Move cursor back up to redraw
-        printf "\033[$((num_options + 2))A"
-    done
+    local default="$2"
+    if [ "$YES_MODE" = true ]; then return 0; fi
+    
+    printf "\n${BOLD}${prompt}${NC} [y/N]: "
+    read -r choice
+    case "$choice" in
+        [yY][eE][sS]|[yY]) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
 # 3. Decision Logic
@@ -210,17 +117,13 @@ if [ "$IS_INSTALLED" = true ]; then
     if [ "$YES_MODE" = true ]; then
         ACTION="install"
     else
-        options=()
-        if [[ "$CURRENT_VERSION" != "$TARGET_VERSION" && "$CURRENT_VERSION" != "unknown" ]]; then
-            options+=("Update to v$TARGET_VERSION (Recommended)")
-        else
-            options+=("Reinstall v$TARGET_VERSION")
-        fi
-        options+=("Uninstall Mosaic")
-        options+=("Cancel")
-
-        interactive_menu "Mosaic is already installed. What would you like to do?" "${options[@]}"
-        choice=$?
+        echo -e "\n${BOLD}Mosaic is already installed (v$CURRENT_VERSION).${NC}"
+        printf "What would you like to do?\n"
+        printf "  1) Update/Reinstall to v$TARGET_VERSION\n"
+        printf "  2) Uninstall Mosaic\n"
+        printf "  3) Cancel\n"
+        printf "\nChoice [1-3]: "
+        read -r choice
         
         case $choice in
             1) ACTION="install" ;;
@@ -230,10 +133,7 @@ if [ "$IS_INSTALLED" = true ]; then
     fi
 else
     if [ "$YES_MODE" = false ]; then
-        options=("Install Mosaic v$TARGET_VERSION" "Cancel")
-        interactive_menu "Mosaic was not detected." "${options[@]}"
-        choice=$?
-        if [ "$choice" -ne 1 ]; then
+        if ! ask_confirm "Mosaic was not detected. Install v$TARGET_VERSION now?"; then
             echo -e "\nInstallation cancelled."
             exit 0
         fi
