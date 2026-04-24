@@ -32,7 +32,7 @@ body {
 }
 
 #chat-header {
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-color);
   font-size: 0.75rem;
@@ -123,7 +123,7 @@ body {
 #messages {
   flex: 1;
   overflow-y: auto;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -133,7 +133,8 @@ body {
 .message {
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
-  max-width: 95%;
+  max-width: 100%;
+  margin: 0 8px;
   word-wrap: break-word;
   position: relative;
   line-height: 1.5;
@@ -148,14 +149,57 @@ body {
   align-self: flex-end;
   background: var(--vscode-editor-selectionBackground);
   color: var(--vscode-editor-foreground);
-  margin-left: 1rem;
+  margin-left: 0.5rem;
 }
 
 .message.assistant {
   align-self: flex-start;
   background: var(--vscode-editor-background);
   border: 1px solid var(--border-color);
-  margin-right: 1rem;
+  margin-right: 0.5rem;
+}
+
+.thought-block {
+  background: var(--vscode-editor-inactiveSelectionBackground);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin: 0.5rem 0;
+  overflow: hidden;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  font-size: 0.85em;
+}
+
+.thought-block:hover {
+  opacity: 1;
+}
+
+.thought-header {
+  padding: 0.4rem 0.6rem;
+  background: rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.75rem;
+}
+
+.thought-icon {
+  font-size: 0.9rem;
+  filter: grayscale(1);
+}
+
+.thought-content {
+  padding: 0.6rem;
+  display: none;
+  color: var(--vscode-descriptionForeground);
+  border-top: 1px solid var(--border-color);
+}
+
+.thought-block.open .thought-content {
+  display: block;
 }
 
 .message.system {
@@ -215,17 +259,17 @@ body {
 #input-container {
   border-top: 1px solid var(--border-color);
   background: var(--vscode-sideBar-background);
-  padding: 0.75rem;
+  padding: 0.5rem 0.5rem 0.75rem 0.5rem;
 }
 
 .input-wrapper {
   display: flex;
-  align-items: flex-end;
-  padding: 2px;
   background: var(--vscode-input-background);
   border: 1px solid var(--vscode-input-border);
-  border-radius: 6px;
+  border-radius: 4px;
   position: relative;
+  align-items: center;
+  padding: 1px 4px;
 }
 
 .input-wrapper:focus-within {
@@ -238,28 +282,31 @@ body {
   background: transparent;
   color: var(--vscode-input-foreground);
   border: none;
-  padding: 0.55rem 0.75rem;
+  padding: 0.5rem 0.6rem;
+  resize: none;
   font-family: inherit;
   font-size: 0.85rem;
-  resize: none;
+  line-height: 1.4;
+  max-height: 200px;
+  min-height: 20px;
   outline: none;
-  max-height: 150px;
-  line-height: 1.45;
+  box-sizing: border-box;
 }
 
 #action-button {
   background: transparent;
-  color: var(--vscode-descriptionForeground);
   border: none;
-  width: 30px;
-  height: 30px;
+  color: var(--vscode-button-background);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
   flex-shrink: 0;
-  transition: color 0.15s;
-  border-radius: 4px;
+  transition: all 0.1s;
+  opacity: 0.8;
+  margin-bottom: 2px;
 }
 
 #action-button:hover {
@@ -339,7 +386,7 @@ body {
 #settings-bar {
   display: flex;
   gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
+  padding: 0.4rem;
   background: var(--vscode-sideBar-background);
   border-top: 1px solid var(--border-color);
   align-items: center;
@@ -675,19 +722,123 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 .history-item {
-  padding: 0.6rem 0.8rem;
+  padding: 0;
   font-size: 0.75rem;
   border-radius: 4px;
   cursor: pointer;
-  white-space: nowrap;
+  margin-bottom: 4px;
+  transition: all 0.2s;
   overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 2px;
+  border: 1px solid transparent;
 }
 
 .history-item:hover {
   background: var(--vscode-list-hoverBackground);
-  color: var(--vscode-list-hoverForeground);
+}
+
+.history-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+  gap: 8px;
+}
+
+.history-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.history-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--vscode-foreground);
+}
+
+.history-date {
+  font-size: 0.6rem;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.7;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: all 0.1s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-item:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.1);
+}
+
+/* Confirmation State */
+.history-confirm {
+  display: none;
+  padding: 0.6rem 0.8rem;
+  background: var(--vscode-input-background);
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--border-color);
+  animation: slideDown 0.2s ease-out;
+}
+
+.history-item.confirming {
+  border-color: #f43f5e;
+  background: var(--vscode-input-background);
+}
+
+.history-item.confirming .history-confirm {
+  display: flex;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.confirm-actions button {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.confirm-yes {
+  background: #f43f5e;
+  color: white;
+}
+
+.confirm-yes:hover {
+  background: #e11d48;
+}
+
+.confirm-no {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.confirm-no:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
 }
 
 .history-item.new-chat {
@@ -696,6 +847,7 @@ body {
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 0.5rem;
   padding-bottom: 0.8rem;
+  display: block;
 }
 
 .file-grid {

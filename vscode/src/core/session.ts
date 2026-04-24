@@ -4,6 +4,7 @@ import * as path from 'path';
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  metadata?: any;
 }
 
 export interface ChatSession {
@@ -57,8 +58,8 @@ export class SessionManager {
     fs.appendFileSync(logFile, logLine);
   }
 
-  public addMessage(role: 'user' | 'assistant' | 'system', content: string) {
-    this.history.push({ role, content });
+  public addMessage(role: 'user' | 'assistant' | 'system', content: string, metadata?: any) {
+    this.history.push({ role, content, metadata });
     if (this.chatDir) this.saveSession();
     this.log(role, content);
   }

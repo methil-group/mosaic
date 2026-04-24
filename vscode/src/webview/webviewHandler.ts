@@ -56,6 +56,7 @@ export class WebviewHandler {
                             const modalId = target.getAttribute('data-modal');
                             if (modalId) document.getElementById(modalId).style.display = 'none';
                         } else if (target.classList.contains('history-item') && !target.classList.contains('task-item')) {
+                            if (target.classList.contains('confirming')) return;
                             const chatId = target.getAttribute('data-id');
                             if (chatId) {
                                 log("Loading Chat:", chatId);
@@ -174,50 +175,69 @@ export class WebviewHandler {
 
                 renderMarkdown(text) {
                     if (!text) return "";
-                    let thoughts = "";
-                    let cleaned = text;
-
-                    const thoughtRegex = new RegExp('<thought>([\\\\s\\\\S]*?)<\\\\/thought>', 'g');
-                    cleaned = cleaned.replace(thoughtRegex, (match, thought) => {
-                        thoughts += thought.trim() + "\\n";
-                        return "";
-                    });
-
-                    const openIdx = cleaned.indexOf('<thought>');
-                    if (openIdx !== -1) {
-                        thoughts += cleaned.substring(openIdx + 9);
-                        cleaned = cleaned.substring(0, openIdx);
+                    
+                    const blocks = [];
+                    const blockRegex = /<(thought|tool_call|tool_result)[\s\S]*?(?:<\/\1>|$)/g;
+                    
+                    let lastIdx = 0;
+                    let match;
+                    while ((match = blockRegex.exec(text)) !== null) {
+                        if (match.index > lastIdx) {
+                            blocks.push({ type: 'text', content: text.substring(lastIdx, match.index) });
+                        }
+                        blocks.push({ type: 'block', content: match[0] });
+                        lastIdx = blockRegex.lastIndex;
+                    }
+                    if (lastIdx < text.length) {
+                        blocks.push({ type: 'text', content: text.substring(lastIdx) });
                     }
 
-                    const toolRegex = new RegExp('<tool_call name="([^"]+)" id="([^"]+)">([\\\\s\\\\S]*?)<\\\\/tool_call>', 'g');
-                    let formatted = cleaned.replace(toolRegex, (match, name, id, args) => {
-                        let summary = "";
-                        try {
-                            const parsed = JSON.parse(args.trim());
-                            if (name === 'run_command') summary = ": " + (parsed.command || "");
-                            else if (parsed.path) summary = ": " + parsed.path;
-                            else if (parsed.title) summary = ": " + parsed.title;
-                        } catch(e) {}
-                        return \`<div class="tool-call" id="call-\${id}"><div class="tool-header loading">\${name.replace(/_/g, ' ')}\${summary}</div><div class="tool-content">\${args.trim()}</div></div>\`;
-                    });
-
-                    const ongoingToolRegex = new RegExp('<tool_call name="([^"]+)" id="([^"]+)">([\\\\s\\\\S]*?)$');
-                    formatted = formatted.replace(ongoingToolRegex, (match, name) => {
-                        return \`<div class="tool-call loading"><div class="tool-header loading">Running \${name.replace(/_/g, ' ')}...</div></div>\`;
-                    });
-
-                    const toolResultRegex = new RegExp('<tool_result id="([^"]+)">([\\\\s\\\\S]*?)<\\\\/tool_result>', 'g');
-                    formatted = formatted.replace(toolResultRegex, (match, id, result) => {
-                        return \`<div class="tool-result-marker" data-id="\${id}" style="display:none">\${result}</div>\`;
-                    });
-
-                    if (typeof marked === 'undefined') return formatted.replace(/\\n/g, '<br>');
-
-                    let html = marked.parse(formatted);
-                    if (thoughts) {
-                        html = \`<div class="thought-block open"><div class="thought-header"><span class="thought-icon">💡</span> Thinking...</div><div class="thought-content">\${marked.parse(thoughts)}</div></div>\` + html;
-                    }
-                    return html;
+                    return blocks.map(b => {
+                        if (b.type === 'text') {
+                            return typeof marked !== 'undefined' ? marked.parse(b.content) : b.content.replace(/\n/g, '<br>');
+                        } else {
+                            let content = b.content;
+                            
+                            if (content.startsWith('<thought>')) {
+                                const isClosed = content.includes('</thought>');
+                                const thoughtText = isClosed ? (content.match(/<thought>([\s\S]*?)<\/thought>/)?.[1] || "") : content.substring(9);
+                                return \`<div class="thought-block \${!isClosed ? 'open' : ''}"><div class="thought-header"><span class="thought-icon">💡</span> \${isClosed ? 'Thought' : 'Thinking...'}</div><div class="thought-content">\${typeof marked !== 'undefined' ? marked.parse(thoughtText.trim()) : thoughtText.trim()}</div></div>\`;
+                            }
+                            
+                            if (content.startsWith('<tool_call')) {
+                                const isClosed = content.includes('</tool_call>');
+                                if (isClosed) {
+                                    const m = content.match(/<tool_call name="([^"]+)" id="([^"]+)">([\s\S]*?)<\/tool_call>/);
+                                    if (m) {
+                                        const [_, name, id, args] = m;
+                                        let summary = "";
+                                        try {
+                                            const parsed = JSON.parse(args.trim());
+                                            if (name === 'run_command') summary = ": " + (parsed.command || "");
+                                            else if (parsed.path) summary = ": " + parsed.path;
+                                            else if (parsed.title) summary = ": " + parsed.title;
+                                        } catch(e) {}
+                                        return \`<div class="tool-call" id="call-\${id}"><div class="tool-header loading">\${name.replace(/_/g, ' ')}\${summary}</div><div class="tool-content">\${args.trim()}</div></div>\`;
+                                    }
+                                } else {
+                                    const m = content.match(/<tool_call name="([^"]+)" id="([^"]+)">([\s\S]*?)$/);
+                                    if (m) {
+                                        const [_, name] = m;
+                                        return \`<div class="tool-call loading"><div class="tool-header loading">Running \${name.replace(/_/g, ' ')}...</div></div>\`;
+                                    }
+                                }
+                            }
+                            
+                            if (content.startsWith('<tool_result')) {
+                                const m = content.match(/<tool_result id="([^"]+)">([\s\S]*?)<\/tool_result>/);
+                                if (m) {
+                                    return \`<div class="tool-result-marker" data-id="\${m[1]}" style="display:none">\${m[2]}</div>\`;
+                                }
+                            }
+                            
+                            return content;
+                        }
+                    }).join('');
                 }
 
                 finalizeToolCalls(container) {
@@ -345,7 +365,29 @@ export class WebviewHandler {
 
                 updateChatList(chats) {
                     const list = document.getElementById('history-list');
-                    if (list) list.innerHTML = chats.map(c => \`<div class="history-item" data-id="\${c.id}">\${c.name}</div>\`).join('');
+                    if (!list) return;
+                    list.innerHTML = chats.map(c => {
+                        const date = new Date(c.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        return \`
+                        <div class="history-item" data-id="\${c.id}">
+                            <div class="history-main">
+                                <div class="history-info">
+                                    <span class="history-name">\${c.name}</span>
+                                    <span class="history-date">\${date}</span>
+                                </div>
+                                <button class="delete-btn" title="Delete Chat" onclick="event.stopPropagation(); this.closest('.history-item').classList.add('confirming')">
+                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M11 2H9c0-.55-.45-1-1-1s-1 .45-1 1H5c-.55 0-1 .45-1 1v1h8V3c0-.55-.45-1-1-1zM4.5 5l.5 9c0 .55.45 1 1 1h4c.55 0 1-.45 1-1l.5-9h-7z"/></svg>
+                                </button>
+                            </div>
+                            <div class="history-confirm">
+                                <span>Delete this chat?</span>
+                                <div class="confirm-actions">
+                                    <button class="confirm-yes" onclick="event.stopPropagation(); vscode.postMessage({ type: 'deleteChat', value: '\${c.id}' })">Delete</button>
+                                    <button class="confirm-no" onclick="event.stopPropagation(); this.closest('.history-item').classList.remove('confirming')">Cancel</button>
+                                </div>
+                            </div>
+                        </div>\`;
+                    }).join('');
                 }
 
                 updateTodoList(todos) {

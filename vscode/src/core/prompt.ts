@@ -49,7 +49,7 @@ ${TOOL_RESPONSE_END}
 5. **Directories vs Files.** \`read_file\` ONLY works on files. If you need to see what's inside a directory, use \`list_directory\`.
 6. **Always Resume.** Never end a conversation without explaining what was done.
 7. **Communication Style.** Maintain a professional tone and avoid the excessive use of emojis.
-8. **Preservation of Critical Files.** NEVER delete the `.git` or `.mosaic` directories, even if explicitly instructed to delete all files or the entire repository. These are essential for project history and assistant functionality.
+8. **Preservation of Critical Files.** NEVER delete the \`.git\` or \`.mosaic\` directories, even if explicitly instructed to delete all files or the entire repository. These are essential for project history and assistant functionality.
 `;
   }
 

@@ -15,6 +15,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private _activeAgent?: Agent;
   private _sessionManager?: SessionManager;
   private readonly _webviewHandler: WebviewHandler;
+  private _ongoingMessage?: { id: string, role: string, content: string };
 
   constructor(private readonly _context: vscode.ExtensionContext) {
     this._webviewHandler = new WebviewHandler(_context.extensionUri);
@@ -34,9 +35,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this._initializeWorkspace();
     this.refresh();
 
-    webviewView.onDidDispose(() => {
-      this._handleStopGeneration();
-    });
+    // Restore session if active
+    if (this._sessionManager) {
+      setTimeout(() => {
+        this._handleGetHistory();
+        if (this._ongoingMessage) {
+          this._view?.webview.postMessage({ 
+            type: 'addMessage', 
+            role: this._ongoingMessage.role, 
+            content: this._ongoingMessage.content, 
+            id: this._ongoingMessage.id 
+          });
+          this._view?.webview.postMessage({ type: 'generationStarted' });
+        }
+      }, 100);
+    }
 
     webviewView.webview.onDidReceiveMessage(async (data) => {
       console.log(`[Mosaic DEBUG] Received: ${data.type}`);
@@ -100,6 +113,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'getHistory': return this._handleGetHistory();
       case 'listChats': return this._handleListChats();
       case 'loadChat': return this._handleLoadChat(data.value);
+      case 'deleteChat': return this._handleDeleteChat(data.value);
       case 'listTodos': return this._handleListTodos();
       case 'resetChat':
         this.resetChat();
@@ -148,11 +162,28 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const files = fs.readdirSync(chatDir)
       .filter(f => f.endsWith('.json'))
       .map(f => {
-        const sess = JSON.parse(fs.readFileSync(path.join(chatDir, f), 'utf-8'));
-        return { id: f, name: sess.title || f.replace('.json', '') };
+        const filePath = path.join(chatDir, f);
+        const stats = fs.statSync(filePath);
+        const sess = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        return { 
+          id: f, 
+          name: sess.title || f.replace('.json', ''),
+          date: stats.mtime.toISOString()
+        };
       })
-      .sort((a, b) => b.id.localeCompare(a.id));
+      .sort((a, b) => b.date.localeCompare(a.date));
     this._view.webview.postMessage({ type: 'chatList', chats: files });
+  }
+
+  private async _handleDeleteChat(chatId: string) {
+    if (!this._view) return;
+    const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath || '';
+    const chatFile = path.join(workspacePath, '.mosaic', 'chats', chatId);
+    if (fs.existsSync(chatFile)) {
+      fs.unlinkSync(chatFile);
+      this._handleListChats();
+      this._view.webview.postMessage({ type: 'addSystemMessage', content: `Deleted chat: ${chatId}` });
+    }
   }
 
   private async _handleLoadChat(chatId: string) {
@@ -167,11 +198,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       const sessionId = chatId.replace('chat_', '').replace('.json', '');
       this._sessionManager = new SessionManager(workspacePath, sessionId);
       this._sessionManager.restoreHistory(session.history);
+      if (session.title) this._sessionManager.setTitle(session.title);
 
       this._view.webview.postMessage({ type: 'clearMessages' });
       this._view.webview.postMessage({ type: 'setTitle', title: session.title || 'Untitled' });
       session.history.forEach((msg: any) => {
-        this._view?.webview.postMessage({ type: 'addMessage', role: msg.role, content: msg.content });
+        this._view?.webview.postMessage({ 
+          type: 'addMessage', 
+          role: msg.role, 
+          content: msg.content,
+          id: msg.id || `msg-${Math.random()}` 
+        });
+        if (msg.metadata) {
+          this._view?.webview.postMessage({ 
+            type: 'generationMetadata', 
+            id: msg.id || `msg-${Math.random()}`, 
+            metadata: msg.metadata 
+          });
+        }
       });
       this._view.webview.postMessage({ type: 'addSystemMessage', content: `Loaded chat: ${session.title || chatId}` });
     } catch (e) {
@@ -232,6 +276,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     const assistantId = `msg-${Date.now()}`;
     let fullContent = '';
+    this._ongoingMessage = { id: assistantId, role: 'assistant', content: '' };
     this._view.webview.postMessage({ type: 'addMessage', role: 'assistant', content: '', id: assistantId });
 
     let startTime = Date.now();
@@ -245,6 +290,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           case 'token':
             if (firstTokenTime === null) firstTokenTime = Date.now();
             fullContent += event.data;
+            if (this._ongoingMessage) this._ongoingMessage.content = fullContent;
             this._view.webview.postMessage({ type: 'updateMessage', id: assistantId, content: event.data });
             break;
           case 'usage':
@@ -253,12 +299,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           case 'tool_started': {
             const marker = `\n<tool_call name="${event.name}" id="${event.call_id}">\n${JSON.stringify(event.parameters, null, 2)}\n</tool_call>\n`;
             fullContent += marker;
+            if (this._ongoingMessage) this._ongoingMessage.content = fullContent;
             this._view.webview.postMessage({ type: 'updateMessage', id: assistantId, content: marker });
             break;
           }
           case 'tool_finished': {
             const marker = `\n<tool_result id="${event.call_id}">\n${typeof event.result === 'string' ? event.result : JSON.stringify(event.result, null, 2)}\n</tool_result>\n`;
             fullContent += marker;
+            if (this._ongoingMessage) this._ongoingMessage.content = fullContent;
             this._view.webview.postMessage({ type: 'updateMessage', id: assistantId, content: marker });
             break;
           }
@@ -269,32 +317,41 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             const outputTokens = lastUsage?.completion_tokens || 0;
             const tps = duration > 0 ? (outputTokens / (duration / 1000)) : 0;
 
+            const metadata = {
+              model,
+              ttft,
+              tps: tps.toFixed(1),
+              inputTokens: lastUsage?.prompt_tokens || 0,
+              outputTokens: outputTokens
+            };
+
             this._view.webview.postMessage({ 
               type: 'generationMetadata', 
               id: assistantId,
-              metadata: {
-                model,
-                ttft,
-                tps: tps.toFixed(1),
-                inputTokens: lastUsage?.prompt_tokens || 0,
-                outputTokens: outputTokens
-              }
+              metadata: metadata
             });
+
+            if (this._sessionManager && fullContent) {
+              this._sessionManager.addMessage('assistant', fullContent, metadata);
+            }
+            
             this._view.webview.postMessage({ type: 'generationFinished' });
+            this._ongoingMessage = undefined;
             break;
           }
           case 'error':
             this._view.webview.postMessage({ type: 'addMessage', role: 'system', content: `❌ Agent Error: ${event.message}` });
             this._view.webview.postMessage({ type: 'generationFinished' });
+            this._ongoingMessage = undefined;
             break;
         }
       });
     } catch (e: any) {
       this._view?.webview.postMessage({ type: 'addMessage', role: 'system', content: `❌ Error: ${e.message}` });
     } finally {
-      if (this._sessionManager && fullContent) this._sessionManager.addMessage('assistant', fullContent);
       this._view?.webview.postMessage({ type: 'generationFinished' });
       this._activeAgent = undefined;
+      this._ongoingMessage = undefined;
     }
   }
 
