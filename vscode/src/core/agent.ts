@@ -48,7 +48,7 @@ export class Agent {
 
   async run(userPrompt: string, onEvent: (event: StreamEvent) => Promise<void>) {
     const systemPrompt = PromptBuilder.createSystemPrompt(
-      this.tools.map(t => ({ name: t.name(), description: t.description() })),
+      this.tools.map(t => ({ name: t.name(), description: t.description(), schema: t.schema() })),
       this.workspace,
       this.userName
     );
@@ -75,6 +75,7 @@ export class Agent {
     
     while (!this.stopped) {
       totalSteps++;
+      console.log(`[Agent] Reasoning loop step ${totalSteps}...`);
       if (totalSteps > 50) {
         await onEvent({ type: "error", message: "Max steps reached" });
         break;
@@ -96,8 +97,10 @@ export class Agent {
 
             if (event.type === "token") {
               fullText += event.data;
+              console.log(`[Agent] Token: ${event.data.substring(0, 20)}${event.data.length > 20 ? '...' : ''}`);
               
               if (fullText.includes("<tool_call")) {
+                if (!isSuppressing) console.log(`[Agent] Tool call detected, suppressing tokens.`);
                 isSuppressing = true;
               }
 
@@ -123,15 +126,16 @@ export class Agent {
         }
       }
 
-      let toolCall;
-      try {
-        toolCall = ToolCallParser.parse(fullText);
-      } catch (e: any) {
-        // If parsing fails, inform the LLM and retry the loop
+      let toolCall = ToolCallParser.parse(fullText);
+      
+      // If tool_call tags are present but parsing failed, inform the LLM and retry
+      if (!toolCall && fullText.includes("<tool_call")) {
+        console.log(`[Agent] Malformed tool call detected. Informing LLM and retrying...`);
         this.messages.push({ role: "assistant", content: fullText });
         this.messages.push({ 
           role: "user", 
-          content: `❌ ${e.message}\nPlease retry with a valid JSON object inside the <tool_call> tags.`
+          content: `❌ Malformed tool call detected. Please ensure your tool call is a valid JSON object wrapped in <tool_call> tags, using DOUBLE QUOTES for keys and string values.
+Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool_call>`
         });
         continue;
       }

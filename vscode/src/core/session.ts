@@ -12,6 +12,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string | MessageContentPart[];
   metadata?: any;
+  id?: string;
 }
 
 export interface ChatSession {
@@ -65,9 +66,9 @@ export class SessionManager {
     fs.appendFileSync(logFile, logLine);
   }
 
-  public addMessage(role: 'user' | 'assistant' | 'system', content: string | MessageContentPart[], metadata?: any) {
+  public addMessage(role: 'user' | 'assistant' | 'system', content: string | MessageContentPart[], metadata?: any, id?: string) {
     const structuredContent = typeof content === 'string' ? this._parseContent(content, role) : content;
-    this.history.push({ role, content: structuredContent, metadata });
+    this.history.push({ role, content: structuredContent, metadata, id });
     if (this.chatDir) this.saveSession();
     this.log(role, typeof content === 'string' ? content : JSON.stringify(content));
   }
@@ -76,7 +77,7 @@ export class SessionManager {
     if (!text) return [];
 
     const parts: MessageContentPart[] = [];
-    const blockRegex = /<(thought|tool_call|tool_response|tool_result)[\s\S]*?(?:<\/\1>|$)/g;
+    const blockRegex = /<(thought|tool_call|tool_response|tool_result)[\s\S]*?(?:<\/\1>|(?=<(?:thought|tool_call|tool_response|tool_result))|$)/g;
 
     let lastIdx = 0;
     let match;

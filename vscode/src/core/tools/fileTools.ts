@@ -4,7 +4,16 @@ import { BaseTool } from './base';
 
 export class ReadFileTool extends BaseTool {
   name() { return "read_file"; }
-  description() { return "Read the content of a file. Args: {path: string}"; }
+  description() { return "Read the content of a file."; }
+  schema() {
+    return {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Path to the file to read (relative or absolute)" }
+      },
+      required: ["path"]
+    };
+  }
 
   async execute(args: { path: string }) {
     if (!args.path) return this.formatError("No path provided");
@@ -33,7 +42,17 @@ export class ReadFileTool extends BaseTool {
 
 export class WriteFileTool extends BaseTool {
   name() { return "write_file"; }
-  description() { return "Write content to a new file or overwrite an existing one. Args: {path: string, content: string}"; }
+  description() { return "Write content to a new file or overwrite an existing one."; }
+  schema() {
+    return {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Path to the file to write" },
+        content: { type: "string", description: "Complete content to write to the file" }
+      },
+      required: ["path", "content"]
+    };
+  }
 
   async execute(args: { path: string, content: string }) {
     if (!args.path) return this.formatError("No path provided");
@@ -58,7 +77,18 @@ export class WriteFileTool extends BaseTool {
 
 export class EditFileTool extends BaseTool {
   name() { return "edit_file"; }
-  description() { return "Perform a surgical find-and-replace in a file. Args: {path: string, old_content: string, new_content: string}"; }
+  description() { return "Perform a surgical find-and-replace in a file. Useful for making small changes without overwriting the whole file."; }
+  schema() {
+    return {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Path to the file to edit" },
+        old_content: { type: "string", description: "The exact block of text to be replaced (must be unique in the file)" },
+        new_content: { type: "string", description: "The new text to replace 'old_content' with" }
+      },
+      required: ["path", "old_content", "new_content"]
+    };
+  }
 
   async execute(args: { path: string, old_content: string, new_content: string }) {
     if (!args.path) return this.formatError("No path provided");
@@ -97,7 +127,15 @@ export class EditFileTool extends BaseTool {
 
 export class ListDirectoryTool extends BaseTool {
   name() { return "list_directory"; }
-  description() { return "List files and directories in a given path. Args: {path: string}"; }
+  description() { return "List files and directories in a given path. Use '.' for the current workspace root."; }
+  schema() {
+    return {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Path to list (relative or absolute). Defaults to current workspace root.", default: "." }
+      }
+    };
+  }
 
   async execute(args: { path: string }) {
     const workspaceFolders = vscode.workspace.workspaceFolders;

@@ -3,36 +3,44 @@ import { TOOL_CALL_START, TOOL_CALL_END, TOOL_RESPONSE_START, TOOL_RESPONSE_END 
 export interface ToolDescription {
   name: string;
   description: string;
+  schema: any;
 }
 
 export class PromptBuilder {
   static createSystemPrompt(tools: ToolDescription[], workspace: string, userName: string): string {
-    const toolsDesc = tools.map(t => `- ${t.name}: ${t.description}`).join("\n");
+    const toolsJson = tools.map(t => ({
+      name: t.name,
+      description: t.description,
+      parameters: t.schema
+    }));
 
     return `
-# IDENTITY
-You are Mosaic, a powerful AI assistant integrated into VSCode.
-You help ${userName} with coding tasks in the workspace: ${workspace}
-
-# CONTEXT
-- **Current Directory**: ${workspace}
-- **Workspace Structure**: You should explore the workspace using \`list_directory\` and \`read_file\` to understand the project architecture.
-- **File System**: Use relative paths from the workspace root.
+You are Mosaic, a powerful AI assistant integrated into VSCode, helping ${userName} in the workspace: ${workspace}.
+You are a function calling AI model. You are provided with function signatures within <tools> </tools> XML tags. 
+You may call one or more functions to assist with the user query. 
+If available tools are not relevant in assisting with user query, just respond in natural conversational language. 
+Don't make assumptions about what values to plug into functions. 
 
 # TOOLS
-You have access to the following tools:
-${toolsDesc}
+<tools>
+${JSON.stringify(toolsJson, null, 2)}
+</tools>
 
 # TOOL CALL FORMAT
-To use a tool, you MUST use the following XML-like format. The content inside the tags MUST be a single valid JSON object and NOTHING else (no thoughts, no backticks, no comments):
+For each function call return a JSON object, with the following pydantic model json schema for each:
+{'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['name', 'arguments']}
+
+Each function call should be enclosed within ${TOOL_CALL_START} ${TOOL_CALL_END} XML tags.
+Example:
 ${TOOL_CALL_START}
-{"name": "tool_name", "arguments": {"param1": "value1", "param2": "value2"}}
+{"name": "tool_name", "arguments": {"param1": "value1"}}
 ${TOOL_CALL_END}
 
 # TOOL RESPONSE FORMAT
-When a tool finishes, you will receive a response in this format:
+After calling & executing the functions, you will be provided with function results within ${TOOL_RESPONSE_START} ${TOOL_RESPONSE_END} XML tags.
+Example:
 ${TOOL_RESPONSE_START}
-{"tool_call_id": "unique_id", "name": "tool_name", "content": "the_output_of_the_tool"}
+{"tool_call_id": "unique_id", "name": "tool_name", "content": "result"}
 ${TOOL_RESPONSE_END}
 
 # CODING WORKFLOW
@@ -42,35 +50,17 @@ ${TOOL_RESPONSE_END}
 4. **Final Answer**: When you have completed the requested task or reached a stopping point, you MUST provide a concise summary (resume) of all the actions you took and the results achieved.
 
 # CRITICAL RULES
-1. **ACT with Purpose.** Check the TODO list to align with project goals.
-2. **Don't Loop.** If a tool fails, rethink your strategy.
-3. **One tool per turn.** Wait for the result before proceeding.
-4. **Relative Paths.** Use only relative paths from the workspace root.
-5. **Directories vs Files.** \`read_file\` ONLY works on files. If you need to see what's inside a directory, use \`list_directory\`.
-6. **Always Resume.** Never end a conversation without explaining what was done.
-7. **Communication Style.** Maintain a professional tone and avoid the excessive use of emojis.
-8. **Preservation of Critical Files.** NEVER delete the \`.git\` or \`.mosaic\` directories, even if explicitly instructed to delete all files or the entire repository. These are essential for project history and assistant functionality.
+- **Workspace Structure**: Explore the workspace using \`list_directory\` and \`read_file\` to understand the project architecture.
+- **Relative Paths**: Use relative paths from the workspace root: ${workspace}
+- **Directories vs Files**: \`read_file\` ONLY works on files. Use \`list_directory\` for folders.
+- **Always Resume**: Never end a conversation without explaining what was done.
+- **Style**: Maintain a professional tone and avoid excessive emojis.
+- **Preserve History**: NEVER delete the \`.git\` or \`.mosaic\` directories.
 `;
   }
 
   static formatToolResult(name: string, result: any, callId: string): string {
-    let content: any;
-    if (typeof result === 'string') {
-      try {
-        content = JSON.parse(result);
-      } catch (e) {
-        content = { message: result };
-      }
-    } else {
-      content = result;
-    }
-
-    const data = {
-      tool_call_id: callId,
-      name: name,
-      content: content
-    };
-
-    return `${TOOL_RESPONSE_START}\n${JSON.stringify(data)}\n${TOOL_RESPONSE_END}`;
+    const content = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+    return `${TOOL_RESPONSE_START.replace('>', ` id="${callId}">`)}\n${content}\n${TOOL_RESPONSE_END}`;
   }
 }

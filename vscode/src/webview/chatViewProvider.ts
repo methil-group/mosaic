@@ -118,8 +118,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'resetChat':
         this.resetChat();
         break;
+      case 'webviewLog':
+        console.log(`[Mosaic WEBVIEW LOG] ${data.message}`, data.detail || '');
+        break;
       case 'webviewError':
-        console.error(`[Mosaic WEBVIEW ERROR] ${data.message}`, data.stack);
+        console.error(`[Mosaic WEBVIEW ERROR] ${data.message}`, data.stack || '');
         break;
     }
   }
@@ -202,17 +205,33 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       this._view.webview.postMessage({ type: 'clearMessages' });
       this._view.webview.postMessage({ type: 'setTitle', title: session.title || 'Untitled' });
+      
+      // Auto-generate title if missing or default
+      if (!session.title || session.title === 'New Chat' || session.title === 'Untitled') {
+        const firstUserMsg = session.history.find((m: any) => m.role === 'user');
+        if (firstUserMsg) {
+          const providerType = this._context.globalState.get<string>('mosaic.provider') || 'openrouter';
+          const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
+          const model = this._context.globalState.get<string>('mosaic.model') || 'deepseek/deepseek-v4-flash';
+          const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider() : new OpenRouterProvider(apiKey);
+          this._generateTitle(llmProvider, model, typeof firstUserMsg.content === 'string' ? firstUserMsg.content : (firstUserMsg.content[0]?.content || '')).then(title => {
+            if (title && this._view) this._view.webview.postMessage({ type: 'setTitle', title });
+          });
+        }
+      }
+
       session.history.forEach((msg: any) => {
+        const msgId = msg.id || `msg-${Math.random()}`;
         this._view?.webview.postMessage({ 
           type: 'addMessage', 
           role: msg.role, 
           content: msg.content,
-          id: msg.id || `msg-${Math.random()}` 
+          id: msgId
         });
         if (msg.metadata) {
           this._view?.webview.postMessage({ 
             type: 'generationMetadata', 
-            id: msg.id || `msg-${Math.random()}`, 
+            id: msgId, 
             metadata: msg.metadata 
           });
         }
@@ -261,8 +280,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this._sessionManager.log('system', `Session started: ${model}`);
     }
 
+    const userMsgId = `msg-${Date.now()}-user`;
     if (this._sessionManager) {
-      this._sessionManager.addMessage('user', text);
+      this._sessionManager.addMessage('user', text, undefined, userMsgId);
       if (this._sessionManager.getHistory().length === 2) {
         this._generateTitle(llmProvider, model, text).then(title => {
           if (title && this._view) this._view.webview.postMessage({ type: 'setTitle', title });
@@ -272,7 +292,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     const history = this._sessionManager ? this._sessionManager.getHistory() : [];
     this._activeAgent = new Agent(llmProvider, model, workspacePath, "User", tools, history);
-    this._view.webview.postMessage({ type: 'addMessage', role: 'user', content: text });
+    this._view.webview.postMessage({ type: 'addMessage', role: 'user', content: text, id: userMsgId });
 
     const assistantId = `msg-${Date.now()}`;
     let fullContent = '';
@@ -304,7 +324,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             break;
           }
           case 'tool_finished': {
-            const marker = `\n<tool_result id="${event.call_id}">\n${typeof event.result === 'string' ? event.result : JSON.stringify(event.result, null, 2)}\n</tool_result>\n`;
+            const marker = `\n<tool_response id="${event.call_id}">\n${typeof event.result === 'string' ? event.result : JSON.stringify(event.result, null, 2)}\n</tool_response>\n`;
             fullContent += marker;
             if (this._ongoingMessage) this._ongoingMessage.content = fullContent;
             this._view.webview.postMessage({ type: 'updateMessage', id: assistantId, content: marker });
@@ -332,7 +352,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             });
 
             if (this._sessionManager && fullContent) {
-              this._sessionManager.addMessage('assistant', fullContent, metadata);
+              this._sessionManager.addMessage('assistant', fullContent, metadata, assistantId);
             }
             
             this._view.webview.postMessage({ type: 'generationFinished' });
@@ -350,8 +370,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this._view?.webview.postMessage({ type: 'addMessage', role: 'system', content: `❌ Error: ${e.message}` });
     } finally {
       this._view?.webview.postMessage({ type: 'generationFinished' });
-      this._activeAgent = undefined;
       this._ongoingMessage = undefined;
+      this._activeAgent = undefined;
     }
   }
 

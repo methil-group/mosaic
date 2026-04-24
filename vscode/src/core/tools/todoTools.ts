@@ -72,6 +72,16 @@ export class TodoManager {
 export class CreateTodoTool extends BaseTool {
   name() { return 'create_todo'; }
   description() { return 'Add a new task to your todo list. Keep titles concise.'; }
+  schema() {
+    return {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Short title of the task" },
+        description: { type: "string", description: "Optional detailed description" }
+      },
+      required: ["title"]
+    };
+  }
   async execute(args: { title: string; description?: string }) {
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (!workspacePath) return this.formatError("No workspace folder open");
@@ -86,6 +96,18 @@ export class CreateTodoTool extends BaseTool {
 export class UpdateTodoTool extends BaseTool {
   name() { return 'update_todo'; }
   description() { return 'Update a task status or details. Status can be "todo", "in_progress", or "done".'; }
+  schema() {
+    return {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The unique ID of the task to update" },
+        status: { type: "string", enum: ["todo", "in_progress", "done"], description: "New status" },
+        title: { type: "string", description: "New title" },
+        description: { type: "string", description: "New description" }
+      },
+      required: ["id"]
+    };
+  }
   async execute(args: { id: string; status?: 'todo' | 'in_progress' | 'done'; title?: string; description?: string }) {
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (!workspacePath) return this.formatError("No workspace folder open");
@@ -100,6 +122,12 @@ export class UpdateTodoTool extends BaseTool {
 export class ListTodosTool extends BaseTool {
   name() { return 'list_todos'; }
   description() { return 'List all tasks in your todo list to track progress.'; }
+  schema() {
+    return {
+      type: "object",
+      properties: {}
+    };
+  }
   async execute(args: {}) {
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (!workspacePath) return this.formatError("No workspace folder open");
@@ -113,6 +141,15 @@ export class ListTodosTool extends BaseTool {
 export class DeleteTodoTool extends BaseTool {
   name() { return 'delete_todo'; }
   description() { return 'Remove a task from the todo list.'; }
+  schema() {
+    return {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The unique ID of the task to delete" }
+      },
+      required: ["id"]
+    };
+  }
   async execute(args: { id: string }) {
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (!workspacePath) return this.formatError("No workspace folder open");

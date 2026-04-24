@@ -3,7 +3,16 @@ import { BaseTool } from './base';
 
 export class RunCommandTool extends BaseTool {
   name() { return "run_command"; }
-  description() { return "Run a shell command in the VSCode terminal. Args: {command: string}"; }
+  description() { return "Run a shell command in the integrated VSCode terminal. Use this for builds, installs, git, and testing."; }
+  schema() {
+    return {
+      type: "object",
+      properties: {
+        command: { type: "string", description: "The shell command to execute" }
+      },
+      required: ["command"]
+    };
+  }
 
   async execute(args: { command: string }) {
     if (!args.command) return this.formatError("No command provided");
