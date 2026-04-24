@@ -202,7 +202,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     const providerType = this._context.globalState.get<string>('mosaic.provider') || 'openrouter';
     const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
-    const model = this._context.globalState.get<string>('mosaic.model') || 'gpt-4o';
+    const model = this._context.globalState.get<string>('mosaic.model') || 'deepseek/deepseek-v4-flash';
     const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider() : new OpenRouterProvider(apiKey);
 
     const tools = [

@@ -94,11 +94,31 @@ export class LMStudioProvider extends BaseLlmProvider {
   }
 }
 
+export const PREFERRED_MODELS = [
+  'deepseek/deepseek-v4-flash',
+  'deepseek/deepseek-v4-pro',
+  'xiaomi/mimo-v2.5-pro',
+  'qwen/qwen3.6-plus'
+];
+
 export class OpenRouterProvider extends BaseLlmProvider {
   constructor(apiKey: string) {
     super(apiKey, "https://openrouter.ai/api/v1", {
       "HTTP-Referer": "https://mosaic.methil.group",
       "X-Title": "Mosaic VSCode"
     });
+  }
+
+  async fetchModels(): Promise<string[]> {
+    const allModels = await super.fetchModels();
+    if (allModels.length === 0) return PREFERRED_MODELS;
+    
+    const featured = PREFERRED_MODELS.filter(m => allModels.includes(m));
+    const others = allModels.filter(m => !PREFERRED_MODELS.includes(m));
+    
+    // We only want to show a "smaller list" as requested, but maybe keep others just in case?
+    // The user said "Fais une liste plus petite avec...", so I'll prioritize these 4.
+    // If they are not found in the fetched list (unlikely since we checked), we still want them.
+    return [...new Set([...featured, ...PREFERRED_MODELS])];
   }
 }

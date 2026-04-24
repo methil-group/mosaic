@@ -8,6 +8,11 @@ export class RunCommandTool extends BaseTool {
   async execute(args: { command: string }) {
     if (!args.command) return this.formatError("No command provided");
     
+    const safetyError = this.validateCommand(args.command);
+    if (safetyError) {
+      return this.formatError(`SAFETY BLOCK: ${safetyError}`);
+    }
+
     let terminal = vscode.window.terminals.find(t => t.name === "Mosaic Terminal");
     let isNew = false;
     
@@ -25,5 +30,22 @@ export class RunCommandTool extends BaseTool {
 
     terminal.sendText(args.command);
     return { message: `Command '${args.command}' has been sent to the terminal.` };
+  }
+
+  private validateCommand(command: string): string | null {
+    const dangerousPatterns = [
+      { pattern: /rm\s+-rf\s+[\/\~]/, reason: "Destructive operations on root (/) or home (~) directories are strictly forbidden." },
+      { pattern: /rm\s+-rf\s+\.(git|mosaic)/, reason: "Critical project directories (.git, .mosaic) must be preserved." },
+      { pattern: /mkfs|fdisk|parted/, reason: "Disk partitioning and formatting commands are blocked." },
+      { pattern: /dd\s+.*of=\/dev\//, reason: "Direct block device writes via 'dd' are strictly forbidden." },
+      { pattern: /:\(\)\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:/, reason: "Fork bomb detected." },
+      { pattern: /shutdown|reboot|halt/, reason: "System power commands are blocked." }
+    ];
+
+    const normalized = command.toLowerCase().trim();
+    for (const { pattern, reason } of dangerousPatterns) {
+      if (pattern.test(normalized)) return reason;
+    }
+    return null;
   }
 }
