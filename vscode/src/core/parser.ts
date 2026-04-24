@@ -23,7 +23,7 @@ export class ToolCallParser {
         };
       }
     } catch (e: any) {
-      throw new Error(`Invalid JSON format in tool call: ${e.message}. Content: ${content}`);
+      return null;
     }
 
     return null;

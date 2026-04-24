@@ -33,9 +33,17 @@ export class Agent {
     private workspace: string,
     private userName: string,
     private tools: Tool[],
-    initialMessages: Message[] = []
+    initialMessages: any[] = []
   ) {
-    this.messages = initialMessages;
+    this.messages = initialMessages.map(m => ({
+      role: m.role,
+      content: typeof m.content === 'string' ? m.content : this._partsToString(m.content),
+      metadata: m.metadata
+    }));
+  }
+
+  private _partsToString(parts: any[]): string {
+    return parts.map(p => p.content).join('\n');
   }
 
   async run(userPrompt: string, onEvent: (event: StreamEvent) => Promise<void>) {

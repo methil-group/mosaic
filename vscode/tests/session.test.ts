@@ -31,7 +31,10 @@ describe('SessionManager', () => {
     expect(chatFiles[0]).toMatch(/^chat_.*\.json$/);
 
     const chatContent = JSON.parse(fs.readFileSync(path.join(tempDir, '.mosaic', 'chats', chatFiles[0]), 'utf-8'));
-    expect(chatContent.history[0]).toEqual({ role: 'user', content: 'Hello Test' });
+    expect(chatContent.history[0]).toEqual({ 
+      role: 'user', 
+      content: [{ type: 'message', content: 'Hello Test' }] 
+    });
   });
 
   it('should append lines to the log file', () => {

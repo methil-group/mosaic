@@ -4,7 +4,17 @@ import { SessionManager } from '../src/core/session';
 
 // Mock dependencies
 jest.mock('vscode');
-jest.mock('../src/core/session');
+jest.mock('../src/core/session', () => {
+    return {
+        SessionManager: jest.fn().mockImplementation(() => ({
+            addMessage: jest.fn(),
+            getHistory: jest.fn().mockReturnValue([]),
+            setTitle: jest.fn(),
+            restoreHistory: jest.fn(),
+            log: jest.fn()
+        }))
+    };
+});
 
 describe('ChatViewProvider Interaction', () => {
     let provider: ChatViewProvider;

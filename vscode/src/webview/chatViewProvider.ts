@@ -263,7 +263,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     if (this._sessionManager) {
       this._sessionManager.addMessage('user', text);
-      if ((this._sessionManager as any).history.length === 2) {
+      if (this._sessionManager.getHistory().length === 2) {
         this._generateTitle(llmProvider, model, text).then(title => {
           if (title && this._view) this._view.webview.postMessage({ type: 'setTitle', title });
         });

@@ -1,0 +1,27 @@
+[19:46:00] Starting compilation in watch mode...
+
+src/webview/webviewHandler.ts:180:87 - error TS1487: Octal escape sequences are not allowed. Use the syntax '\x01'.
+
+180                     const blockRegex = /<(thought|tool_call|tool_result)[\s\S]*?(?:<\/\1>|$)/g;
+                                                                                          ~~
+
+[19:46:02] Found 1 error. Watching for file changes.
+ dans ce code, aussi, j'aimerais que tu save l'historique des tool call dans message content dans des objets séparés dans le .mosaic, par exemple : 
+dans le content du assistant :
+
+contents : [
+{
+"type": "message"
+"content": "blabla"
+},
+{
+"type": "tool_call"
+"content": "blabla"
+},
+{
+"type": "user_tool_result"
+"content": "blabla"
+}
+] et de save ça comme ça pour pouvoir le réafficher derriere parfaitement.
+
+Aussi evite les emojis, prends les icones de base de vs code s'il te plaît. et split la @contextScopeItemMentionen plusieurs composants pour que ce soit correctement séparés pour pouvoir mieux debugger, fais ça et à la toute fin tu npm run build pour etre sur que ça marche et tu fais les tests unitaires.
