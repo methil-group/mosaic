@@ -259,7 +259,7 @@ body {
 #input-container {
   border-top: 1px solid var(--border-color);
   background: var(--vscode-sideBar-background);
-  padding: 0.5rem 0.5rem 0.75rem 0.5rem;
+  padding: 0.5rem 0 0.75rem 0;
 }
 
 .input-wrapper {
