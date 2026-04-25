@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="Mosaic Banner" width="100%">
 </p>
 
-# 🧩 Mosaic: AI-Powered Coding Autopilot
+# Mosaic: AI-Powered Coding Autopilot
 
 **Mosaic** is a state-of-the-art AI assistant for VS Code that doesn't just suggest code—it **builds** it. Equipped with a powerful suite of tools, Mosaic can read your codebase, execute shell commands, and perform surgical edits with precision.
 
@@ -11,17 +11,17 @@
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- **🛠 Full Tool-Calling**: Mosaic can interact with your workspace like a senior engineer. It reads files, explores directories, and applies changes automatically.
-- **🖥 Integrated Terminal**: Run builds, tests, or git commands directly through the chat. Mosaic manages the terminal so you don't have to context-switch.
-- **🎯 Surgical Edits**: No more copy-pasting. Mosaic applies precise, line-by-line modifications to your files.
-- **⚡ Performance First**: Optimized for speed with streaming responses and real-time performance metrics (TPS, TTFT).
-- **🏠 Local & Cloud Models**: Seamlessly connect to **OpenRouter** for world-class cloud models or **LM Studio** for local, private development.
+- **Full Tool-Calling**: Mosaic can interact with your workspace like a senior engineer. It reads files, explores directories, and applies changes automatically.
+- **Integrated Terminal**: Run builds, tests, or git commands directly through the chat. Mosaic manages the terminal so you don't have to context-switch.
+- **Surgical Edits**: No more copy-pasting. Mosaic applies precise, line-by-line modifications to your files.
+- **Performance First**: Optimized for speed with streaming responses and real-time performance metrics (TPS, TTFT).
+- **Local & Cloud Models**: Seamlessly connect to **OpenRouter** for world-class cloud models or **LM Studio** for local, private development.
 
 ---
 
-## 🚀 Installation
+## Installation
 
 1. Search for **Mosaic** in the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=methil.mosaic-vscode).
 2. Click **Install**.
@@ -29,7 +29,7 @@
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 Mosaic is flexible. Configure your experience in the sidebar settings:
 
@@ -39,7 +39,7 @@ Mosaic is flexible. Configure your experience in the sidebar settings:
 
 ---
 
-## 📖 Usage
+## Usage
 
 ### "Show, don't just tell."
 Simply ask Mosaic to perform a task:
@@ -50,13 +50,13 @@ Simply ask Mosaic to perform a task:
 
 ---
 
-## 🎨 Premium Aesthetics
+## Premium Aesthetics
 
 Mosaic features a curated, high-contrast dark theme with smooth transitions and glassmorphism elements, ensuring that your AI assistant feels as modern as the code you're writing.
 
 ---
 
-## 🤝 Community & Support
+## Community & Support
 
 - **Found a bug?** Open an issue on [GitHub](https://github.com/methil-group/mosaic/issues).
 - **Want to contribute?** We welcome PRs! Check our development guide in the repository.
