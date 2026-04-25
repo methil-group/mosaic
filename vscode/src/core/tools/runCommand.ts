@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as cp from 'child_process';
 import { BaseTool } from './base';
 
 export class RunCommandTool extends BaseTool {
@@ -22,23 +23,27 @@ export class RunCommandTool extends BaseTool {
       return this.formatError(`SAFETY BLOCK: ${safetyError}`);
     }
 
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    const cwd = workspaceFolders ? workspaceFolders[0].uri.fsPath : process.cwd();
+
+    // Show in terminal for visual feedback
     let terminal = vscode.window.terminals.find(t => t.name === "Mosaic Terminal");
-    let isNew = false;
-    
     if (!terminal) {
       terminal = vscode.window.createTerminal("Mosaic Terminal");
-      isNew = true;
     }
-
     terminal.show(true);
-
-    if (isNew) {
-      // Wait for shell initialization (e.g., sourcing .zshrc)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-    }
-
     terminal.sendText(args.command);
-    return { message: `Command '${args.command}' has been sent to the terminal.` };
+
+    // Execute and capture output
+    return new Promise((resolve) => {
+      cp.exec(args.command, { cwd, timeout: 60000, maxBuffer: 1024 * 1024 }, (error: any, stdout: string, stderr: string) => {
+        if (error) {
+          resolve(this.formatError(`Command failed with exit code ${error.code}\nStdout: ${stdout}\nStderr: ${stderr}`));
+          return;
+        }
+        resolve(stdout || stderr || "Command executed successfully (no output)");
+      });
+    });
   }
 
   private validateCommand(command: string): string | null {

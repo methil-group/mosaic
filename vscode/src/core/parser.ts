@@ -36,9 +36,22 @@ export class ToolCallParser {
     try {
       const parsed = JSON.parse(content);
       if (parsed.name && typeof parsed.name === 'string') {
+        let args = parsed.arguments || {};
+        
+        // If arguments is empty and there are other keys besides 'name', 
+        // assume those are the arguments (top-level format)
+        if (Object.keys(args).length === 0) {
+            const topLevelArgs = { ...parsed };
+            delete topLevelArgs.name;
+            delete topLevelArgs.arguments;
+            if (Object.keys(topLevelArgs).length > 0) {
+                args = topLevelArgs;
+            }
+        }
+
         return {
           name: parsed.name,
-          arguments: parsed.arguments || {}
+          arguments: args
         };
       }
     } catch (e: any) {
