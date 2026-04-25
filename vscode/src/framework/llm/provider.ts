@@ -14,7 +14,8 @@ export class BaseLlmProvider implements LlmProvider {
         `${this.baseUrl}/chat/completions`,
         {
           model: model,
-          messages: messages,
+          // Strip non-standard fields like metadata before sending to API
+          messages: messages.map(({ role, content }) => ({ role, content })),
           stream: true,
           stream_options: { include_usage: true }
         },
@@ -69,7 +70,12 @@ export class BaseLlmProvider implements LlmProvider {
         } else if (e.response.data.error?.message) {
           message = e.response.data.error.message;
         } else {
-          message = `${e.message}: ${JSON.stringify(e.response.data)}`;
+          // Avoid JSON.stringify on potentially complex objects that might have circular refs
+          try {
+            message = `${e.message}: ${JSON.stringify(e.response.data)}`;
+          } catch (serializeError) {
+            message = `${e.message} (plus additional data that couldn't be serialized)`;
+          }
         }
       }
       yield { type: 'error', message };
