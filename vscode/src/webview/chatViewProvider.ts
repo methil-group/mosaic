@@ -22,9 +22,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   public resolveWebviewView(
-    webviewView: vscode.WebviewView,
-    _context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
+    webviewView: vscode.WebviewView
   ) {
     this._view = webviewView;
     webviewView.webview.options = {
@@ -299,7 +297,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this._ongoingMessage = { id: assistantId, role: 'assistant', content: '' };
     this._view.webview.postMessage({ type: 'addMessage', role: 'assistant', content: '', id: assistantId });
 
-    let startTime = Date.now();
+    const startTime = Date.now();
     let firstTokenTime: number | null = null;
     let lastUsage: any = null;
 

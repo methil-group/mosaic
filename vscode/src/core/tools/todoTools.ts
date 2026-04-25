@@ -128,7 +128,7 @@ export class ListTodosTool extends BaseTool {
       properties: {}
     };
   }
-  async execute(args: {}) {
+  async execute() {
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (!workspacePath) return this.formatError("No workspace folder open");
     const manager = new TodoManager(workspacePath);

@@ -24,7 +24,7 @@ export class WebviewHandler {
 </head>
 <body>
     <div id="chat-container">
-        ${setupRequired ? renderSetupScreen(provider, apiKey) : renderChatScreen(provider, currentModel)}
+        ${setupRequired ? renderSetupScreen(provider, apiKey) : renderChatScreen(provider)}
     </div>
     <script nonce="${nonce}">
         ${getClientJs(currentModel)}

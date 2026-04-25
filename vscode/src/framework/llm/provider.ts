@@ -114,7 +114,7 @@ export class OpenRouterProvider extends BaseLlmProvider {
     if (allModels.length === 0) return PREFERRED_MODELS;
     
     const featured = PREFERRED_MODELS.filter(m => allModels.includes(m));
-    const others = allModels.filter(m => !PREFERRED_MODELS.includes(m));
+    // const others = allModels.filter(m => !PREFERRED_MODELS.includes(m));
     
     // We only want to show a "smaller list" as requested, but maybe keep others just in case?
     // The user said "Fais une liste plus petite avec...", so I'll prioritize these 4.

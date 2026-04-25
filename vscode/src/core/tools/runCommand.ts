@@ -43,12 +43,12 @@ export class RunCommandTool extends BaseTool {
 
   private validateCommand(command: string): string | null {
     const dangerousPatterns = [
-      { pattern: /rm\s+-rf\s+[\/\~]/, reason: "Destructive operations on root (/) or home (~) directories are strictly forbidden." },
-      { pattern: /rm\s+-rf\s+\.(git|mosaic)/, reason: "Critical project directories (.git, .mosaic) must be preserved." },
-      { pattern: /mkfs|fdisk|parted/, reason: "Disk partitioning and formatting commands are blocked." },
-      { pattern: /dd\s+.*of=\/dev\//, reason: "Direct block device writes via 'dd' are strictly forbidden." },
-      { pattern: /:\(\)\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:/, reason: "Fork bomb detected." },
-      { pattern: /shutdown|reboot|halt/, reason: "System power commands are blocked." }
+      { pattern: new RegExp("rm\\s+-rf\\s+[\\/~]"), reason: "Destructive operations on root (/) or home (~) directories are strictly forbidden." },
+      { pattern: new RegExp("rm\\s+-rf\\s+\\.(git|mosaic)"), reason: "Critical project directories (.git, .mosaic) must be preserved." },
+      { pattern: new RegExp("mkfs|fdisk|parted"), reason: "Disk partitioning and formatting commands are blocked." },
+      { pattern: new RegExp("dd\\s+.*of=\\/dev\\/"), reason: "Direct block device writes via 'dd' are strictly forbidden." },
+      { pattern: new RegExp(":\\(\\)\\{\\s*:\\s*\\|\\s*:\\s*&\\s*\\}\\s*;\\s*:"), reason: "Fork bomb detected." },
+      { pattern: new RegExp("shutdown|reboot|halt"), reason: "System power commands are blocked." }
     ];
 
     const normalized = command.toLowerCase().trim();

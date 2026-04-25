@@ -4,7 +4,7 @@ export class HistoryUtils {
     /**
      * Parses a raw message string into structured parts.
      */
-    static parseContent(text: string, role: 'user' | 'assistant' | 'system'): MessageContentPart[] {
+    static parseContent(text: string): MessageContentPart[] {
         if (!text) return [];
 
         const parts: MessageContentPart[] = [];

@@ -26,7 +26,7 @@ export class SessionManager {
   private sessionId: string;
   private chatDir: string;
   private logDir: string;
-  private title: string = "New Chat";
+  private title = "New Chat";
   private history: ChatMessage[] = [];
   constructor(workspacePath: string, sessionId?: string) {
     if (sessionId) {
@@ -67,13 +67,13 @@ export class SessionManager {
   }
 
   public addMessage(role: 'user' | 'assistant' | 'system', content: string | MessageContentPart[], metadata?: any, id?: string) {
-    const structuredContent = typeof content === 'string' ? this._parseContent(content, role) : content;
+    const structuredContent = typeof content === 'string' ? this._parseContent(content) : content;
     this.history.push({ role, content: structuredContent, metadata, id });
     if (this.chatDir) this.saveSession();
     this.log(role, typeof content === 'string' ? content : JSON.stringify(content));
   }
 
-  private _parseContent(text: string, role: 'user' | 'assistant' | 'system'): MessageContentPart[] {
+  private _parseContent(text: string): MessageContentPart[] {
     if (!text) return [];
 
     const parts: MessageContentPart[] = [];

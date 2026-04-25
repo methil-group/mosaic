@@ -126,7 +126,7 @@ export class Agent {
         }
       }
 
-      let toolCall = ToolCallParser.parse(fullText);
+      const toolCall = ToolCallParser.parse(fullText);
       
       // If tool_call tags are present but parsing failed, inform the LLM and retry
       if (!toolCall && fullText.includes("<tool_call")) {

@@ -6,7 +6,7 @@ export class ToolCallParser {
    * Expects format: <tool_call>{ "name": "...", "arguments": { ... } }</tool_call>
    */
   static parse(text: string): ToolCall | null {
-    let startIndex = text.indexOf(TOOL_CALL_START);
+    const startIndex = text.indexOf(TOOL_CALL_START);
     if (startIndex === -1) return null;
 
     // Search for any form of closing tag: </tool_call>, </tool_call, or even just a newline if followed by a result

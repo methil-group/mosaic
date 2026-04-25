@@ -1,4 +1,4 @@
-export function renderChatScreen(provider?: string, currentModel?: string): string {
+export function renderChatScreen(provider?: string): string {
     return `
     <div id="chat-header">
         <span id="active-chat-title">New Chat</span>

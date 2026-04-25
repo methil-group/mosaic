@@ -5,11 +5,11 @@ suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
 
     test('Extension should be present', () => {
-        assert.ok(vscode.extensions.getExtension('methil-group.mosaic-vscode'));
+        assert.ok(vscode.extensions.getExtension('Methil.mosaic-vscode'));
     });
 
     test('Should register commands', async () => {
-        const ext = vscode.extensions.getExtension('methil-group.mosaic-vscode');
+        const ext = vscode.extensions.getExtension('Methil.mosaic-vscode');
         await ext?.activate();
         const commands = await vscode.commands.getCommands(true);
         assert.ok(commands.includes('mosaic.focusChat'));
