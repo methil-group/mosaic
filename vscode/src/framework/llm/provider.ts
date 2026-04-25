@@ -113,6 +113,8 @@ export class LMStudioProvider extends BaseLlmProvider {
 export const PREFERRED_MODELS = [
   'deepseek/deepseek-v4-flash',
   'deepseek/deepseek-v4-pro',
+  'deepseek/deepseek-v3.2',
+  'google/gemma-4-31b-it',
   'xiaomi/mimo-v2.5-pro',
   'qwen/qwen3.6-plus'
 ];
