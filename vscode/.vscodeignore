@@ -1,0 +1,14 @@
+.vscode/**
+.vscode-test/**
+src/**
+tests/**
+node_modules/**
+.gitignore
+.eslintrc.json
+tsconfig.json
+package-lock.json
+PUBLISHING.md
+jest.config.js
+prompt.txt
+scratch/**
+dist/*.map

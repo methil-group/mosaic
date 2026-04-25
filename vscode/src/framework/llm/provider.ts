@@ -62,7 +62,17 @@ export class BaseLlmProvider implements LlmProvider {
         }
       }
     } catch (e: any) {
-      yield { type: 'error', message: e.response?.data?.error?.message || e.message };
+      let message = e.message;
+      if (e.response?.data) {
+        if (typeof e.response.data === 'string') {
+          message = `${e.message}: ${e.response.data}`;
+        } else if (e.response.data.error?.message) {
+          message = e.response.data.error.message;
+        } else {
+          message = `${e.message}: ${JSON.stringify(e.response.data)}`;
+        }
+      }
+      yield { type: 'error', message };
     }
   }
 

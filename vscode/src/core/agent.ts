@@ -10,7 +10,7 @@ export interface Message {
 }
 
 export interface StreamEvent {
-  type: "token" | "usage" | "error" | "tool_started" | "tool_finished" | "final_answer";
+  type: "token" | "usage" | "error" | "log" | "tool_started" | "tool_finished" | "final_answer";
   data?: any;
   message?: string;
   name?: string;
@@ -75,6 +75,7 @@ export class Agent {
     
     while (!this.stopped) {
       totalSteps++;
+      await onEvent({ type: "log", message: `Reasoning loop step ${totalSteps}...` });
       console.log(`[Agent] Reasoning loop step ${totalSteps}...`);
       if (totalSteps > 50) {
         await onEvent({ type: "error", message: "Max steps reached" });
@@ -100,7 +101,10 @@ export class Agent {
               console.log(`[Agent] Token: ${event.data.substring(0, 20)}${event.data.length > 20 ? '...' : ''}`);
               
               if (fullText.includes("<tool_call")) {
-                if (!isSuppressing) console.log(`[Agent] Tool call detected, suppressing tokens.`);
+                if (!isSuppressing) {
+                  await onEvent({ type: "log", message: "Tool call detected, suppressing tokens from UI." });
+                  console.log(`[Agent] Tool call detected, suppressing tokens.`);
+                }
                 isSuppressing = true;
               }
 
@@ -122,6 +126,7 @@ export class Agent {
           }
           // Short delay before retry
           await new Promise(resolve => setTimeout(resolve, 1500));
+          await onEvent({ type: "log", message: `Retrying LLM call (attempt ${retries + 1}/${maxRetries})... Error: ${e.message}` });
           console.log(`Retrying LLM call (attempt ${retries + 1}/${maxRetries})... Error: ${e.message}`);
         }
       }
@@ -130,6 +135,7 @@ export class Agent {
       
       // If tool_call tags are present but parsing failed, inform the LLM and retry
       if (!toolCall && fullText.includes("<tool_call")) {
+        await onEvent({ type: "log", message: "Malformed tool call detected. Requesting fix from LLM." });
         console.log(`[Agent] Malformed tool call detected. Informing LLM and retrying...`);
         this.messages.push({ role: "assistant", content: fullText });
         this.messages.push({ 
@@ -148,6 +154,7 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
           parameters: toolCall.arguments,
           call_id: callId
         });
+        await onEvent({ type: "log", message: `Executing tool: ${toolCall.name} with arguments: ${JSON.stringify(toolCall.arguments)}` });
 
         const tool = this.tools.find(t => t.name() === toolCall.name);
         let result: any;
@@ -167,6 +174,7 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
           result: result,
           call_id: callId
         });
+        await onEvent({ type: "log", message: `Tool ${toolCall.name} finished. Result length: ${typeof result === 'string' ? result.length : 'N/A'}` });
 
         this.messages.push({ role: "assistant", content: fullText });
         this.messages.push({

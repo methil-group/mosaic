@@ -311,6 +311,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             if (this._ongoingMessage) this._ongoingMessage.content = fullContent;
             this._view.webview.postMessage({ type: 'updateMessage', id: assistantId, content: event.data });
             break;
+          case 'log':
+            if (this._sessionManager && event.message) {
+              this._sessionManager.log('system', event.message);
+            }
+            break;
           case 'usage':
             lastUsage = event.data;
             break;
@@ -359,6 +364,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           }
           case 'error':
             this._view.webview.postMessage({ type: 'addMessage', role: 'system', content: `❌ Agent Error: ${event.message}` });
+            if (this._sessionManager) {
+              this._sessionManager.addMessage('assistant', `❌ Error: ${event.message}`);
+            }
             this._view.webview.postMessage({ type: 'generationFinished' });
             this._ongoingMessage = undefined;
             break;

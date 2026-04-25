@@ -4,7 +4,7 @@
   "description": "AI-powered coding assistant with full tool-calling capabilities.",
   "version": "0.0.1",
   "icon": "assets/icon.png",
-  "publisher": "Methil",
+  "publisher": "methil",
   "license": "Unlicense",
   "repository": {
     "type": "git",
