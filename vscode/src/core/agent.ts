@@ -135,8 +135,15 @@ export class Agent {
       
       // If tool_call tags are present but parsing failed, inform the LLM and retry
       if (!toolCall && fullText.includes("<tool_call")) {
-        await onEvent({ type: "log", message: "Malformed tool call detected. Requesting fix from LLM." });
-        console.log(`[Agent] Malformed tool call detected. Informing LLM and retrying...`);
+        const startIndex = fullText.indexOf("<tool_call>");
+        let rawContent = "unknown";
+        if (startIndex !== -1) {
+          const afterStart = fullText.substring(startIndex + 11);
+          const endIndex = afterStart.indexOf("</tool_call>");
+          rawContent = endIndex !== -1 ? afterStart.substring(0, endIndex) : afterStart;
+        }
+        await onEvent({ type: "log", message: `Malformed tool call detected. Raw content: ${rawContent.trim()}` });
+        console.log(`[Agent] Malformed tool call detected. Raw content: ${rawContent.trim()}`);
         this.messages.push({ role: "assistant", content: fullText });
         this.messages.push({ 
           role: "user", 

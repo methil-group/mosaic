@@ -216,7 +216,8 @@ body {
 
 .message-metadata {
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
   font-size: 0.65rem;
   color: var(--vscode-descriptionForeground);
   margin-top: 0.5rem;
@@ -226,7 +227,8 @@ body {
 }
 
 .message-metadata span {
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
 }
 
 
