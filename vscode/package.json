@@ -2,9 +2,15 @@
   "name": "mosaic-vscode",
   "displayName": "Mosaic",
   "description": "AI-powered coding assistant with full tool-calling capabilities.",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "icon": "assets/icon.png",
   "publisher": "Methil",
+  "license": "Unlicense",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/methil-group/mosaic.git",
+    "directory": "vscode"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
