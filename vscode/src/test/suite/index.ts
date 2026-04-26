@@ -16,6 +16,7 @@ export async function run(): Promise<void> {
         mocha.addFile(path.resolve(testsRoot, 'suite/extension.test.js'));
         mocha.addFile(path.resolve(testsRoot, 'suite/lmstudio.test.js'));
         mocha.addFile(path.resolve(testsRoot, 'suite/history.test.js'));
+        mocha.addFile(path.resolve(testsRoot, 'suite/webview.test.js'));
 
         // Run the mocha test
         return new Promise((c, e) => {
