@@ -8,7 +8,7 @@ export function renderErrorScreen(iconUri: string): string {
             <h1 class="error-title">Oops!</h1>
             <p class="error-message">You ain't connected to a working folder...</p>
             <p class="error-sub">Mosaic needs an open workspace to analyze your code and help you build things.</p>
-            <button class="primary-btn" onclick="vscode.postMessage({ type: 'openFolder' })">Open Folder</button>
+            <button id="open-folder-btn" class="primary-btn">Open Folder</button>
         </div>
     </div>`;
 }
