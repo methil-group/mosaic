@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export function getClientJs(extensionUri: vscode.Uri, currentModel?: string): string {
-    const jsDir = path.join(extensionUri.fsPath, 'src', 'webview', 'js');
+    const jsDir = path.join(extensionUri.fsPath, 'assets', 'webview', 'js');
     
     // Read the modular JS files
     const loggerJs = fs.readFileSync(path.join(jsDir, 'logger.js'), 'utf8');

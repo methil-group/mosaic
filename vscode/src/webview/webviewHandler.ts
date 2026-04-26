@@ -8,7 +8,7 @@ export class WebviewHandler {
     constructor(private readonly _extensionUri: vscode.Uri) {}
 
     public getHtmlForWebview(webview: vscode.Webview, setupRequired: boolean, repoName: string, provider?: string, apiKey?: string, currentModel?: string, noWorkspace: boolean = false): string {
-        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'webview', 'chat.css'));
+        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'assets', 'webview', 'chat.css'));
         const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
         const iconUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'assets', 'icon.png'));
         const nonce = this._getNonce();
