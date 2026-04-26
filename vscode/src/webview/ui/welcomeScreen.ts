@@ -6,11 +6,11 @@ export function renderWelcomeScreen(repoName: string, iconUri: string): string {
                 <img src="${iconUri}" alt="Mosaic Logo" />
             </div>
             <div class="repo-badge">${repoName}</div>
-            <h1 class="welcome-title">Que voulez-vous faire aujourd'hui ?</h1>
+            <h1 class="welcome-title">What do you want to build today?</h1>
             
             <div class="welcome-input-container">
-                <textarea id="welcome-chat-input" placeholder="Décrivez votre tâche..." rows="1"></textarea>
-                <button id="welcome-action-button" title="Démarrer la session">
+                <textarea id="welcome-chat-input" placeholder="Ask Mosaic anything..." rows="1"></textarea>
+                <button id="welcome-action-button" title="Start session">
                     <span class="codicon codicon-arrow-right"></span>
                 </button>
             </div>
@@ -18,15 +18,11 @@ export function renderWelcomeScreen(repoName: string, iconUri: string): string {
             <div class="quick-actions">
                 <div class="quick-action-item" data-action="analyze">
                     <span class="codicon codicon-search"></span>
-                    <span>Analyser le projet</span>
-                </div>
-                <div class="quick-action-item" data-action="refactor">
-                    <span class="codicon codicon-tools"></span>
-                    <span>Refactoriser du code</span>
+                    <span>Analyze this project</span>
                 </div>
                 <div class="quick-action-item" data-action="test">
                     <span class="codicon codicon-beaker"></span>
-                    <span>Générer des tests</span>
+                    <span>Generate unit tests</span>
                 </div>
             </div>
         </div>

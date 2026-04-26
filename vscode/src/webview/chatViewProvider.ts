@@ -82,6 +82,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
     const model = this._context.globalState.get<string>('mosaic.model') || '';
     const repoName = vscode.workspace.workspaceFolders?.[0]?.name || 'Mosaic';
+    const noWorkspace = !vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0;
     const setupRequired = !provider || (!apiKey && provider === 'openrouter');
 
     this._view.webview.html = this._webviewHandler.getHtmlForWebview(
@@ -90,7 +91,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       repoName,
       provider,
       apiKey,
-      model
+      model,
+      noWorkspace
     );
   }
 
@@ -123,6 +125,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case 'webviewError':
         console.error(`[Mosaic WEBVIEW ERROR] ${data.message}`, data.stack || '');
+        break;
+      case 'openFolder':
+        vscode.commands.executeCommand('vscode.openFolder');
         break;
     }
   }

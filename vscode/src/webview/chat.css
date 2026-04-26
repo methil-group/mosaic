@@ -25,6 +25,56 @@ body {
   overflow-x: hidden;
 }
 
+.centered-view {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.error-content {
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.error-logo img {
+  width: 80px;
+  height: 80px;
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+
+body.vscode-dark .error-logo img {
+  filter: invert(1) grayscale(1);
+}
+
+.error-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--vscode-errorForeground);
+}
+
+.error-message {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-color);
+}
+
+.error-sub {
+  font-size: 0.8rem;
+  color: var(--vscode-descriptionForeground);
+  margin: 0;
+  line-height: 1.4;
+}
+
 #chat-container {
   display: flex;
   flex-direction: column;
