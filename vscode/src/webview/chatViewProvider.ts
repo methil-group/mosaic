@@ -81,11 +81,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const provider = this._context.globalState.get<string>('mosaic.provider');
     const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
     const model = this._context.globalState.get<string>('mosaic.model') || '';
+    const repoName = vscode.workspace.workspaceFolders?.[0]?.name || 'Mosaic';
     const setupRequired = !provider || (!apiKey && provider === 'openrouter');
 
     this._view.webview.html = this._webviewHandler.getHtmlForWebview(
       this._view.webview,
       setupRequired,
+      repoName,
       provider,
       apiKey,
       model

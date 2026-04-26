@@ -1,4 +1,6 @@
-export function renderChatScreen(provider?: string): string {
+import { renderWelcomeScreen } from './welcomeScreen';
+
+export function renderChatScreen(repoName: string, provider?: string): string {
     return `
     <div id="chat-header">
         <span id="active-chat-title">New Chat</span>
@@ -15,7 +17,10 @@ export function renderChatScreen(provider?: string): string {
         <div id="tasks-header">Active Tasks</div>
         <div id="tasks-list"></div>
     </div>
-    <div id="messages"></div>
+    
+    ${renderWelcomeScreen(repoName)}
+
+    <div id="messages" style="display:none"></div>
     
     <div id="history-modal" class="history-modal" style="display:none">
         <div class="history-content">
@@ -29,7 +34,7 @@ export function renderChatScreen(provider?: string): string {
         </div>
     </div>
 
-    <div id="input-container">
+    <div id="input-container" style="display:none">
         <div class="input-wrapper">
             <textarea id="chat-input" placeholder="Ask Mosaic..." rows="1"></textarea>
             <button id="action-button" title="Send message"><span class="send-icon"></span></button>

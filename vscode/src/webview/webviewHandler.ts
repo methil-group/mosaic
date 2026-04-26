@@ -6,7 +6,7 @@ import { getClientJs } from './ui/mosaicUI';
 export class WebviewHandler {
     constructor(private readonly _extensionUri: vscode.Uri) {}
 
-    public getHtmlForWebview(webview: vscode.Webview, setupRequired: boolean, provider?: string, apiKey?: string, currentModel?: string): string {
+    public getHtmlForWebview(webview: vscode.Webview, setupRequired: boolean, repoName: string, provider?: string, apiKey?: string, currentModel?: string): string {
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'webview', 'chat.css'));
         const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
         const nonce = this._getNonce();
@@ -24,7 +24,7 @@ export class WebviewHandler {
 </head>
 <body>
     <div id="chat-container">
-        ${setupRequired ? renderSetupScreen(provider, apiKey) : renderChatScreen(provider)}
+        ${setupRequired ? renderSetupScreen(provider, apiKey) : renderChatScreen(repoName, provider)}
     </div>
     <script nonce="${nonce}">
         ${getClientJs(currentModel)}

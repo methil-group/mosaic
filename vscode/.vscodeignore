@@ -12,3 +12,8 @@ jest.config.js
 prompt.txt
 scratch/**
 dist/*.map
+.env
+.npmrc
+*.pem
+*.key
+auth.json
