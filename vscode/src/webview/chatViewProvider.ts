@@ -29,29 +29,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       enableScripts: true,
       localResourceRoots: [this._context.extensionUri]
     };
-
     this._initializeWorkspace();
     this.refresh();
-
-    // Restore session if active
-    if (this._sessionManager) {
-      setTimeout(() => {
-        this._handleGetHistory();
-        if (this._ongoingMessage) {
-          this._view?.webview.postMessage({ 
-            type: 'addMessage', 
-            role: this._ongoingMessage.role, 
-            content: this._ongoingMessage.content, 
-            id: this._ongoingMessage.id 
-          });
-          this._view?.webview.postMessage({ type: 'generationStarted' });
-        }
-      }, 100);
-    }
 
     webviewView.webview.onDidReceiveMessage(async (data) => {
       console.log(`[Mosaic DEBUG] Received: ${data.type}`);
       try {
+        if (data.type === 'ready') {
+          this._handleGetHistory();
+          if (this._ongoingMessage) {
+            this._view?.webview.postMessage({ 
+              type: 'addMessage', 
+              role: this._ongoingMessage.role, 
+              content: this._ongoingMessage.content, 
+              id: this._ongoingMessage.id 
+            });
+            this._view?.webview.postMessage({ type: 'generationStarted' });
+          }
+          return;
+        }
         await this._handleWebviewMessage(data);
       } catch (e) {
         console.error(`[Mosaic ERROR] Message handler failed:`, e);
@@ -85,7 +81,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const noWorkspace = !vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0;
     const setupRequired = !provider || (!apiKey && provider === 'openrouter');
 
-    this._view.webview.html = this._webviewHandler.getHtmlForWebview(
+    const newHtml = this._webviewHandler.getHtmlForWebview(
       this._view.webview,
       setupRequired,
       repoName,
@@ -94,6 +90,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       model,
       noWorkspace
     );
+
+    if (this._view.webview.html !== newHtml) {
+      this._view.webview.html = newHtml;
+    }
   }
 
   private async _handleWebviewMessage(data: any) {

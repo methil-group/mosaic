@@ -38,7 +38,7 @@ export class WebviewHandler {
         ${content}
     </div>
     <script nonce="${nonce}">
-        ${getClientJs(currentModel)}
+        ${getClientJs(this._extensionUri, currentModel)}
     </script>
 </body>
 </html>`;
