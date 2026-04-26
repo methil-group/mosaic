@@ -1,10 +1,14 @@
 import { renderWelcomeScreen } from './welcomeScreen';
+import { renderSettingsScreen } from './settingsScreen';
 
-export function renderChatScreen(repoName: string, provider?: string): string {
+export function renderChatScreen(repoName: string, iconUri: string, provider?: string, apiKey?: string): string {
     return `
     <div id="chat-header">
         <span id="active-chat-title">New Chat</span>
         <div class="header-actions">
+            <button id="settings-btn" title="Settings">
+                <span class="codicon codicon-settings"></span>
+            </button>
             <button id="new-chat-btn" title="New Chat">
                 <span class="codicon codicon-add"></span>
             </button>
@@ -18,7 +22,9 @@ export function renderChatScreen(repoName: string, provider?: string): string {
         <div id="tasks-list"></div>
     </div>
     
-    ${renderWelcomeScreen(repoName)}
+    ${renderWelcomeScreen(repoName, iconUri)}
+    
+    ${renderSettingsScreen(provider, apiKey)}
 
     <div id="messages" style="display:none"></div>
     

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/methil-group/mosaic/main/vscode/assets/banner.png" alt="Mosaic Banner" width="100%">
+  <img src="assets/banner.png" alt="Mosaic Banner" width="100%">
 </p>
 
 # Mosaic: AI-Powered Coding Autopilot

@@ -50,7 +50,7 @@ body {
   gap: 4px;
 }
 
-#history-btn, #new-chat-btn {
+#history-btn, #new-chat-btn, #settings-btn {
   background: transparent;
   border: none;
   cursor: pointer;
@@ -65,7 +65,7 @@ body {
   border-radius: 4px;
 }
 
-#history-btn:hover, #new-chat-btn:hover {
+#history-btn:hover, #new-chat-btn:hover, #settings-btn:hover {
   color: var(--vscode-foreground);
   background: var(--vscode-toolbar-hoverBackground);
 }
@@ -918,11 +918,25 @@ body {
 }
 
 .welcome-logo {
-  font-size: 3rem;
-  color: var(--vscode-button-background);
   margin-bottom: 0.5rem;
-  opacity: 0.9;
-  filter: drop-shadow(0 0 15px rgba(var(--vscode-button-background-rgb), 0.3));
+  animation: pulse 4s infinite ease-in-out;
+}
+
+.welcome-logo img {
+  width: 120px;
+  height: 120px;
+  filter: drop-shadow(0 0 20px rgba(var(--vscode-button-background-rgb), 0.4));
+}
+
+body.vscode-dark .welcome-logo img,
+body.vscode-high-contrast .welcome-logo img {
+  filter: invert(1) drop-shadow(0 0 20px rgba(var(--vscode-button-background-rgb), 0.4));
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(var(--vscode-button-background-rgb), 0.2)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 25px rgba(var(--vscode-button-background-rgb), 0.5)); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(var(--vscode-button-background-rgb), 0.2)); }
 }
 
 .repo-badge {
@@ -968,9 +982,10 @@ body {
   padding: 0.75rem;
   resize: none;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   line-height: 1.5;
   outline: none;
+  min-height: 80px;
   max-height: 150px;
 }
 
@@ -998,21 +1013,21 @@ body {
 .quick-actions {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.75rem;
+  gap: 0.5rem;
   width: 100%;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .quick-action-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 1rem;
   background: var(--vscode-editor-background);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   transition: all 0.2s ease;
   text-align: left;
 }
@@ -1028,3 +1043,68 @@ body {
   color: var(--vscode-button-background);
 }
 
+
+/* Settings Screen */
+#settings-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-color);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.settings-header {
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+#settings-back-btn {
+  background: transparent;
+  border: none;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+#settings-back-btn:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.settings-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.settings-help {
+  font-size: 0.7rem;
+  color: var(--vscode-descriptionForeground);
+  margin-top: 0.4rem;
+  opacity: 0.8;
+}
+
+.primary-btn {
+  background: var(--button-bg);
+  color: var(--button-text);
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.1s;
+}
+
+.primary-btn:hover {
+  background: var(--button-hover);
+}

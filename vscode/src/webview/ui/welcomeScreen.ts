@@ -1,15 +1,15 @@
-export function renderWelcomeScreen(repoName: string): string {
+export function renderWelcomeScreen(repoName: string, iconUri: string): string {
     return `
     <div id="welcome-screen">
         <div class="welcome-content">
             <div class="welcome-logo">
-                <span class="codicon codicon-circuit-board"></span>
+                <img src="${iconUri}" alt="Mosaic Logo" />
             </div>
             <div class="repo-badge">${repoName}</div>
             <h1 class="welcome-title">Que voulez-vous faire aujourd'hui ?</h1>
             
             <div class="welcome-input-container">
-                <textarea id="welcome-chat-input" placeholder="Décrivez votre tâche ou posez une question..." rows="1"></textarea>
+                <textarea id="welcome-chat-input" placeholder="Décrivez votre tâche..." rows="1"></textarea>
                 <button id="welcome-action-button" title="Démarrer la session">
                     <span class="codicon codicon-arrow-right"></span>
                 </button>

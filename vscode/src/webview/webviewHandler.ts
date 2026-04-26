@@ -9,6 +9,7 @@ export class WebviewHandler {
     public getHtmlForWebview(webview: vscode.Webview, setupRequired: boolean, repoName: string, provider?: string, apiKey?: string, currentModel?: string): string {
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'webview', 'chat.css'));
         const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
+        const iconUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'assets', 'icon.png'));
         const nonce = this._getNonce();
 
         return `<!DOCTYPE html>
@@ -24,7 +25,7 @@ export class WebviewHandler {
 </head>
 <body>
     <div id="chat-container">
-        ${setupRequired ? renderSetupScreen(provider, apiKey) : renderChatScreen(repoName, provider)}
+        ${setupRequired ? renderSetupScreen(provider, apiKey) : renderChatScreen(repoName, iconUri.toString(), provider, apiKey)}
     </div>
     <script nonce="${nonce}">
         ${getClientJs(currentModel)}
