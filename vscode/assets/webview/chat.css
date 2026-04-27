@@ -205,10 +205,11 @@ body.vscode-dark .error-logo img {
 }
 
 .message.assistant {
-  align-self: flex-start;
+  align-self: stretch;
   background: var(--vscode-editor-background);
   border: 1px solid var(--border-color);
   margin-right: 0;
+  width: 100%;
 }
 
 .thought-block {
@@ -1098,6 +1099,37 @@ body.vscode-high-contrast .welcome-logo img {
 .quick-action-item .codicon {
   font-size: 1rem;
   color: var(--vscode-button-background);
+}
+
+.welcome-recent-chats {
+  width: 100%;
+  margin-top: 0.5rem;
+  text-align: left;
+}
+
+.welcome-recent-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 0.5rem;
+  opacity: 0.8;
+  letter-spacing: 0.03em;
+}
+
+#welcome-chats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#welcome-chats-list .history-item {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--border-color);
+}
+
+#welcome-chats-list .history-item:hover {
+  border-color: var(--vscode-focusBorder);
 }
 
 

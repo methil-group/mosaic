@@ -100,10 +100,10 @@ export class Agent {
               fullText += event.data;
               console.log(`[Agent] Token: ${event.data.substring(0, 20)}${event.data.length > 20 ? '...' : ''}`);
               
-              if (fullText.includes("<tool_call")) {
+              if (fullText.includes("<tool_call") || /<tool\s*$/.test(fullText)) {
                 if (!isSuppressing) {
-                  await onEvent({ type: "log", message: "Tool call detected, suppressing tokens from UI." });
-                  console.log(`[Agent] Tool call detected, suppressing tokens.`);
+                  await onEvent({ type: "log", message: "Tool call detected or malformed tag starting, suppressing tokens from UI." });
+                  console.log(`[Agent] Tool call suppression started.`);
                 }
                 isSuppressing = true;
               }

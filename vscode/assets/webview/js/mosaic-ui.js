@@ -423,8 +423,10 @@ class MosaicUI {
 
     updateChatList(chats) {
         const list = document.getElementById('history-list');
-        if (!list) return;
-        list.innerHTML = chats.map(c => {
+        const welcomeList = document.getElementById('welcome-chats-list');
+        const welcomeContainer = document.getElementById('welcome-recent-chats');
+
+        const chatHtml = chats.map(c => {
             const date = new Date(c.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             return `
             <div class="history-item" data-id="${c.id}">
@@ -446,6 +448,28 @@ class MosaicUI {
                 </div>
             </div>`;
         }).join('');
+
+        if (list) list.innerHTML = chatHtml;
+
+        if (welcomeList) {
+            const recentChats = chats.slice(0, 3);
+            welcomeList.innerHTML = recentChats.map(c => {
+                const date = new Date(c.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                return `
+                <div class="history-item" data-id="${c.id}">
+                    <div class="history-main">
+                        <div class="history-info">
+                            <span class="history-name">${c.name}</span>
+                            <span class="history-date">${date}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            if (welcomeContainer) {
+                welcomeContainer.style.display = recentChats.length > 0 ? 'block' : 'none';
+            }
+        }
     }
 
     updateTodoList(todos) {

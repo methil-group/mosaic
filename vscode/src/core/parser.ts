@@ -6,53 +6,51 @@ export class ToolCallParser {
    * Expects format: <tool_call>{ "name": "...", "arguments": { ... } }</tool_call>
    */
   static parse(text: string): ToolCall | null {
-    const startIndex = text.indexOf(TOOL_CALL_START);
-    if (startIndex === -1) return null;
+    // Look for <tool_call tag, possibly with attributes
+    const toolCallRegex = /<tool_call(?:\s+name="(?<name>[^"]+)")?(?:\s+id="(?<id>[^"]+)")?\s*>(?<body>[\s\S]*?)(?:<\/tool_call>|$)/i;
+    const match = text.match(toolCallRegex);
+    
+    if (!match) return null;
 
-    // Search for any form of closing tag: </tool_call>, </tool_call, or even just a newline if followed by a result
-    let endIndex = text.indexOf(TOOL_CALL_END, startIndex);
-    if (endIndex === -1) {
-        const partialTags = ["</tool_call", "tool_call>", "</tool_call>"];
-        for (const tag of partialTags) {
-            const idx = text.indexOf(tag, startIndex);
-            if (idx !== -1) {
-                endIndex = idx;
-                break;
-            }
-        }
-    }
+    const { name, body } = match.groups || {};
+    const trimmedBody = (body || "").trim();
 
-    if (endIndex === -1 || endIndex <= startIndex) {
-        // Fallback: if no closing tag is found, check if there's a JSON block ending with }
-        const lastBrace = text.lastIndexOf("}");
-        if (lastBrace > startIndex) {
-            endIndex = lastBrace + 1;
-        } else {
-            return null;
-        }
-    }
-
-    const content = text.slice(startIndex + TOOL_CALL_START.length, endIndex).trim();
     try {
-      const parsed = JSON.parse(content);
-      if (parsed.name && typeof parsed.name === 'string') {
-        let args = parsed.arguments || {};
-        
-        // If arguments is empty and there are other keys besides 'name', 
-        // assume those are the arguments (top-level format)
-        if (Object.keys(args).length === 0) {
-            const topLevelArgs = { ...parsed };
-            delete topLevelArgs.name;
-            delete topLevelArgs.arguments;
-            if (Object.keys(topLevelArgs).length > 0) {
-                args = topLevelArgs;
-            }
+      // Case 1: Attributes format <tool_call name="..." id="...">JSON_ARGS</tool_call>
+      if (name) {
+        let args = {};
+        if (trimmedBody) {
+          try {
+            args = JSON.parse(trimmedBody);
+          } catch (e) {
+            // If body is not valid JSON, maybe it's just raw text or malformed
+            // We can try to extract JSON from it if needed, but for now just return null if invalid
+            return null;
+          }
         }
+        return { name, arguments: args };
+      }
 
-        return {
-          name: parsed.name,
-          arguments: args
-        };
+      // Case 2: JSON body format <tool_call>{ "name": "...", "arguments": { ... } }</tool_call>
+      if (trimmedBody) {
+        const parsed = JSON.parse(trimmedBody);
+        if (parsed.name && typeof parsed.name === 'string') {
+          let args = parsed.arguments || {};
+          
+          if (Object.keys(args).length === 0) {
+              const topLevelArgs = { ...parsed };
+              delete topLevelArgs.name;
+              delete topLevelArgs.arguments;
+              if (Object.keys(topLevelArgs).length > 0) {
+                  args = topLevelArgs;
+              }
+          }
+
+          return {
+            name: parsed.name,
+            arguments: args
+          };
+        }
       }
     } catch (e: any) {
       return null;

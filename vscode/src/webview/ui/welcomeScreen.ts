@@ -24,6 +24,11 @@ export function renderWelcomeScreen(repoName: string, iconUri: string, provider?
                 </div>
             </div>
 
+            <div id="welcome-recent-chats" class="welcome-recent-chats" style="display:none">
+                <div class="welcome-recent-header">Recent Conversations</div>
+                <div id="welcome-chats-list"></div>
+            </div>
+
             <div class="quick-actions">
                 <div class="quick-action-item" data-action="analyze">
                     <span class="codicon codicon-search"></span>

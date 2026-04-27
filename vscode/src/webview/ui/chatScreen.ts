@@ -4,7 +4,10 @@ import { renderSettingsScreen } from './settingsScreen';
 export function renderChatScreen(repoName: string, iconUri: string, provider?: string, apiKey?: string): string {
     return `
     <div id="chat-header">
-        <span id="active-chat-title">New Chat</span>
+        <div class="title-container">
+            <span id="active-chat-title">New Chat</span>
+            <span id="rename-chat-btn" class="codicon codicon-edit" title="Rename Chat"></span>
+        </div>
         <div class="header-actions">
             <button id="settings-btn" title="Settings">
                 <span class="codicon codicon-settings"></span>
