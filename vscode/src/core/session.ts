@@ -77,21 +77,21 @@ export class SessionManager {
     if (!text) return [];
 
     const parts: MessageContentPart[] = [];
-    const blockRegex = /<(thought|tool_call|tool_response|tool_result)[\s\S]*?(?:<\/\1>|(?=<(?:thought|tool_call|tool_response|tool_result))|$)/g;
+    const blockRegex = /<+(thought|tool_call|tool_response|tool_result)[\s\S]*?(?:<\/\1>|(?=<+(?:thought|tool_call|tool_response|tool_result))|$)/g;
 
     let lastIdx = 0;
     let match;
 
     while ((match = blockRegex.exec(text)) !== null) {
       if (match.index > lastIdx) {
-        const content = text.substring(lastIdx, match.index).trim();
-        if (content) {
-          parts.push({ type: 'message', content });
+        const content = text.substring(lastIdx, match.index);
+        if (content.replace(/[<>\s\n]/g, '').length > 0) {
+          parts.push({ type: 'message', content: content.trim() });
         }
       }
 
       const tag = match[1];
-      const fullContent = match[0];
+      const fullContent = match[0].replace(/^<+/, '<');
       
       let type: MessageContentType = 'message';
       if (tag === 'thought') type = 'thought';
@@ -105,9 +105,9 @@ export class SessionManager {
     }
 
     if (lastIdx < text.length) {
-      const content = text.substring(lastIdx).trim();
-      if (content) {
-        parts.push({ type: 'message', content });
+      const content = text.substring(lastIdx);
+      if (content.replace(/[<>\s\n]/g, '').length > 0) {
+        parts.push({ type: 'message', content: content.trim() });
       }
     }
 
@@ -119,7 +119,23 @@ export class SessionManager {
   }
 
   public restoreHistory(history: ChatMessage[]) {
-    this.history = [...history];
+    // Filter out messages that only contain stray brackets or whitespace
+    this.history = history.map(msg => {
+      if (Array.isArray(msg.content)) {
+        msg.content = msg.content.filter(part => {
+          if (part.type === 'message') {
+            return part.content.replace(/[<>\s\n]/g, '').length > 0;
+          }
+          return true;
+        });
+      }
+      return msg;
+    }).filter(msg => {
+      if (typeof msg.content === 'string') {
+        return msg.content.replace(/[<>\s\n]/g, '').length > 0;
+      }
+      return msg.content.length > 0;
+    });
   }
 
   public getSessionId(): string {

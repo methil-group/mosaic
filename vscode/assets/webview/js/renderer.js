@@ -12,13 +12,16 @@ function renderMarkdown(content) {
     }
     
     const blocks = [];
-    const blockRegex = /<(?<tag>thought|tool_call|tool_response|tool_result)[\s\S]*?(?:<\/\k<tag>>|(?=<(?:thought|tool_call|tool_response|tool_result))|$)/g;
+    const blockRegex = /<+(?<tag>thought|tool_call|tool_response|tool_result)[\s\S]*?(?:<\/\k<tag>>|(?=<+(?:thought|tool_call|tool_response|tool_result))|$)/g;
     
     let lastIdx = 0;
     let match;
     while ((match = blockRegex.exec(content)) !== null) {
         if (match.index > lastIdx) {
-            blocks.push({ type: 'message', content: content.substring(lastIdx, match.index) });
+            const msgContent = content.substring(lastIdx, match.index);
+            if (msgContent.replace(/[<>\s\n]/g, '').length > 0) {
+                blocks.push({ type: 'message', content: msgContent });
+            }
         }
         const tag = match.groups.tag;
         let type = 'message';
@@ -26,11 +29,15 @@ function renderMarkdown(content) {
         else if (tag === 'tool_call') type = 'tool_call';
         else if (tag === 'tool_response' || tag === 'tool_result') type = 'user_tool_result';
         
-        blocks.push({ type: type, content: match[0] });
+        let cleanedContent = match[0].replace(/^<+/, '<');
+        blocks.push({ type: type, content: cleanedContent });
         lastIdx = blockRegex.lastIndex;
     }
     if (lastIdx < content.length) {
-        blocks.push({ type: 'message', content: content.substring(lastIdx) });
+        const remaining = content.substring(lastIdx);
+        if (remaining.replace(/[<>\s\n]/g, '').length > 0) {
+            blocks.push({ type: 'message', content: remaining });
+        }
     }
 
     // Grouping consecutive tool calls and results
@@ -38,24 +45,44 @@ function renderMarkdown(content) {
     let currentGroup = null;
 
     for (const b of blocks) {
-        if (b.type === 'tool_call' || b.type === 'user_tool_result') {
+        const isTool = b.type === 'tool_call' || b.type === 'user_tool_result';
+        // More aggressive whitespace check including common invisible characters
+        const isWhitespace = b.type === 'message' && b.content.replace(/[\s\n\r\t\u200B-\u200D\uFEFF]/g, '').length === 0;
+
+        if (isTool) {
             if (!currentGroup) {
                 currentGroup = { type: 'tool_group', children: [] };
                 groupedBlocks.push(currentGroup);
             }
             currentGroup.children.push(b);
+        } else if (isWhitespace && currentGroup) {
+            // Keep the group open if we hit whitespace
+            continue;
         } else {
             currentGroup = null;
             groupedBlocks.push(b);
         }
     }
 
-    return groupedBlocks.map(b => renderPart(b)).join('');
+    // Post-process: ensure we didn't end up with empty groups or stray characters
+    const finalBlocks = [];
+    for (const b of groupedBlocks) {
+        if (b.type === 'message') {
+            const trimmed = b.content.trim();
+            if (trimmed === '<' || trimmed === '>') continue;
+            if (!trimmed) continue;
+        }
+        finalBlocks.push(b);
+    }
+
+    return finalBlocks.map(b => renderPart(b)).join('');
 }
 
 function renderPart(part) {
     const { type, content, children } = part;
     if (type === 'message') {
+        const trimmed = content.trim();
+        if (!trimmed || trimmed === '<' || trimmed === '>') return '';
         return typeof marked !== 'undefined' ? marked.parse(content) : content.replace(/\n/g, '<br>');
     }
 
