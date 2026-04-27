@@ -45,6 +45,7 @@ export function renderChatScreen(repoName: string, iconUri: string, provider?: s
 
     <div id="input-container" style="display:none">
         <div class="input-wrapper">
+            <div id="input-references" class="input-references"></div>
             <textarea id="chat-input" placeholder="Ask Mosaic..." rows="1"></textarea>
             <div id="chat-autocomplete-list" class="autocomplete-list" style="display:none"></div>
             <div class="input-footer">

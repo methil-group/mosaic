@@ -7,8 +7,9 @@ export function renderWelcomeScreen(repoName: string, iconUri: string, provider?
             </div>
             <div class="repo-badge">${repoName}</div>
             <h1 class="welcome-title">What do you want to build today?</h1>
-            
+            <div id="welcome-screen-logo">Mosaic</div>
             <div class="welcome-input-container">
+                <div id="welcome-input-references" class="input-references"></div>
                 <textarea id="welcome-chat-input" placeholder="Ask Mosaic anything..." rows="1"></textarea>
                 <div id="welcome-autocomplete-list" class="autocomplete-list" style="display:none"></div>
                 <div class="welcome-input-footer">

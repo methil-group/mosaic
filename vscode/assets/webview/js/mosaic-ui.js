@@ -41,8 +41,6 @@ class MosaicUI {
                 this.handleRenameChat();
             } else if (target.id === 'save-settings-btn') {
                 this.handleSaveSettings();
-            } else if (target.id === 'welcome-action-button' || target.closest('#welcome-action-button')) {
-                this.handleWelcomeAction();
             } else if (target.id === 'open-folder-btn' || target.closest('#open-folder-btn')) {
                 vscode.postMessage({ type: 'openFolder' });
             } else if (target.classList.contains('quick-action-item')) {
@@ -65,6 +63,13 @@ class MosaicUI {
             } else if (target.classList.contains('confirm-no')) {
                 e.stopPropagation();
                 target.closest('.history-item').classList.remove('confirming');
+            } else if (target.classList.contains('remove-chip')) {
+                this.removeReference(target.getAttribute('data-file'));
+            } else if (target.classList.contains('file-badge')) {
+                const file = target.getAttribute('data-file');
+                if (file) vscode.postMessage({ type: 'openFile', value: file });
+            } else if (target.classList.contains('tool-header') || target.classList.contains('thought-header') || target.classList.contains('tool-group-header')) {
+                target.parentElement.classList.toggle('open');
             } else if (target.classList.contains('history-item') && !target.classList.contains('task-item')) {
                 if (target.classList.contains('confirming')) return;
                 const chatId = target.getAttribute('data-id');
@@ -73,8 +78,6 @@ class MosaicUI {
                     vscode.postMessage({ type: 'loadChat', value: chatId });
                     document.getElementById('history-modal').style.display = 'none';
                 }
-            } else if (target.classList.contains('tool-header') || target.classList.contains('thought-header') || target.classList.contains('tool-group-header')) {
-                target.parentElement.classList.toggle('open');
             } else if (target.classList.contains('autocomplete-item')) {
                 this.selectSuggestion(target.innerText);
             }
@@ -136,6 +139,9 @@ class MosaicUI {
                 const state = vscode.getState() || {};
                 state[e.target.id] = input.value;
                 vscode.setState(state);
+
+                this.updateReferences(input);
+                this.updateQueueVisibility();
             }
             if (e.target.id === 'setup-provider') {
                 const apikeyGroup = document.getElementById('apikey-group');
@@ -372,19 +378,31 @@ class MosaicUI {
         }
     }
 
+    updateQueueVisibility() {
+        const val = this.isGenerating;
+        const chatInput = document.getElementById('chat-input');
+        const welcomeInput = document.getElementById('welcome-chat-input');
+        
+        const showChat = val && chatInput && chatInput.value.trim().length > 0;
+        const showWelcome = val && welcomeInput && welcomeInput.value.trim().length > 0;
+
+        const qBtn = document.getElementById('queue-button');
+        const wqBtn = document.getElementById('welcome-queue-button');
+
+        if (qBtn) qBtn.style.display = showChat ? 'flex' : 'none';
+        if (wqBtn) wqBtn.style.display = showWelcome ? 'flex' : 'none';
+    }
+
     setGenerating(val) {
         this.isGenerating = val;
         const btn = document.getElementById('action-button');
-        const queueBtns = [document.getElementById('queue-button'), document.getElementById('welcome-queue-button')];
         
         if (btn) {
             btn.classList.toggle('generating', val);
             btn.innerHTML = val ? '<span class="codicon codicon-debug-stop"></span>' : '<span class="codicon codicon-send"></span>';
         }
 
-        queueBtns.forEach(qBtn => {
-            if (qBtn) qBtn.style.display = val ? 'flex' : 'none';
-        });
+        this.updateQueueVisibility();
 
         if (!val) {
             this.checkQueue();
@@ -500,6 +518,7 @@ class MosaicUI {
             input.setSelectionRange(newCursor, newCursor);
         }
         this.closeAutocomplete();
+        this.updateReferences(input);
         
         // Update persisted state
         const state = vscode.getState() || {};
@@ -512,6 +531,46 @@ class MosaicUI {
         this.suggestions = [];
         this.suggestionIndex = 0;
         document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
+    }
+
+    updateReferences(input) {
+        const containerId = input.id === 'welcome-chat-input' ? 'welcome-input-references' : 'input-references';
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const text = input.value;
+        const matches = text.match(/@([^\s]+)/g) || [];
+        const files = [...new Set(matches.map(m => m.substring(1)))];
+
+        if (files.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        container.innerHTML = files.map(f => {
+            const icon = this.getIconForFile(f);
+            return `
+                <div class="file-chip">
+                    <span class="codicon ${icon}"></span>
+                    <span>${f}</span>
+                    <span class="codicon codicon-close remove-chip" data-file="${f}"></span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    removeReference(file) {
+        const input = this.isWelcomeVisible() ? document.getElementById('welcome-chat-input') : document.getElementById('chat-input');
+        if (!input) return;
+        
+        const regex = new RegExp('@' + file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\s|$)', 'g');
+        input.value = input.value.replace(regex, '');
+        input.focus();
+        this.updateReferences(input);
+        
+        const state = vscode.getState() || {};
+        state[input.id] = input.value;
+        vscode.setState(state);
     }
 
     addMessage(role, content, id) {
@@ -560,11 +619,15 @@ class MosaicUI {
             filesDiv.className = 'modified-files-list';
             filesDiv.innerHTML = `
                 <div class="modified-files-header">
-                    <span class="codicon codicon-save"></span>
-                    <span>Modified Files</span>
+                    <span class="codicon codicon-diff-added"></span>
+                    <span>Files Updated</span>
                 </div>
                 <div class="file-grid">
-                    ${metadata.modifiedFiles.map(f => `<div class="file-badge file"><span class="codicon codicon-file-submodule"></span> ${f}</div>`).join('')}
+                    ${metadata.modifiedFiles.map(f => {
+                        const name = f.split('/').pop().split('\\').pop();
+                        const icon = this.getIconForFile(f);
+                        return `<div class="file-badge file clickable" data-file="${f}" title="${f}"><span class="codicon ${icon}"></span> ${name}</div>`;
+                    }).join('')}
                 </div>
             `;
             msgDiv.appendChild(filesDiv);
