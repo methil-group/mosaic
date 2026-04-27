@@ -1,4 +1,4 @@
-import { ToolCall, TOOL_CALL_START, TOOL_CALL_END } from "./protocol";
+import { ToolCall } from "./protocol";
 
 export class ToolCallParser {
   /**

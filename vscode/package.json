@@ -2,7 +2,7 @@
   "name": "mosaic-vscode",
   "displayName": "Mosaic",
   "description": "AI-powered coding assistant with full tool-calling capabilities.",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "icon": "assets/icon.png",
   "publisher": "methil",
   "license": "Unlicense",
@@ -79,7 +79,10 @@
         },
         "mosaic.provider": {
           "type": "string",
-          "enum": ["openrouter", "lmstudio"],
+          "enum": [
+            "openrouter",
+            "lmstudio"
+          ],
           "default": "openrouter",
           "description": "Preferred LLM provider"
         },

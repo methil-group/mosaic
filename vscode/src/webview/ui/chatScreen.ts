@@ -1,7 +1,7 @@
 import { renderWelcomeScreen } from './welcomeScreen';
 import { renderSettingsScreen } from './settingsScreen';
 
-export function renderChatScreen(repoName: string, iconUri: string, provider?: string, apiKey?: string): string {
+export function renderChatScreen(repoName: string, iconUri: string, provider?: string, apiKey?: string, lmStudioUrl?: string): string {
     return `
     <div id="chat-header">
         <div class="title-container">
@@ -27,7 +27,7 @@ export function renderChatScreen(repoName: string, iconUri: string, provider?: s
     
     ${renderWelcomeScreen(repoName, iconUri, provider)}
     
-    ${renderSettingsScreen(provider, apiKey)}
+    ${renderSettingsScreen(provider, apiKey, lmStudioUrl)}
 
     <div id="messages" style="display:none"></div>
     
