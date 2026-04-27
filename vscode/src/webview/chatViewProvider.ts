@@ -147,10 +147,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   private _handleOpenFile(filePath: string) {
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath || '';
-    const fullPath = path.join(workspaceRoot, filePath);
-    vscode.workspace.openTextDocument(fullPath).then(doc => {
-      vscode.window.showTextDocument(doc);
-    });
+    const fullPath = path.isAbsolute(filePath) ? filePath : path.join(workspaceRoot, filePath);
+    
+    vscode.workspace.openTextDocument(fullPath).then(
+      doc => {
+        vscode.window.showTextDocument(doc);
+      },
+      err => {
+        vscode.window.showErrorMessage(`Failed to open file: ${filePath}. Error: ${err.message}`);
+      }
+    );
   }
 
   private _handleStopGeneration() {

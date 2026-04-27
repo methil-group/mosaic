@@ -15,7 +15,7 @@ class MosaicUI {
         log('Initializing Event Delegation...');
         
         document.addEventListener('click', (e) => {
-            const target = e.target.closest('button, .history-item, .tool-header, .thought-header, .quick-action-item, .autocomplete-item');
+            const target = e.target.closest('button, .history-item, .tool-header, .thought-header, .quick-action-item, .autocomplete-item, .tool-group-header, .file-badge, .remove-chip, .close-modal, .delete-btn, .confirm-yes, .confirm-no, #rename-chat-btn');
             if (!target) {
                 this.closeAutocomplete();
                 return;
@@ -67,6 +67,7 @@ class MosaicUI {
                 this.removeReference(target.getAttribute('data-file'));
             } else if (target.classList.contains('file-badge')) {
                 const file = target.getAttribute('data-file');
+                log('File Badge Clicked:', file);
                 if (file) vscode.postMessage({ type: 'openFile', value: file });
             } else if (target.classList.contains('tool-header') || target.classList.contains('thought-header') || target.classList.contains('tool-group-header')) {
                 target.parentElement.classList.toggle('open');
