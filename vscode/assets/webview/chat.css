@@ -324,6 +324,7 @@ body.vscode-dark .error-logo img {
   position: relative;
   align-items: center;
   padding: 1px 4px;
+  flex-direction: column;
 }
 
 .input-wrapper:focus-within {
@@ -345,6 +346,53 @@ body.vscode-dark .error-logo img {
   min-height: 20px;
   outline: none;
   box-sizing: border-box;
+  width: 100%;
+}
+
+.input-footer, .welcome-input-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 4px;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.input-selectors, .welcome-selectors {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.compact-select {
+  background: var(--vscode-dropdown-background);
+  color: var(--vscode-descriptionForeground);
+  border: 1px solid var(--border-color);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-family: inherit;
+  max-width: 100px;
+  height: 26px;
+  text-overflow: ellipsis;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.compact-select:hover {
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
+}
+
+#provider-select, #welcome-provider-select {
+  max-width: 50px;
+}
+
+#model-select, #welcome-model-select {
+  max-width: 120px;
 }
 
 #action-button {
@@ -352,8 +400,8 @@ body.vscode-dark .error-logo img {
   border: none;
   color: var(--vscode-button-background);
   cursor: pointer;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -382,7 +430,7 @@ body.vscode-dark .error-logo img {
   cursor: not-allowed;
 }
 
-.input-wrapper.disabled {
+.input-wrapper.disabled, .welcome-input-container.disabled {
   background: var(--vscode-editor-inactiveSelectionBackground);
   border-color: var(--border-color);
   cursor: not-allowed;
@@ -438,44 +486,7 @@ body.vscode-dark .error-logo img {
 
 
 #settings-bar {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.4rem;
-  background: var(--vscode-sideBar-background);
-  border-top: 1px solid var(--border-color);
-  align-items: center;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-  font-size: 0.75rem;
-}
-
-#settings-bar:hover {
-  opacity: 1;
-}
-
-#settings-bar select {
-  background: var(--vscode-dropdown-background);
-  color: var(--vscode-descriptionForeground);
-  border: 1px solid var(--border-color);
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-family: inherit;
-  flex: 1;
-  max-width: 130px;
-  text-overflow: ellipsis;
-  outline: none;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-#settings-bar select:hover {
-  border-color: var(--vscode-focusBorder);
-  color: var(--vscode-foreground);
-}
-
-#settings-bar select:focus {
-  border-color: var(--vscode-focusBorder);
+  display: none;
 }
 
 /* Tool Accordion */
@@ -1008,6 +1019,7 @@ body.vscode-high-contrast .welcome-logo img {
   padding: 4px;
   transition: all 0.2s ease;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  flex-direction: column;
 }
 
 .welcome-input-container:focus-within {
@@ -1029,6 +1041,8 @@ body.vscode-high-contrast .welcome-logo img {
   outline: none;
   min-height: 80px;
   max-height: 150px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 #welcome-action-button {
@@ -1036,14 +1050,15 @@ body.vscode-high-contrast .welcome-logo img {
   color: var(--vscode-button-foreground);
   border: none;
   border-radius: 6px;
-  width: 36px;
-  height: 36px;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   align-self: flex-end;
-  margin: 4px;
+  margin: 2px;
   transition: all 0.15s;
 }
 

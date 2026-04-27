@@ -22,7 +22,7 @@ export function renderChatScreen(repoName: string, iconUri: string, provider?: s
         <div id="tasks-list"></div>
     </div>
     
-    ${renderWelcomeScreen(repoName, iconUri)}
+    ${renderWelcomeScreen(repoName, iconUri, provider)}
     
     ${renderSettingsScreen(provider, apiKey)}
 
@@ -43,14 +43,16 @@ export function renderChatScreen(repoName: string, iconUri: string, provider?: s
     <div id="input-container" style="display:none">
         <div class="input-wrapper">
             <textarea id="chat-input" placeholder="Ask Mosaic..." rows="1"></textarea>
-            <button id="action-button" title="Send message"><span class="send-icon"></span></button>
+            <div class="input-footer">
+                <div class="input-selectors">
+                    <select id="provider-select" class="compact-select">
+                        <option value="openrouter" ${provider === 'openrouter' ? 'selected' : ''}>OP</option>
+                        <option value="lmstudio" ${provider === 'lmstudio' ? 'selected' : ''}>LMS</option>
+                    </select>
+                    <select id="model-select" class="compact-select model-select-common"></select>
+                </div>
+                <button id="action-button" title="Send message"><span class="send-icon"></span></button>
+            </div>
         </div>
-    </div>
-    <div id="settings-bar">
-        <select id="provider-select">
-            <option value="openrouter" ${provider === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
-            <option value="lmstudio" ${provider === 'lmstudio' ? 'selected' : ''}>LM Studio</option>
-        </select>
-        <select id="model-select"></select>
     </div>`;
 }

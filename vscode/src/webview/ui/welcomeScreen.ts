@@ -1,4 +1,4 @@
-export function renderWelcomeScreen(repoName: string, iconUri: string): string {
+export function renderWelcomeScreen(repoName: string, iconUri: string, provider?: string): string {
     return `
     <div id="welcome-screen">
         <div class="welcome-content">
@@ -10,9 +10,18 @@ export function renderWelcomeScreen(repoName: string, iconUri: string): string {
             
             <div class="welcome-input-container">
                 <textarea id="welcome-chat-input" placeholder="Ask Mosaic anything..." rows="1"></textarea>
-                <button id="welcome-action-button" title="Start session">
-                    <span class="codicon codicon-arrow-right"></span>
-                </button>
+                <div class="welcome-input-footer">
+                    <div class="welcome-selectors">
+                        <select id="welcome-provider-select" class="compact-select">
+                            <option value="openrouter" ${provider === 'openrouter' ? 'selected' : ''}>OP</option>
+                            <option value="lmstudio" ${provider === 'lmstudio' ? 'selected' : ''}>LMS</option>
+                        </select>
+                        <select id="welcome-model-select" class="compact-select model-select-common"></select>
+                    </div>
+                    <button id="welcome-action-button" title="Start session">
+                        <span class="codicon codicon-arrow-right"></span>
+                    </button>
+                </div>
             </div>
 
             <div class="quick-actions">

@@ -99,9 +99,9 @@ class MosaicUI {
         });
 
         document.addEventListener('change', (e) => {
-            if (e.target.id === 'provider-select') {
+            if (e.target.id === 'provider-select' || e.target.id === 'welcome-provider-select') {
                 vscode.postMessage({ type: 'setProvider', value: e.target.value });
-            } else if (e.target.id === 'model-select') {
+            } else if (e.target.id === 'model-select' || e.target.id === 'welcome-model-select') {
                 vscode.postMessage({ type: 'setModel', value: e.target.value });
                 e.target.blur();
             } else if (e.target.id === 'settings-provider') {
@@ -114,20 +114,22 @@ class MosaicUI {
             this.handleMessage(event.data);
         });
         
-        const modelSelect = document.getElementById('model-select');
-        if (modelSelect) {
+        const modelSelects = document.querySelectorAll('.model-select-common');
+        if (modelSelects.length > 0) {
             vscode.postMessage({ type: 'fetchModels' });
             vscode.postMessage({ type: 'getHistory' });
             
-            modelSelect.addEventListener('focus', () => {
-                Array.from(modelSelect.options).forEach(opt => {
-                    if (opt.dataset.full) opt.text = opt.dataset.full;
+            modelSelects.forEach(select => {
+                select.addEventListener('focus', () => {
+                    Array.from(select.options).forEach(opt => {
+                        if (opt.dataset.full) opt.text = opt.dataset.full;
+                    });
                 });
-            });
-            
-            modelSelect.addEventListener('blur', () => {
-                Array.from(modelSelect.options).forEach(opt => {
-                    if (opt.dataset.short) opt.text = opt.dataset.short;
+                
+                select.addEventListener('blur', () => {
+                    Array.from(select.options).forEach(opt => {
+                        if (opt.dataset.short) opt.text = opt.dataset.short;
+                    });
                 });
             });
         }
@@ -365,49 +367,58 @@ class MosaicUI {
     }
 
     _updateModels(msg) {
-        const select = document.getElementById('model-select');
-        if (!select) return;
+        const selects = document.querySelectorAll('.model-select-common');
+        if (selects.length === 0) return;
         
         const hasModels = msg.models && msg.models.length > 0;
         this._updateInputAvailability(hasModels, msg.loading);
 
-        if (msg.loading) {
-            select.innerHTML = '<option>Loading...</option>';
-            return;
-        }
+        selects.forEach(select => {
+            if (msg.loading) {
+                select.innerHTML = '<option>Loading...</option>';
+                return;
+            }
 
-        if (!msg.models.length) {
-            select.innerHTML = '<option>No models found</option>';
-            return;
-        }
+            if (!msg.models || !msg.models.length) {
+                select.innerHTML = '<option>No models found</option>';
+                return;
+            }
 
-        const isFocused = document.activeElement === select;
-        select.innerHTML = msg.models.map(m => {
-            const parts = m.split('/');
-            const short = parts[parts.length - 1];
-            const display = isFocused ? m : short;
-            return `<option value="${m}" data-full="${m}" data-short="${short}" ${m === this.currentModel ? 'selected' : ''}>${display}</option>`;
-        }).join('');
+            const isFocused = document.activeElement === select;
+            select.innerHTML = msg.models.map(m => {
+                const parts = m.split('/');
+                const short = parts[parts.length - 1];
+                const display = isFocused ? m : short;
+                return `<option value="${m}" data-full="${m}" data-short="${short}" ${m === this.currentModel ? 'selected' : ''}>${display}</option>`;
+            }).join('');
+        });
     }
 
     _updateInputAvailability(hasModels, isLoading) {
-        const input = document.getElementById('chat-input');
-        const btn = document.getElementById('action-button');
-        const wrapper = input ? input.closest('.input-wrapper') : null;
+        const inputs = [document.getElementById('chat-input'), document.getElementById('welcome-chat-input')];
+        const buttons = [document.getElementById('action-button'), document.getElementById('welcome-action-button')];
         
         const disabled = !hasModels || isLoading;
-        if (input) {
+        
+        inputs.forEach(input => {
+            if (!input) return;
             input.disabled = disabled;
+            const isWelcome = input.id === 'welcome-chat-input';
             if (isLoading) {
                 input.placeholder = 'Loading models...';
             } else if (!hasModels) {
                 input.placeholder = 'No models available. Check provider settings.';
             } else {
-                input.placeholder = 'Ask Mosaic...';
+                input.placeholder = isWelcome ? 'Ask Mosaic anything...' : 'Ask Mosaic...';
             }
-        }
-        if (btn) btn.disabled = disabled;
-        if (wrapper) wrapper.classList.toggle('disabled', disabled);
+            
+            const wrapper = input.closest('.input-wrapper, .welcome-input-container');
+            if (wrapper) wrapper.classList.toggle('disabled', disabled);
+        });
+
+        buttons.forEach(btn => {
+            if (btn) btn.disabled = disabled;
+        });
     }
 
     updateChatList(chats) {
