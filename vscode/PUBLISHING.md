@@ -60,3 +60,24 @@ vsce publish
 - **README**: Ensure `README.md` is updated as it will be the extension's landing page.
 - **Icons**: The extension icon is located at `assets/icon.png`.
 - **Pre-publish Script**: The `vscode:prepublish` script in `package.json` automatically runs `npm run compile` during packaging.
+
+---
+
+## Publishing to Open VSX Registry
+
+To publish Mosaic to [Open VSX](https://open-vsx.org/), follow these steps:
+
+1. **Create an Account**: Sign in to Open VSX and create a namespace (e.g., `methil`).
+2. **Get an Access Token**: Go to your profile settings and generate a new Access Token.
+3. **Publish**:
+   Run the following command:
+   ```bash
+   npx ovsx publish -p <YOUR_OPEN_VSX_TOKEN>
+   ```
+   Or use the npm script:
+   ```bash
+   npm run publish-ovsx -- -p <YOUR_OPEN_VSX_TOKEN>
+   ```
+
+Open VSX uses the same `.vsix` format as the VS Code Marketplace, so no extra configuration is required.
+

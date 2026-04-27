@@ -101,7 +101,8 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./dist/test/runTest.js",
-    "unit-test": "jest"
+    "unit-test": "jest",
+    "publish-ovsx": "npx ovsx publish"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
