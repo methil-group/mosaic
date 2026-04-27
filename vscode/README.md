@@ -6,7 +6,7 @@
 
 **Mosaic** is a state-of-the-art AI assistant for VS Code that doesn't just suggest code—it **builds** it. Equipped with a powerful suite of tools, Mosaic can read your codebase, execute shell commands, and perform surgical edits with precision.
 
-[![Version](https://img.shields.io/badge/version-0.0.7-blue.svg)](https://marketplace.visualstudio.com/items?itemName=methil.mosaic-vscode)
+[![Version](https://img.shields.io/badge/version-0.0.8-blue.svg)](https://marketplace.visualstudio.com/items?itemName=methil.mosaic-vscode)
 [![License](https://img.shields.io/badge/license-Unlicense-green.svg)](LICENSE)
 
 ---
