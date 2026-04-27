@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import * as cp from 'child_process';
 import { BaseTool } from './base';
 
@@ -47,6 +48,9 @@ export class RunCommandTool extends BaseTool {
   }
 
   private validateCommand(command: string): string | null {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    const rootPath = workspaceFolders ? workspaceFolders[0].uri.fsPath : null;
+
     const dangerousPatterns = [
       { pattern: new RegExp("rm\\s+-rf\\s+[\\/~]"), reason: "Destructive operations on root (/) or home (~) directories are strictly forbidden." },
       { pattern: new RegExp("rm\\s+-rf\\s+\\.(git|mosaic)"), reason: "Critical project directories (.git, .mosaic) must be preserved." },
@@ -60,6 +64,36 @@ export class RunCommandTool extends BaseTool {
     for (const { pattern, reason } of dangerousPatterns) {
       if (pattern.test(normalized)) return reason;
     }
+
+    // Home directory protection
+    if (command.includes('~')) {
+      return "Access to home directory (~) is strictly forbidden.";
+    }
+
+    // Path traversal protection
+    if (command.includes('..')) {
+      const upCount = (command.match(/\.\.\//g) || []).length;
+      if (upCount > 0) {
+        // Even one '..' can be dangerous if it goes above root.
+        // For simplicity and maximum safety, we block '..' in commands unless strictly needed.
+        // But some build commands might use them. Let's be conservative.
+        if (upCount > 2) return "Potential path traversal detected.";
+      }
+    }
+
+    // Absolute path protection
+    if (rootPath) {
+      // Improved regex to find absolute paths anywhere in the command
+      const absPathRegex = /(?:^|\s)(\/[^\s;&|]+)/g;
+      let match;
+      while ((match = absPathRegex.exec(command)) !== null) {
+        const p = match[1].trim();
+        if (path.isAbsolute(p) && !p.startsWith(rootPath)) {
+           return `Unauthorized access to absolute path outside repository: ${p}`;
+        }
+      }
+    }
+
     return null;
   }
 }

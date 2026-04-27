@@ -18,12 +18,8 @@ export class ReadFileTool extends BaseTool {
   async execute(args: { path: string }) {
     if (!args.path) return this.formatError("No path provided");
     
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) return this.formatError("No workspace folder open");
-
-    const fullPath = path.isAbsolute(args.path) 
-      ? args.path 
-      : path.join(workspaceFolders[0].uri.fsPath, args.path);
+    const fullPath = this.resolvePath(args.path);
+    if (!fullPath) return this.formatError(`Access denied: '${args.path}' is outside the workspace.`);
 
     try {
       const uri = vscode.Uri.file(fullPath);
@@ -57,12 +53,8 @@ export class WriteFileTool extends BaseTool {
   async execute(args: { path: string, content: string }) {
     if (!args.path) return this.formatError("No path provided");
     
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) return this.formatError("No workspace folder open");
-
-    const fullPath = path.isAbsolute(args.path) 
-      ? args.path 
-      : path.join(workspaceFolders[0].uri.fsPath, args.path);
+    const fullPath = this.resolvePath(args.path);
+    if (!fullPath) return this.formatError(`Access denied: '${args.path}' is outside the workspace.`);
 
     try {
       const uri = vscode.Uri.file(fullPath);
@@ -94,12 +86,8 @@ export class EditFileTool extends BaseTool {
     if (!args.path) return this.formatError("No path provided");
     if (!args.old_content) return this.formatError("No old_content provided");
 
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) return this.formatError("No workspace folder open");
-
-    const fullPath = path.isAbsolute(args.path) 
-      ? args.path 
-      : path.join(workspaceFolders[0].uri.fsPath, args.path);
+    const fullPath = this.resolvePath(args.path);
+    if (!fullPath) return this.formatError(`Access denied: '${args.path}' is outside the workspace.`);
 
     try {
       const uri = vscode.Uri.file(fullPath);
@@ -138,13 +126,9 @@ export class ListDirectoryTool extends BaseTool {
   }
 
   async execute(args: { path: string }) {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) return this.formatError("No workspace folder open");
-
     const targetPath = args.path || ".";
-    const fullPath = path.isAbsolute(targetPath) 
-      ? targetPath 
-      : path.join(workspaceFolders[0].uri.fsPath, targetPath);
+    const fullPath = this.resolvePath(targetPath);
+    if (!fullPath) return this.formatError(`Access denied: '${targetPath}' is outside the workspace.`);
 
     try {
       const uri = vscode.Uri.file(fullPath);
