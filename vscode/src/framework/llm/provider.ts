@@ -116,7 +116,10 @@ export const PREFERRED_MODELS = [
   'deepseek/deepseek-v3.2',
   'google/gemma-4-31b-it',
   'xiaomi/mimo-v2.5-pro',
-  'qwen/qwen3.6-plus'
+  'qwen/qwen3.6-plus',
+  'moonshotai/kimi-k2.6',
+  'z-ai/glm-5.1',
+  'essentialai/rnj-1-instruct'
 ];
 
 export class OpenRouterProvider extends BaseLlmProvider {
