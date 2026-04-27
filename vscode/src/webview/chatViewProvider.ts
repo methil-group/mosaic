@@ -137,6 +137,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'openFolder':
         vscode.commands.executeCommand('vscode.openFolder');
         break;
+      case 'searchFiles':
+        return this._handleSearchFiles(data.value);
     }
   }
 
@@ -262,6 +264,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this._view.webview.postMessage({ type: 'todoList', todos: manager.getTodos() });
   }
 
+  private async _handleSearchFiles(query: string) {
+    if (!this._view) return;
+    
+    // If query is empty or just '@', return some recent or common files
+    // For now, let's just find files matching the query
+    const pattern = query ? `**/*${query}*` : '**/*';
+    const files = await vscode.workspace.findFiles(pattern, '**/node_modules/**', 50);
+    
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath || '';
+    const relativeFiles = files.map(f => path.relative(workspaceRoot, f.fsPath));
+    
+    this._view.webview.postMessage({ type: 'fileSuggestions', files: relativeFiles });
+  }
+
   private async _handleGetHistory() {
     if (!this._view || !this._sessionManager) return;
     
@@ -360,7 +376,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
               ttft,
               tps: tps.toFixed(1),
               inputTokens: lastUsage?.prompt_tokens || 0,
-              outputTokens: outputTokens
+              outputTokens: outputTokens,
+              modifiedFiles: event.parameters?.modifiedFiles || []
             };
 
             this._view.webview.postMessage({ 

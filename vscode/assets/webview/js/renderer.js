@@ -33,13 +33,48 @@ function renderMarkdown(content) {
         blocks.push({ type: 'message', content: content.substring(lastIdx) });
     }
 
-    return blocks.map(b => renderPart(b)).join('');
+    // Grouping consecutive tool calls and results
+    const groupedBlocks = [];
+    let currentGroup = null;
+
+    for (const b of blocks) {
+        if (b.type === 'tool_call' || b.type === 'user_tool_result') {
+            if (!currentGroup) {
+                currentGroup = { type: 'tool_group', children: [] };
+                groupedBlocks.push(currentGroup);
+            }
+            currentGroup.children.push(b);
+        } else {
+            currentGroup = null;
+            groupedBlocks.push(b);
+        }
+    }
+
+    return groupedBlocks.map(b => renderPart(b)).join('');
 }
 
 function renderPart(part) {
-    const { type, content } = part;
+    const { type, content, children } = part;
     if (type === 'message') {
         return typeof marked !== 'undefined' ? marked.parse(content) : content.replace(/\n/g, '<br>');
+    }
+
+    if (type === 'tool_group') {
+        const hasLoading = children.some(c => c.type === 'tool_call' && !c.content.includes('</tool_call>'));
+        const innerHtml = children.map(c => renderPart(c)).join('');
+        return `
+            <div class="tool-group ${hasLoading ? 'open' : ''}">
+                <div class="tool-group-header">
+                    <span class="codicon codicon-tools"></span>
+                    <span>Tool Calls</span>
+                    <span class="tool-group-status ${hasLoading ? 'loading' : 'done'}"></span>
+                    <span class="codicon codicon-chevron-down"></span>
+                </div>
+                <div class="tool-group-content">
+                    ${innerHtml}
+                </div>
+            </div>
+        `;
     }
     
     if (type === 'thought') {

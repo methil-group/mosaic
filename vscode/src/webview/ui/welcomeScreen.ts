@@ -10,6 +10,7 @@ export function renderWelcomeScreen(repoName: string, iconUri: string, provider?
             
             <div class="welcome-input-container">
                 <textarea id="welcome-chat-input" placeholder="Ask Mosaic anything..." rows="1"></textarea>
+                <div id="welcome-autocomplete-list" class="autocomplete-list" style="display:none"></div>
                 <div class="welcome-input-footer">
                     <div class="welcome-selectors">
                         <select id="welcome-provider-select" class="compact-select">
@@ -18,9 +19,14 @@ export function renderWelcomeScreen(repoName: string, iconUri: string, provider?
                         </select>
                         <select id="welcome-model-select" class="compact-select model-select-common"></select>
                     </div>
-                    <button id="welcome-action-button" title="Start session">
-                        <span class="codicon codicon-arrow-right"></span>
-                    </button>
+                    <div class="input-actions">
+                        <button id="welcome-queue-button" class="queue-button" title="Queue message" style="display:none">
+                            <span class="codicon codicon-list-ordered"></span>
+                        </button>
+                        <button id="welcome-action-button" title="Start session">
+                            <span class="codicon codicon-arrow-right"></span>
+                        </button>
+                    </div>
                 </div>
             </div>
 

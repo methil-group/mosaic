@@ -46,6 +46,7 @@ export function renderChatScreen(repoName: string, iconUri: string, provider?: s
     <div id="input-container" style="display:none">
         <div class="input-wrapper">
             <textarea id="chat-input" placeholder="Ask Mosaic..." rows="1"></textarea>
+            <div id="chat-autocomplete-list" class="autocomplete-list" style="display:none"></div>
             <div class="input-footer">
                 <div class="input-selectors">
                     <select id="provider-select" class="compact-select">
@@ -54,7 +55,12 @@ export function renderChatScreen(repoName: string, iconUri: string, provider?: s
                     </select>
                     <select id="model-select" class="compact-select model-select-common"></select>
                 </div>
-                <button id="action-button" title="Send message"><span class="send-icon"></span></button>
+                <div class="input-actions">
+                    <button id="queue-button" class="queue-button" title="Queue message" style="display:none">
+                        <span class="codicon codicon-list-ordered"></span>
+                    </button>
+                    <button id="action-button" title="Send message"><span class="send-icon"></span></button>
+                </div>
             </div>
         </div>
     </div>`;

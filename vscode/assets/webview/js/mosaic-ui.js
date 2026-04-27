@@ -4,6 +4,10 @@ class MosaicUI {
         this.isGenerating = false;
         this.assistantMessages = {};
         this.currentModel = currentModel || '';
+        this.suggestions = [];
+        this.suggestionIndex = 0;
+        this.activeAutocompleteInput = null;
+        this.queuedMessage = null;
         this.init();
     }
 
@@ -11,8 +15,11 @@ class MosaicUI {
         log('Initializing Event Delegation...');
         
         document.addEventListener('click', (e) => {
-            const target = e.target.closest('button, .history-item, .tool-header, .thought-header, .quick-action-item');
-            if (!target) return;
+            const target = e.target.closest('button, .history-item, .tool-header, .thought-header, .quick-action-item, .autocomplete-item');
+            if (!target) {
+                this.closeAutocomplete();
+                return;
+            }
 
             log('Click detected on:', target.id || target.className);
 
@@ -20,6 +27,8 @@ class MosaicUI {
                 this.handleAction();
             } else if (target.id === 'save-setup-btn') {
                 this.handleSaveSetup();
+            } else if (target.id === 'queue-button' || target.closest('#queue-button') || target.id === 'welcome-queue-button' || target.closest('#welcome-queue-button')) {
+                this.handleQueue();
             } else if (target.id === 'history-btn' || target.closest('#history-btn')) {
                 this.toggleModal('history-modal', 'listChats');
             } else if (target.id === 'new-chat-btn' || target.closest('#new-chat-btn')) {
@@ -64,21 +73,42 @@ class MosaicUI {
                     vscode.postMessage({ type: 'loadChat', value: chatId });
                     document.getElementById('history-modal').style.display = 'none';
                 }
-            } else if (target.classList.contains('tool-header') || target.classList.contains('thought-header')) {
+            } else if (target.classList.contains('tool-header') || target.classList.contains('thought-header') || target.classList.contains('tool-group-header')) {
                 target.parentElement.classList.toggle('open');
+            } else if (target.classList.contains('autocomplete-item')) {
+                this.selectSuggestion(target.innerText);
             }
         });
 
         document.addEventListener('keydown', (e) => {
-            if (e.target.id === 'chat-input') {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.handleAction();
+            if (e.target.id === 'chat-input' || e.target.id === 'welcome-chat-input') {
+                if (this.activeAutocompleteInput) {
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        this.suggestionIndex = (this.suggestionIndex + 1) % this.suggestions.length;
+                        this.renderSuggestions();
+                        return;
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        this.suggestionIndex = (this.suggestionIndex - 1 + this.suggestions.length) % this.suggestions.length;
+                        this.renderSuggestions();
+                        return;
+                    } else if (e.key === 'Enter' || e.key === 'Tab') {
+                        if (this.suggestions.length > 0) {
+                            e.preventDefault();
+                            this.selectSuggestion(this.suggestions[this.suggestionIndex]);
+                            return;
+                        }
+                    } else if (e.key === 'Escape') {
+                        this.closeAutocomplete();
+                        return;
+                    }
                 }
-            } else if (e.target.id === 'welcome-chat-input') {
+
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    this.handleWelcomeAction();
+                    if (e.target.id === 'chat-input') this.handleAction();
+                    else this.handleWelcomeAction();
                 }
             }
         });
@@ -89,6 +119,19 @@ class MosaicUI {
                 input.style.height = 'auto';
                 input.style.height = input.scrollHeight + 'px';
                 
+                // Autocomplete check
+                const text = input.value;
+                const cursor = input.selectionStart;
+                const lastAt = text.lastIndexOf('@', cursor - 1);
+                
+                if (lastAt !== -1 && !text.substring(lastAt, cursor).includes(' ')) {
+                    const query = text.substring(lastAt + 1, cursor);
+                    this.activeAutocompleteInput = input;
+                    vscode.postMessage({ type: 'searchFiles', value: query });
+                } else {
+                    this.closeAutocomplete();
+                }
+
                 // Persist state
                 const state = vscode.getState() || {};
                 state[e.target.id] = input.value;
@@ -161,6 +204,10 @@ class MosaicUI {
         const input = document.getElementById('welcome-chat-input');
         const text = input ? input.value.trim() : '';
         if (text) {
+            if (this.isGenerating) {
+                this.handleQueue();
+                return;
+            }
             this.setGenerating(true);
             vscode.postMessage({ type: 'sendMessage', value: text });
             input.value = '';
@@ -171,6 +218,37 @@ class MosaicUI {
             vscode.setState(state);
             this.toggleWelcomeScreen(false);
         }
+    }
+
+    handleQueue() {
+        const input = this.isWelcomeVisible() ? document.getElementById('welcome-chat-input') : document.getElementById('chat-input');
+        const text = input ? input.value.trim() : '';
+        if (text) {
+            this.queuedMessage = text;
+            input.value = '';
+            input.style.height = 'auto';
+            input.placeholder = 'Message queued...';
+            
+            // Clear persisted state for this input
+            const state = vscode.getState() || {};
+            delete state[input.id];
+            vscode.setState(state);
+
+            this.updateQueueButtons(true);
+            this.addSystemMessage('Message queued. It will be sent automatically.');
+        }
+    }
+
+    isWelcomeVisible() {
+        const welcome = document.getElementById('welcome-screen');
+        return welcome && welcome.style.display !== 'none';
+    }
+
+    updateQueueButtons(active) {
+        const btns = [document.getElementById('queue-button'), document.getElementById('welcome-queue-button')];
+        btns.forEach(btn => {
+            if (btn) btn.classList.toggle('active', active);
+        });
     }
 
     handleQuickAction(action) {
@@ -242,7 +320,11 @@ class MosaicUI {
     handleAction() {
         const input = document.getElementById('chat-input');
         if (this.isGenerating) {
-            vscode.postMessage({ type: 'stopGeneration' });
+            if (input && input.value.trim()) {
+                this.handleQueue();
+            } else {
+                vscode.postMessage({ type: 'stopGeneration' });
+            }
         } else {
             const text = input ? input.value.trim() : '';
             if (text) {
@@ -293,9 +375,39 @@ class MosaicUI {
     setGenerating(val) {
         this.isGenerating = val;
         const btn = document.getElementById('action-button');
-        if (!btn) return;
-        btn.classList.toggle('generating', val);
-        btn.innerHTML = val ? '<span class="codicon codicon-debug-stop"></span>' : '<span class="codicon codicon-send"></span>';
+        const queueBtns = [document.getElementById('queue-button'), document.getElementById('welcome-queue-button')];
+        
+        if (btn) {
+            btn.classList.toggle('generating', val);
+            btn.innerHTML = val ? '<span class="codicon codicon-debug-stop"></span>' : '<span class="codicon codicon-send"></span>';
+        }
+
+        queueBtns.forEach(qBtn => {
+            if (qBtn) qBtn.style.display = val ? 'flex' : 'none';
+        });
+
+        if (!val) {
+            this.checkQueue();
+        }
+    }
+
+    checkQueue() {
+        if (this.queuedMessage) {
+            const text = this.queuedMessage;
+            this.queuedMessage = null;
+            this.updateQueueButtons(false);
+            
+            // Restore placeholders
+            const inputs = [document.getElementById('chat-input'), document.getElementById('welcome-chat-input')];
+            inputs.forEach(input => {
+                if (input) input.placeholder = input.id === 'welcome-chat-input' ? 'Ask Mosaic anything...' : 'Ask Mosaic...';
+            });
+
+            setTimeout(() => {
+                this.setGenerating(true);
+                vscode.postMessage({ type: 'sendMessage', value: text });
+            }, 500);
+        }
     }
 
     handleMessage(msg) {
@@ -320,7 +432,86 @@ class MosaicUI {
                 if (welcomeTitleEl) welcomeTitleEl.innerText = 'New Chat';
                 this.toggleWelcomeScreen(true);
                 break;
+            case 'fileSuggestions':
+                this.handleFileSuggestions(msg.files);
+                break;
         }
+    }
+
+    handleFileSuggestions(files) {
+        if (!this.activeAutocompleteInput) return;
+        this.suggestions = files || [];
+        this.suggestionIndex = 0;
+        this.renderSuggestions();
+    }
+
+    renderSuggestions() {
+        if (!this.activeAutocompleteInput) return;
+        const listId = this.activeAutocompleteInput.id === 'welcome-chat-input' ? 'welcome-autocomplete-list' : 'chat-autocomplete-list';
+        const list = document.getElementById(listId);
+        if (!list) return;
+
+        if (this.suggestions.length === 0) {
+            list.style.display = 'none';
+            return;
+        }
+
+        list.innerHTML = this.suggestions.map((s, i) => {
+            const iconClass = this.getIconForFile(s);
+            return `
+                <div class="autocomplete-item ${i === this.suggestionIndex ? 'selected' : ''}">
+                    <span class="codicon ${iconClass}"></span>
+                    <span>${s}</span>
+                </div>
+            `;
+        }).join('');
+        list.style.display = 'block';
+    }
+
+    getIconForFile(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        switch (ext) {
+            case 'ts':
+            case 'tsx': return 'codicon-file-code';
+            case 'js':
+            case 'jsx': return 'codicon-file-code';
+            case 'json': return 'codicon-json';
+            case 'md': return 'codicon-markdown';
+            case 'css': return 'codicon-symbol-color';
+            case 'html': return 'codicon-code';
+            case 'py': return 'codicon-symbol-method';
+            default: return 'codicon-file';
+        }
+    }
+
+    selectSuggestion(file) {
+        if (!this.activeAutocompleteInput) return;
+        const input = this.activeAutocompleteInput;
+        const text = input.value;
+        const cursor = input.selectionStart;
+        const lastAt = text.lastIndexOf('@', cursor - 1);
+        
+        if (lastAt !== -1) {
+            const before = text.substring(0, lastAt);
+            const after = text.substring(cursor);
+            input.value = before + '@' + file + ' ' + after;
+            input.focus();
+            const newCursor = lastAt + file.length + 2;
+            input.setSelectionRange(newCursor, newCursor);
+        }
+        this.closeAutocomplete();
+        
+        // Update persisted state
+        const state = vscode.getState() || {};
+        state[input.id] = input.value;
+        vscode.setState(state);
+    }
+
+    closeAutocomplete() {
+        this.activeAutocompleteInput = null;
+        this.suggestions = [];
+        this.suggestionIndex = 0;
+        document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
     }
 
     addMessage(role, content, id) {
@@ -363,6 +554,22 @@ class MosaicUI {
             <span>Out: ${metadata.outputTokens}</span>
         `;
         msgDiv.appendChild(metaDiv);
+
+        if (metadata.modifiedFiles && metadata.modifiedFiles.length > 0) {
+            const filesDiv = document.createElement('div');
+            filesDiv.className = 'modified-files-list';
+            filesDiv.innerHTML = `
+                <div class="modified-files-header">
+                    <span class="codicon codicon-save"></span>
+                    <span>Modified Files</span>
+                </div>
+                <div class="file-grid">
+                    ${metadata.modifiedFiles.map(f => `<div class="file-badge file"><span class="codicon codicon-file-submodule"></span> ${f}</div>`).join('')}
+                </div>
+            `;
+            msgDiv.appendChild(filesDiv);
+        }
+
         this.scrollToBottom();
     }
     

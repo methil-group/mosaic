@@ -26,6 +26,7 @@ export interface LlmProvider {
 export class Agent {
   private messages: Message[] = [];
   private stopped = false;
+  private modifiedFiles: Set<string> = new Set();
 
   constructor(
     private llm: LlmProvider,
@@ -168,6 +169,9 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
         if (tool) {
           try {
             result = await tool.execute(toolCall.arguments);
+            if (['write_file', 'edit_file'].includes(toolCall.name) && toolCall.arguments.path) {
+              this.modifiedFiles.add(toolCall.arguments.path);
+            }
           } catch (e: any) {
             result = `Error: ${e.message}`;
           }
@@ -189,7 +193,11 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
           content: PromptBuilder.formatToolResult(toolCall.name, result, callId)
         });
       } else {
-        await onEvent({ type: "final_answer", data: fullText });
+        await onEvent({ 
+          type: "final_answer", 
+          data: fullText,
+          parameters: { modifiedFiles: Array.from(this.modifiedFiles) }
+        });
         break;
       }
     }
