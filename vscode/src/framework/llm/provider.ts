@@ -9,12 +9,12 @@ export class BaseLlmProvider implements LlmProvider {
   ) {}
 
   async *streamChat(model: string, messages: Message[]): AsyncGenerator<StreamEvent> {
+    yield { type: 'log', message: `[LLM] Requesting ${model} with ${messages.length} messages...` };
     try {
       const response = await axios.post(
         `${this.baseUrl}/chat/completions`,
         {
           model: model,
-          // Strip non-standard fields like metadata before sending to API
           messages: messages.map(({ role, content }) => ({ role, content })),
           stream: true,
           stream_options: { include_usage: true }
@@ -28,6 +28,8 @@ export class BaseLlmProvider implements LlmProvider {
           responseType: 'stream'
         }
       );
+
+      yield { type: 'log', message: `[LLM] Response status: ${response.status} ${response.statusText}` };
 
       const stream = response.data;
       const decoder = new TextDecoder("utf-8");
@@ -47,7 +49,6 @@ export class BaseLlmProvider implements LlmProvider {
             try {
               const parsed = JSON.parse(data);
               
-              // Handle usage
               if (parsed.usage) {
                 yield { type: 'usage', data: parsed.usage };
               }
@@ -57,27 +58,32 @@ export class BaseLlmProvider implements LlmProvider {
                 yield { type: 'token', data: content };
               }
             } catch (e) {
-              console.error("Partial JSON parse error:", e, trimmed);
+              yield { type: 'log', message: `[LLM] JSON Parse Warning: ${trimmed}` };
             }
           }
         }
       }
     } catch (e: any) {
       let message = e.message;
+      let detailedError = "";
       if (e.response?.data) {
         if (typeof e.response.data === 'string') {
+          detailedError = e.response.data;
           message = `${e.message}: ${e.response.data}`;
         } else if (e.response.data.error?.message) {
+          detailedError = JSON.stringify(e.response.data.error);
           message = e.response.data.error.message;
         } else {
-          // Avoid JSON.stringify on potentially complex objects that might have circular refs
           try {
-            message = `${e.message}: ${JSON.stringify(e.response.data)}`;
+            detailedError = JSON.stringify(e.response.data);
+            message = `${e.message}: ${detailedError}`;
           } catch (serializeError) {
+            detailedError = "Could not serialize response data";
             message = `${e.message} (plus additional data that couldn't be serialized)`;
           }
         }
       }
+      yield { type: 'log', message: `[LLM] ERROR: ${message} | DETAILS: ${detailedError}` };
       yield { type: 'error', message };
     }
   }

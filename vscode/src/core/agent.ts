@@ -76,8 +76,13 @@ export class Agent {
     
     while (!this.stopped) {
       totalSteps++;
-      await onEvent({ type: "log", message: `Reasoning loop step ${totalSteps}...` });
-      console.log(`[Agent] Reasoning loop step ${totalSteps}...`);
+      const lastMsg = this.messages[this.messages.length - 1];
+      await onEvent({ type: "log", message: `[Agent] Step ${totalSteps} | Last message: ${lastMsg.role} (${lastMsg.content.length} chars)` });
+      
+      // Log full history to log file via SessionManager (onEvent log type)
+      const historySummary = this.messages.map(m => `[${m.role.toUpperCase()}] ${m.content.substring(0, 500)}${m.content.length > 500 ? '...' : ''}`).join('\n---\n');
+      await onEvent({ type: "log", message: `[Agent] FULL CONTEXT SENT TO MODEL:\n${historySummary}` });
+
       if (totalSteps > 50) {
         await onEvent({ type: "error", message: "Max steps reached" });
         break;
@@ -99,12 +104,10 @@ export class Agent {
 
             if (event.type === "token") {
               fullText += event.data;
-              console.log(`[Agent] Token: ${event.data.substring(0, 20)}${event.data.length > 20 ? '...' : ''}`);
               
               if (fullText.includes("<tool_call") || /<tool?\s*$/.test(fullText)) {
                 if (!isSuppressing) {
-                  await onEvent({ type: "log", message: "Tool call detected or malformed tag starting, suppressing tokens from UI." });
-                  console.log(`[Agent] Tool call suppression started.`);
+                  await onEvent({ type: "log", message: "[Agent] Tool call detected, suppressing tokens from UI." });
                 }
                 isSuppressing = true;
               }
@@ -113,6 +116,8 @@ export class Agent {
                 await onEvent(event);
               }
             } else if (event.type === "usage") {
+              await onEvent(event);
+            } else if (event.type === "log") {
               await onEvent(event);
             } else if (event.type === "error") {
               throw new Error(event.message || "Unknown provider error");
@@ -132,19 +137,14 @@ export class Agent {
         }
       }
 
+      await onEvent({ type: "log", message: `[Agent] RAW LLM RESPONSE (Turn ${totalSteps}):\n${fullText}` });
+
       const toolCall = ToolCallParser.parse(fullText);
       
       // If tool_call tags are present but parsing failed, inform the LLM and retry
-      if (!toolCall && fullText.includes("<tool_call")) {
-        const startIndex = fullText.indexOf("<tool_call>");
-        let rawContent = "unknown";
-        if (startIndex !== -1) {
-          const afterStart = fullText.substring(startIndex + 11);
-          const endIndex = afterStart.indexOf("</tool_call>");
-          rawContent = endIndex !== -1 ? afterStart.substring(0, endIndex) : afterStart;
-        }
-        await onEvent({ type: "log", message: `Malformed tool call detected. Raw content: ${rawContent.trim()}` });
-        console.log(`[Agent] Malformed tool call detected. Raw content: ${rawContent.trim()}`);
+      if (!toolCall && (fullText.includes("<tool_call") || fullText.includes("<<<tool_call"))) {
+        await onEvent({ type: "log", message: `[Agent] Malformed tool call detected. FULL RAW CONTENT:\n${fullText}` });
+        
         this.messages.push({ role: "assistant", content: fullText });
         this.messages.push({ 
           role: "user", 
