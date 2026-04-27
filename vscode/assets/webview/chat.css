@@ -989,7 +989,7 @@ body.vscode-dark .error-logo img {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 2rem 0.5rem;
   text-align: center;
   background: var(--bg-color);
   animation: fadeIn 0.4s ease-out;
@@ -997,7 +997,7 @@ body.vscode-dark .error-logo img {
 
 .welcome-content {
   width: 100%;
-  max-width: 400px;
+  max-width: 600px;
   display: flex;
   flex-direction: column;
   align-items: center;
