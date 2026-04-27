@@ -37,6 +37,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       try {
         if (data.type === 'ready') {
           this._handleGetHistory();
+          this._handleListChats();
           if (this._ongoingMessage) {
             this._view?.webview.postMessage({ 
               type: 'addMessage', 
@@ -119,6 +120,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'listTodos': return this._handleListTodos();
       case 'resetChat':
         this.resetChat();
+        break;
+      case 'updateTitle':
+        if (this._sessionManager) {
+          this._sessionManager.setTitle(data.value);
+          this._view?.webview.postMessage({ type: 'setTitle', title: data.value });
+          this._handleListChats();
+        }
         break;
       case 'webviewLog':
         console.log(`[Mosaic WEBVIEW LOG] ${data.message}`, data.detail || '');

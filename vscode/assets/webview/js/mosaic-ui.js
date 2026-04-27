@@ -28,6 +28,8 @@ class MosaicUI {
                 this.toggleSettingsScreen(true);
             } else if (target.id === 'settings-back-btn' || target.closest('#settings-back-btn')) {
                 this.toggleSettingsScreen(false);
+            } else if (target.id === 'rename-chat-btn' || target.closest('#rename-chat-btn')) {
+                this.handleRenameChat();
             } else if (target.id === 'save-settings-btn') {
                 this.handleSaveSettings();
             } else if (target.id === 'welcome-action-button' || target.closest('#welcome-action-button')) {
@@ -256,6 +258,15 @@ class MosaicUI {
         }
     }
 
+    handleRenameChat() {
+        const titleEl = document.getElementById('active-chat-title');
+        const currentTitle = titleEl ? titleEl.innerText : 'New Chat';
+        const newTitle = prompt('Enter new chat title:', currentTitle);
+        if (newTitle && newTitle !== currentTitle) {
+            vscode.postMessage({ type: 'updateTitle', value: newTitle.trim() });
+        }
+    }
+
     handleSaveSetup() {
         const pEl = document.getElementById('setup-provider');
         const kEl = document.getElementById('setup-apikey');
@@ -298,9 +309,15 @@ class MosaicUI {
             case 'chatList': this.updateChatList(msg.chats); break;
             case 'todoList': this.updateTodoList(msg.todos); break;
             case 'addSystemMessage': this.addSystemMessage(msg.content); break;
+            case 'setTitle':
+                const titleEl = document.getElementById('active-chat-title');
+                if (titleEl) titleEl.innerText = msg.title;
+                break;
             case 'clearMessages': 
                 const container = document.getElementById('messages');
                 if (container) container.innerHTML = ''; 
+                const welcomeTitleEl = document.getElementById('active-chat-title');
+                if (welcomeTitleEl) welcomeTitleEl.innerText = 'New Chat';
                 this.toggleWelcomeScreen(true);
                 break;
         }

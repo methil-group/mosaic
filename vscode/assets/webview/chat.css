@@ -95,6 +95,31 @@ body.vscode-dark .error-logo img {
   justify-content: space-between;
 }
 
+.title-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+#rename-chat-btn {
+  font-size: 0.8rem;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  color: var(--vscode-descriptionForeground);
+  flex-shrink: 0;
+}
+
+.title-container:hover #rename-chat-btn {
+  opacity: 1;
+}
+
+#rename-chat-btn:hover {
+  color: var(--vscode-foreground);
+}
+
 .header-actions {
   display: flex;
   gap: 4px;

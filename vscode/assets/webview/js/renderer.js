@@ -1,10 +1,10 @@
 function renderMarkdown(content) {
     if (!content) return '';
     
-    // Fix common LLM malformed tag bugs like <tool<tool_call> or <tool\n<tool_call>
+    // Fix common LLM malformed tag bugs like <tool<tool_call>, <tool\n<tool_call>, or <\n<tool_call>
     if (typeof content === 'string') {
-        content = content.replace(/<tool\s*(?=<tool_call)/g, '');
-        content = content.replace(/<thought\s*(?=<thought)/g, '');
+        content = content.replace(/<(?:tool)?\s*(?=<tool_call)/g, '');
+        content = content.replace(/<(?:thought)?\s*(?=<thought)/g, '');
     }
     
     if (Array.isArray(content)) {
