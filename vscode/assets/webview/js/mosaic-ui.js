@@ -25,6 +25,8 @@ class MosaicUI {
 
             if (target.id === 'action-button' || target.closest('#action-button')) {
                 this.handleAction();
+            } else if (target.id === 'welcome-action-button' || target.closest('#welcome-action-button')) {
+                this.handleWelcomeAction();
             } else if (target.id === 'save-setup-btn') {
                 this.handleSaveSetup();
             } else if (target.id === 'queue-button' || target.closest('#queue-button') || target.id === 'welcome-queue-button' || target.closest('#welcome-queue-button')) {
