@@ -141,22 +141,28 @@ function renderPart(part) {
     }
     
     if (type === 'user_tool_result') {
-        const m = content.match(/<(?:tool_response|tool_result) id="([^"]+)">([\s\S]*?)<\/(?:tool_response|tool_result)>/) || content.match(/<(?:tool_response|tool_result)>([\s\S]*?)<\/(?:tool_response|tool_result)>/);
-        if (m) {
-            const id = m[1] || '';
-            const innerContent = m[2] || m[1];
-            return `<div class="tool-result-marker" data-id="${id}" style="display:none">${innerContent}</div>`;
+        const mWithId = content.match(/<(?:tool_response|tool_result) id="([^"]+)">([\s\S]*?)<\/(?:tool_response|tool_result)>/);
+        if (mWithId) {
+            return `<div class="tool-result-marker" data-id="${mWithId[1]}" style="display:none">${mWithId[2]}</div>`;
+        }
+        const mWithoutId = content.match(/<(?:tool_response|tool_result)>([\s\S]*?)<\/(?:tool_response|tool_result)>/);
+        if (mWithoutId) {
+            return `<div class="tool-result-marker" data-id="" style="display:none">${mWithoutId[1]}</div>`;
         }
     }
     
-    return content;
+    return '';
 }
 
 function finalizeToolCalls(container) {
     const results = container.querySelectorAll('.tool-result-marker');
     results.forEach(res => {
         const id = res.getAttribute('data-id');
-        const callDiv = container.querySelector('#call-' + id) || (id ? document.getElementById('call-' + id) : null);
+        if (!id) {
+            res.remove();
+            return;
+        }
+        const callDiv = document.getElementById('call-' + id);
         if (callDiv) {
             const header = callDiv.querySelector('.tool-header');
             const content = callDiv.querySelector('.tool-content');
