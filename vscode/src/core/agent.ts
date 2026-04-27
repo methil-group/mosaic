@@ -123,6 +123,13 @@ export class Agent {
               throw new Error(event.message || "Unknown provider error");
             }
           }
+
+          // Check for very short or malformed response (streaming artifacts)
+          const trimmed = fullText.trim();
+          if (trimmed.length > 0 && (trimmed.length < 6 || trimmed === "<" || trimmed === "<<" || trimmed === "<<<")) {
+             throw new Error(`Response too short or contains only artifacts: "${trimmed}"`);
+          }
+
           success = true;
         } catch (e: any) {
           retries++;
@@ -130,10 +137,9 @@ export class Agent {
             await onEvent({ type: "error", message: `Failed after ${maxRetries} attempts: ${e.message}` });
             return;
           }
-          // Short delay before retry
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          await onEvent({ type: "log", message: `Retrying LLM call (attempt ${retries + 1}/${maxRetries})... Error: ${e.message}` });
-          console.log(`Retrying LLM call (attempt ${retries + 1}/${maxRetries})... Error: ${e.message}`);
+          // Wait 5 seconds before retry as requested
+          await onEvent({ type: "log", message: `[Agent] Attempt ${retries} failed or was too short. Waiting 5s before retry ${retries + 1}/${maxRetries}... (${e.message})` });
+          await new Promise(resolve => setTimeout(resolve, 5000));
         }
       }
 
