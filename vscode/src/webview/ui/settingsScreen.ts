@@ -1,4 +1,4 @@
-export function renderSettingsScreen(provider?: string, apiKey?: string): string {
+export function renderSettingsScreen(provider?: string, apiKey?: string, lmStudioUrl?: string): string {
     return `
     <div id="settings-screen" style="display:none">
         <div class="settings-header">
@@ -19,6 +19,10 @@ export function renderSettingsScreen(provider?: string, apiKey?: string): string
                 <label>API Key</label>
                 <input type="password" id="settings-apikey" value="${apiKey || ''}" placeholder="sk-or-v1-..." />
                 <p class="settings-help">Your key is stored locally in VS Code's global state.</p>
+            </div>
+            <div class="setup-group" id="settings-lmstudio-url-group" style="${provider !== 'lmstudio' ? 'display:none;' : ''}">
+                <label>LM Studio URL</label>
+                <input type="text" id="settings-lmstudio-url" value="${lmStudioUrl || 'http://localhost:1234/v1'}" placeholder="http://localhost:1234/v1" />
             </div>
             <button id="save-settings-btn" class="primary-btn">Save Changes</button>
         </div>

@@ -1,4 +1,4 @@
-export function renderSetupScreen(provider?: string, apiKey?: string): string {
+export function renderSetupScreen(provider?: string, apiKey?: string, lmStudioUrl?: string): string {
     return `
     <div id="setup-screen">
         <h1>Welcome to Mosaic</h1>
@@ -13,6 +13,10 @@ export function renderSetupScreen(provider?: string, apiKey?: string): string {
         <div class="setup-group" id="apikey-group" style="${provider === 'lmstudio' ? 'display:none;' : ''}">
             <label>API Key</label>
             <input type="password" id="setup-apikey" value="${apiKey || ''}" placeholder="sk-or-v1-..." />
+        </div>
+        <div class="setup-group" id="lmstudio-url-group" style="${provider !== 'lmstudio' ? 'display:none;' : ''}">
+            <label>LM Studio URL</label>
+            <input type="text" id="setup-lmstudio-url" value="${lmStudioUrl || 'http://localhost:1234/v1'}" placeholder="http://localhost:1234/v1" />
         </div>
         <button id="save-setup-btn">Save & Continue</button>
     </div>`;

@@ -86,6 +86,26 @@ class MosaicUI {
             }
         });
 
+        const providerSelects = [document.getElementById('setup-provider'), document.getElementById('settings-provider')];
+        providerSelects.forEach(select => {
+            if (select) {
+                select.addEventListener('change', (e) => {
+                    const isSettings = select.id === 'settings-provider';
+                    const prefix = isSettings ? 'settings-' : 'setup-';
+                    const apiKeyGroup = document.getElementById(prefix + 'apikey-group');
+                    const lmstudioUrlGroup = document.getElementById(prefix + 'lmstudio-url-group');
+                    
+                    if (e.target.value === 'lmstudio') {
+                        if (apiKeyGroup) apiKeyGroup.style.display = 'none';
+                        if (lmstudioUrlGroup) lmstudioUrlGroup.style.display = 'block';
+                    } else {
+                        if (apiKeyGroup) apiKeyGroup.style.display = 'block';
+                        if (lmstudioUrlGroup) lmstudioUrlGroup.style.display = 'none';
+                    }
+                });
+            }
+        });
+
         document.addEventListener('keydown', (e) => {
             if (e.target.id === 'chat-input' || e.target.id === 'welcome-chat-input') {
                 if (this.activeAutocompleteInput) {
@@ -317,11 +337,14 @@ class MosaicUI {
     handleSaveSettings() {
         const pEl = document.getElementById('settings-provider');
         const kEl = document.getElementById('settings-apikey');
+        const uEl = document.getElementById('settings-lmstudio-url');
         if (pEl) {
             const p = pEl.value;
             const k = kEl ? kEl.value : '';
+            const u = uEl ? uEl.value : '';
             vscode.postMessage({ type: 'setProvider', value: p });
             if (k) vscode.postMessage({ type: 'setApiKey', value: k });
+            if (u) vscode.postMessage({ type: 'setLmStudioUrl', value: u });
             this.toggleSettingsScreen(false);
         }
     }
@@ -361,11 +384,14 @@ class MosaicUI {
     handleSaveSetup() {
         const pEl = document.getElementById('setup-provider');
         const kEl = document.getElementById('setup-apikey');
+        const uEl = document.getElementById('setup-lmstudio-url');
         if (pEl) {
             const p = pEl.value;
             const k = kEl ? kEl.value : '';
+            const u = uEl ? uEl.value : '';
             vscode.postMessage({ type: 'setProvider', value: p });
             if (k) vscode.postMessage({ type: 'setApiKey', value: k });
+            if (u) vscode.postMessage({ type: 'setLmStudioUrl', value: u });
         }
     }
 

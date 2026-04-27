@@ -217,6 +217,39 @@ body.vscode-dark .error-logo img {
   box-sizing: border-box;
 }
 
+.message table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.85rem;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.message th, .message td {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+  min-width: 80px;
+}
+
+.message th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.message tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.message tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

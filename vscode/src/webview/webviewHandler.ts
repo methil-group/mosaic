@@ -7,7 +7,7 @@ import { getClientJs } from './ui/mosaicUI';
 export class WebviewHandler {
     constructor(private readonly _extensionUri: vscode.Uri) {}
 
-    public getHtmlForWebview(webview: vscode.Webview, setupRequired: boolean, repoName: string, provider?: string, apiKey?: string, currentModel?: string, noWorkspace = false): string {
+    public getHtmlForWebview(webview: vscode.Webview, setupRequired: boolean, repoName: string, provider?: string, apiKey?: string, currentModel?: string, noWorkspace = false, lmStudioUrl?: string): string {
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'assets', 'webview', 'chat.css'));
         const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
         const iconUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'assets', 'icon.png'));
@@ -17,9 +17,9 @@ export class WebviewHandler {
         if (noWorkspace) {
             content = renderErrorScreen(iconUri.toString());
         } else if (setupRequired) {
-            content = renderSetupScreen(provider, apiKey);
+            content = renderSetupScreen(provider, apiKey, lmStudioUrl);
         } else {
-            content = renderChatScreen(repoName, iconUri.toString(), provider, apiKey);
+            content = renderChatScreen(repoName, iconUri.toString(), provider, apiKey, lmStudioUrl);
         }
 
         return `<!DOCTYPE html>

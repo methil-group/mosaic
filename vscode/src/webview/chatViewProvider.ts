@@ -77,6 +77,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     const provider = this._context.globalState.get<string>('mosaic.provider');
     const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
+    const lmStudioUrl = this._context.globalState.get<string>('mosaic.lmstudioBaseUrl') || 'http://localhost:1234/v1';
     const model = this._context.globalState.get<string>('mosaic.model') || '';
     const repoName = vscode.workspace.workspaceFolders?.[0]?.name || 'Mosaic';
     const noWorkspace = !vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0;
@@ -89,7 +90,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       provider,
       apiKey,
       model,
-      noWorkspace
+      noWorkspace,
+      lmStudioUrl
     );
 
     if (this._view.webview.html !== newHtml) {
@@ -110,6 +112,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case 'setApiKey':
         await this._context.globalState.update('mosaic.openrouterApiKey', data.value);
+        this.refresh();
+        break;
+      case 'setLmStudioUrl':
+        await this._context.globalState.update('mosaic.lmstudioBaseUrl', data.value);
         this.refresh();
         break;
       case 'fetchModels': return this._handleFetchModels();
@@ -173,7 +179,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     const providerType = this._context.globalState.get<string>('mosaic.provider') || 'openrouter';
     const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
-    const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider() : new OpenRouterProvider(apiKey);
+    const lmStudioUrl = this._context.globalState.get<string>('mosaic.lmstudioBaseUrl') || 'http://localhost:1234/v1';
+    const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider(lmStudioUrl) : new OpenRouterProvider(apiKey);
 
     try {
       const models = await llmProvider.fetchModels();
@@ -217,7 +224,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     if (fs.existsSync(chatFile)) {
       fs.unlinkSync(chatFile);
       this._handleListChats();
-      this._view.webview.postMessage({ type: 'addSystemMessage', content: `Deleted chat: ${chatId}` });
+      this._sessionManager?.log('SYSTEM', `Deleted chat: ${chatId}`);
     }
   }
 
@@ -244,8 +251,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         if (firstUserMsg) {
           const providerType = this._context.globalState.get<string>('mosaic.provider') || 'openrouter';
           const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
+          const lmStudioUrl = this._context.globalState.get<string>('mosaic.lmstudioBaseUrl') || 'http://localhost:1234/v1';
+          const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider(lmStudioUrl) : new OpenRouterProvider(apiKey);
           const model = this._context.globalState.get<string>('mosaic.model') || 'deepseek/deepseek-v4-flash';
-          const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider() : new OpenRouterProvider(apiKey);
           this._generateTitle(llmProvider, model, typeof firstUserMsg.content === 'string' ? firstUserMsg.content : (firstUserMsg.content[0]?.content || '')).then(title => {
             if (title && this._view) this._view.webview.postMessage({ type: 'setTitle', title });
           });
@@ -268,9 +276,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           });
         }
       });
-      this._view.webview.postMessage({ type: 'addSystemMessage', content: `Loaded chat: ${session.title || chatId}` });
+      this._sessionManager?.log('SYSTEM', `Loaded chat: ${session.title || chatId}`);
     } catch (e) {
-      this._view.webview.postMessage({ type: 'addSystemMessage', content: 'Failed to load chat.' });
+      this._sessionManager?.log('ERROR', `Failed to load chat: ${e}`);
     }
   }
 
@@ -311,8 +319,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     const providerType = this._context.globalState.get<string>('mosaic.provider') || 'openrouter';
     const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
+    const lmStudioUrl = this._context.globalState.get<string>('mosaic.lmstudioBaseUrl') || 'http://localhost:1234/v1';
     const model = this._context.globalState.get<string>('mosaic.model') || 'deepseek/deepseek-v4-flash';
-    const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider() : new OpenRouterProvider(apiKey);
+    const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider(lmStudioUrl) : new OpenRouterProvider(apiKey);
 
     const tools = [
       new ReadFileTool(), new WriteFileTool(), new EditFileTool(),

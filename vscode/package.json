@@ -63,6 +63,32 @@
           "when": "view == mosaic.chatView"
         }
       ]
+    },
+    "configuration": {
+      "title": "Mosaic",
+      "properties": {
+        "mosaic.openrouterApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API Key for OpenRouter"
+        },
+        "mosaic.lmstudioBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:1234/v1",
+          "description": "Base URL for LM Studio (e.g. http://localhost:1234/v1)"
+        },
+        "mosaic.provider": {
+          "type": "string",
+          "enum": ["openrouter", "lmstudio"],
+          "default": "openrouter",
+          "description": "Preferred LLM provider"
+        },
+        "mosaic.model": {
+          "type": "string",
+          "default": "deepseek/deepseek-v4-flash",
+          "description": "Selected model"
+        }
+      }
     }
   },
   "scripts": {
