@@ -2,8 +2,8 @@
   "name": "mosaic-vscode",
   "displayName": "Mosaic",
   "description": "AI-powered coding assistant with full tool-calling capabilities.",
-  "version": "0.0.8",
-  "icon": "assets/icon.png",
+  "version": "0.0.9",
+  "icon": "assets/icon-white.png",
   "publisher": "methil",
   "license": "Unlicense",
   "repository": {
@@ -31,7 +31,7 @@
         {
           "id": "mosaic-sidebar",
           "title": "Mosaic",
-          "icon": "assets/icon.png"
+          "icon": "assets/icon-white.png"
         }
       ]
     },
