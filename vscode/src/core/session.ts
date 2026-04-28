@@ -77,9 +77,25 @@ export class SessionManager {
     if (!this.sessionLogDir) return;
     this.promptCount++;
     const timestamp = new Date().toISOString().replace(/T/, '_').replace(/-|:|\./g, '').substring(0, 15);
-    const filename = `prompt_${this.promptCount}_${timestamp}.json`;
+    const filename = `prompt_${this.promptCount}_${timestamp}.xml`;
     const filePath = path.join(this.sessionLogDir, filename);
-    fs.writeFileSync(filePath, JSON.stringify(messages, null, 2));
+
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<prompt>\n';
+    messages.forEach(msg => {
+      const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+      // Simple XML escaping for common characters
+      const escapedContent = content
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+      
+      xml += `  <message role="${msg.role}">\n    ${escapedContent}\n  </message>\n`;
+    });
+    xml += '</prompt>';
+
+    fs.writeFileSync(filePath, xml);
   }
 
   public addMessage(role: 'user' | 'assistant' | 'system', content: string | MessageContentPart[], metadata?: any, id?: string) {

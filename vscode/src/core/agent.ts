@@ -200,6 +200,20 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
           content: PromptBuilder.formatToolResult(toolCall.name, result, callId)
         });
       } else {
+        // Check if the model only provided thoughts without any action or final response
+        const thoughtRegex = /<thought>[\s\S]*?<\/thought>/g;
+        const textWithoutThoughts = fullText.replace(thoughtRegex, '').trim();
+        
+        if (textWithoutThoughts.length === 0 && fullText.includes('<thought>')) {
+          await onEvent({ type: "log", message: `[Agent] LLM only provided thoughts without action. Nudging...` });
+          this.messages.push({ role: "assistant", content: fullText });
+          this.messages.push({ 
+            role: "user", 
+            content: "You provided your thoughts but didn't call any tool or provide a final response. Please proceed with an action or a final answer." 
+          });
+          continue;
+        }
+
         await onEvent({ 
           type: "final_answer", 
           data: fullText,
