@@ -26,6 +26,8 @@ export class SessionManager {
   private sessionId: string;
   private chatDir: string;
   private logDir: string;
+  private sessionLogDir: string = '';
+  private promptCount = 0;
   private title = "New Chat";
   private history: ChatMessage[] = [];
   constructor(workspacePath: string, sessionId?: string) {
@@ -40,6 +42,7 @@ export class SessionManager {
       const mosaicDir = path.join(workspacePath, '.mosaic');
       this.chatDir = path.join(mosaicDir, 'chats');
       this.logDir = path.join(mosaicDir, 'logs');
+      this.sessionLogDir = path.join(this.logDir, this.sessionId);
 
       if (!fs.existsSync(this.chatDir)) {
         fs.mkdirSync(this.chatDir, { recursive: true });
@@ -47,9 +50,13 @@ export class SessionManager {
       if (!fs.existsSync(this.logDir)) {
         fs.mkdirSync(this.logDir, { recursive: true });
       }
+      if (!fs.existsSync(this.sessionLogDir)) {
+        fs.mkdirSync(this.sessionLogDir, { recursive: true });
+      }
     } else {
       this.chatDir = '';
       this.logDir = '';
+      this.sessionLogDir = '';
     }
   }
 
@@ -64,6 +71,15 @@ export class SessionManager {
     const logLine = `[${timestamp}] [${role.toUpperCase()}] ${message}\n`;
     const logFile = path.join(this.logDir, `session_${this.sessionId.split('_')[0]}.log`);
     fs.appendFileSync(logFile, logLine);
+  }
+
+  public logFullPrompt(messages: any[]) {
+    if (!this.sessionLogDir) return;
+    this.promptCount++;
+    const timestamp = new Date().toISOString().replace(/T/, '_').replace(/-|:|\./g, '').substring(0, 15);
+    const filename = `prompt_${this.promptCount}_${timestamp}.json`;
+    const filePath = path.join(this.sessionLogDir, filename);
+    fs.writeFileSync(filePath, JSON.stringify(messages, null, 2));
   }
 
   public addMessage(role: 'user' | 'assistant' | 'system', content: string | MessageContentPart[], metadata?: any, id?: string) {

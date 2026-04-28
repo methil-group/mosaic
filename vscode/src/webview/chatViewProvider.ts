@@ -373,6 +373,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
               this._sessionManager.log('system', event.message);
             }
             break;
+          case 'full_prompt':
+            if (this._sessionManager && event.data) {
+              this._sessionManager.logFullPrompt(event.data);
+            }
+            break;
           case 'usage':
             lastUsage = event.data;
             break;

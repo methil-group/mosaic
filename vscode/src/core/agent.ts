@@ -10,7 +10,7 @@ export interface Message {
 }
 
 export interface StreamEvent {
-  type: "token" | "usage" | "error" | "log" | "tool_started" | "tool_finished" | "final_answer";
+  type: "token" | "usage" | "error" | "log" | "tool_started" | "tool_finished" | "final_answer" | "full_prompt";
   data?: any;
   message?: string;
   name?: string;
@@ -82,6 +82,7 @@ export class Agent {
       // Log full history to log file via SessionManager (onEvent log type)
       const historySummary = this.messages.map(m => `[${m.role.toUpperCase()}] ${m.content.substring(0, 500)}${m.content.length > 500 ? '...' : ''}`).join('\n---\n');
       await onEvent({ type: "log", message: `[Agent] FULL CONTEXT SENT TO MODEL:\n${historySummary}` });
+      await onEvent({ type: "full_prompt", data: this.messages });
 
       if (totalSteps > 50) {
         await onEvent({ type: "error", message: "Max steps reached" });
