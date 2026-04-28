@@ -123,6 +123,10 @@ export const PREFERRED_MODELS = [
   'google/gemma-4-31b-it',
   'xiaomi/mimo-v2.5-pro',
   'qwen/qwen3.6-plus',
+  'qwen/qwen3.6-35b-a3b',
+  'qwen/qwen3.6-27b',
+  'minimax/minimax-m2.7',
+  'qwen/qwen3-coder-next',
   'moonshotai/kimi-k2.6',
   'z-ai/glm-5.1',
   'essentialai/rnj-1-instruct'
