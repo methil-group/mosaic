@@ -83,15 +83,10 @@ export class SessionManager {
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<prompt>\n';
     messages.forEach(msg => {
       const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
-      // Simple XML escaping for common characters
-      const escapedContent = content
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
+      // Use CDATA to handle special characters. We only need to escape the CDATA end sequence if it exists in content.
+      const safeContent = content.replace(/]]>/g, ']]]]><![CDATA[>');
       
-      xml += `  <message role="${msg.role}">\n    ${escapedContent}\n  </message>\n`;
+      xml += `  <message role="${msg.role}"><![CDATA[${safeContent}]]></message>\n`;
     });
     xml += '</prompt>';
 
