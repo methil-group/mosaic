@@ -146,18 +146,42 @@ export class Agent {
 
       await onEvent({ type: "log", message: `[Agent] RAW LLM RESPONSE (Turn ${totalSteps}):\n${fullText}` });
 
-      const toolCall = ToolCallParser.parse(fullText);
+      const { toolCall, error: parseError } = ToolCallParser.parse(fullText);
       
       // If tool_call tags are present but parsing failed, inform the LLM and retry
       if (!toolCall && (fullText.includes("<tool_call") || fullText.includes("<<<tool_call"))) {
-        await onEvent({ type: "log", message: `[Agent] Malformed tool call detected. FULL RAW CONTENT:\n${fullText}` });
+        const displayError = parseError ? `Parsing error: ${parseError}` : "Unknown parsing error";
+        await onEvent({ type: "log", message: `[Agent] Malformed tool call detected. ${displayError}` });
         
-        this.messages.push({ role: "assistant", content: fullText });
+        // Truncate huge malformed responses to avoid context bloat
+        let historyContent = fullText;
+        if (fullText.length > 5000) {
+          const thoughtRegex = /<thought>([\s\S]*?)<\/thought>/;
+          const thoughtMatch = fullText.match(thoughtRegex);
+          const thought = thoughtMatch ? thoughtMatch[0] : "";
+          historyContent = `${thought}\n\n<tool_call>\n... [TRUNCATED DUE TO SIZE: ${fullText.length} chars] ...\n</tool_call>`;
+        }
+
+        this.messages.push({ role: "assistant", content: historyContent });
+        
+        const nudge = `❌ Malformed tool call detected. ${displayError}.
+Please ensure your tool call is a valid JSON object wrapped in <tool_call> tags.
+- Use DOUBLE QUOTES for all keys and string values.
+- Escape all backslashes and double quotes inside string values (e.g. \\" and \\\\).
+- Do not include trailing commas.
+- If you are writing a large file, double check the JSON escaping or use 'run_command' with 'cat' and a HEREDOC if appropriate.
+
+Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool_call>`;
+
         this.messages.push({ 
           role: "user", 
-          content: `❌ Malformed tool call detected. Please ensure your tool call is a valid JSON object wrapped in <tool_call> tags, using DOUBLE QUOTES for keys and string values.
-Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool_call>`
+          content: nudge
         });
+
+        // Emit events so the UI knows about the failure and the nudge
+        await onEvent({ type: "log", message: `[Agent] Added malformed assistant response to history.` });
+        await onEvent({ type: "log", message: `[Agent] Internal User Nudge: ${nudge}` });
+        
         continue;
       }
 
@@ -207,10 +231,14 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
         if (textWithoutThoughts.length === 0 && fullText.includes('<thought>')) {
           await onEvent({ type: "log", message: `[Agent] LLM only provided thoughts without action. Nudging...` });
           this.messages.push({ role: "assistant", content: fullText });
+          
+          const nudge = "You provided your thoughts but didn't call any tool or provide a final response. Please proceed with an action or a final answer.";
           this.messages.push({ 
             role: "user", 
-            content: "You provided your thoughts but didn't call any tool or provide a final response. Please proceed with an action or a final answer." 
+            content: nudge
           });
+          
+          await onEvent({ type: "log", message: `[Agent] Internal User Nudge: ${nudge}` });
           continue;
         }
 

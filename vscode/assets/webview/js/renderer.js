@@ -43,8 +43,26 @@ function renderMarkdown(content) {
     // Grouping consecutive tool calls and results
     const groupedBlocks = [];
     let currentGroup = null;
+    const tasks = [];
 
     for (const b of blocks) {
+        if (b.type === 'tool_call') {
+            const m = b.content.match(/<tool_call name="(create_todo|update_todo|delete_todo)"[^>]*>([\s\S]*?)<\/tool_call>/);
+            if (m) {
+                try {
+                    const args = JSON.parse(m[2].trim());
+                    const name = m[1];
+                    let title = args.title;
+                    if (!title && args.status) title = `Marked task ${args.id || ''} as ${args.status}`;
+                    if (!title && name === 'delete_todo') title = `Deleted task ${args.id || ''}`;
+                    
+                    if (title) {
+                        tasks.push({ title: title, type: name });
+                    }
+                } catch(e) {}
+            }
+        }
+
         const isTool = b.type === 'tool_call' || b.type === 'user_tool_result';
         // More aggressive whitespace check including common invisible characters
         const isWhitespace = b.type === 'message' && b.content.replace(/[\s\n\r\t\u200B-\u200D\uFEFF]/g, '').length === 0;
@@ -66,6 +84,12 @@ function renderMarkdown(content) {
 
     // Post-process: ensure we didn't end up with empty groups or stray characters
     const finalBlocks = [];
+    
+    // Add task summary at the very top if tasks were found
+    if (tasks.length > 0) {
+        finalBlocks.push({ type: 'task_summary', tasks: tasks });
+    }
+
     for (const b of groupedBlocks) {
         if (b.type === 'message') {
             const trimmed = b.content.trim();
@@ -79,7 +103,32 @@ function renderMarkdown(content) {
 }
 
 function renderPart(part) {
-    const { type, content, children } = part;
+    const { type, content, children, tasks } = part;
+    
+    if (type === 'task_summary') {
+        return `
+            <div class="message-tasks">
+                <div class="message-tasks-header">
+                    <span class="codicon codicon-checklist"></span>
+                    <span>Tasks</span>
+                </div>
+                <div class="message-tasks-list">
+                    ${tasks.map(t => {
+                        let icon = 'codicon-add';
+                        if (t.type === 'update_todo') icon = 'codicon-edit';
+                        if (t.type === 'delete_todo') icon = 'codicon-trash';
+                        return `
+                            <div class="message-task-item">
+                                <span class="codicon ${icon}"></span>
+                                <span>${t.title}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
     if (type === 'message') {
         const trimmed = content.trim();
         if (!trimmed || trimmed === '<' || trimmed === '>') return '';

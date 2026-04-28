@@ -371,6 +371,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           case 'log':
             if (this._sessionManager && event.message) {
               this._sessionManager.log('system', event.message);
+              if (event.message.includes('Internal User Nudge:')) {
+                const nudge = event.message.split('Internal User Nudge:')[1].trim();
+                const marker = `\n\n[SYSTEM NUDGE]: ${nudge}\n\n`;
+                fullContent += marker;
+                if (this._ongoingMessage) this._ongoingMessage.content = fullContent;
+                this._view.webview.postMessage({ type: 'updateMessage', id: assistantId, content: marker });
+              }
             }
             break;
           case 'full_prompt':
@@ -393,6 +400,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             fullContent += marker;
             if (this._ongoingMessage) this._ongoingMessage.content = fullContent;
             this._view.webview.postMessage({ type: 'updateMessage', id: assistantId, content: marker });
+            
+            if (['create_todo', 'update_todo', 'delete_todo'].includes(event.name || '')) {
+              this._handleListTodos();
+            }
             break;
           }
           case 'final_answer': {

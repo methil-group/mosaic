@@ -796,6 +796,55 @@ body.vscode-dark .error-logo img {
   animation: slideDown 0.2s ease-out;
 }
 
+.message-tasks {
+  background: var(--vscode-editor-inactiveSelectionBackground);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin: 0 0 0.75rem 0;
+  overflow: hidden;
+  animation: slideDown 0.2s ease-out;
+}
+
+.message-tasks-header {
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03rem;
+  color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.message-tasks-header .codicon {
+  font-size: 0.9rem;
+  color: var(--vscode-button-background);
+}
+
+.message-tasks-list {
+  padding: 0.25rem 0;
+}
+
+.message-task-item {
+  padding: 0.4rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--vscode-foreground);
+}
+
+.message-task-item .codicon {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.message-task-item .codicon-add { color: #10b981; }
+.message-task-item .codicon-edit { color: #3b82f6; }
+
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
