@@ -330,6 +330,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     ];
 
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath || '';
+    const workspaceName = vscode.workspace.workspaceFolders?.[0]?.name || 'Workspace';
+    
     if (!this._sessionManager && workspacePath) {
       this._sessionManager = new SessionManager(workspacePath);
       this._sessionManager.log('system', `Session started: ${model}`);
@@ -346,8 +348,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     const history = this._sessionManager ? this._sessionManager.getHistory() : [];
-    this._activeAgent = new Agent(llmProvider, model, workspacePath, "User", tools, history);
+    this._activeAgent = new Agent(llmProvider, model, workspaceName, "User", tools, history);
     this._view.webview.postMessage({ type: 'addMessage', role: 'user', content: text, id: userMsgId });
+
+    // Log system info at start of message if session just started
+    if (this._sessionManager && history.length <= 1) {
+      this._sessionManager.logSystem({
+        os: process.platform,
+        vscodeVersion: vscode.version,
+        extensionVersion: this._context.extension.packageJSON.version,
+        model,
+        provider: providerType,
+        workspace: workspacePath // We still log the absolute path for system logs, but the agent doesn't see it.
+      });
+    }
 
     const assistantId = `msg-${Date.now()}`;
     let fullContent = '';
@@ -387,6 +401,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             break;
           case 'usage':
             lastUsage = event.data;
+            if (this._sessionManager) {
+              this._sessionManager.logUsage(model, event.data);
+            }
             break;
           case 'tool_started': {
             const marker = `\n<tool_call name="${event.name}" id="${event.call_id}">\n${JSON.stringify(event.parameters, null, 2)}\n</tool_call>\n`;
@@ -396,11 +413,28 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             break;
           }
           case 'tool_finished': {
-            const marker = `\n<tool_response id="${event.call_id}">\n${typeof event.result === 'string' ? event.result : JSON.stringify(event.result, null, 2)}\n</tool_response>\n`;
+            const toolResult = typeof event.result === 'string' ? event.result : JSON.stringify(event.result, null, 2);
+            
+            // Truncate for UI if too large
+            const uiResult = toolResult.length > 50000 
+              ? `${toolResult.substring(0, 50000)}\n\n... [TRUNCATED IN UI FOR PERFORMANCE. FULL LOG IN .mosaic/logs/tools.jsonl] ...`
+              : toolResult;
+
+            const marker = `\n<tool_response id="${event.call_id}">\n${uiResult}\n</tool_response>\n`;
             fullContent += marker;
             if (this._ongoingMessage) this._ongoingMessage.content = fullContent;
             this._view.webview.postMessage({ type: 'updateMessage', id: assistantId, content: marker });
             
+            if (this._sessionManager) {
+              this._sessionManager.logTool({
+                name: event.name || 'unknown',
+                arguments: event.parameters, // these are the original arguments from tool_started
+                result: toolResult,
+                duration: event.parameters?.duration,
+                call_id: event.call_id
+              });
+            }
+
             if (['create_todo', 'update_todo', 'delete_todo'].includes(event.name || '')) {
               this._handleListTodos();
             }

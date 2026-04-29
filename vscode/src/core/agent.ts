@@ -31,7 +31,7 @@ export class Agent {
   constructor(
     private llm: LlmProvider,
     private model: string,
-    private workspace: string,
+    private workspaceName: string,
     private userName: string,
     private tools: Tool[],
     initialMessages: any[] = []
@@ -50,7 +50,7 @@ export class Agent {
   async run(userPrompt: string, onEvent: (event: StreamEvent) => Promise<void>) {
     const systemPrompt = PromptBuilder.createSystemPrompt(
       this.tools.map(t => ({ name: t.name(), description: t.description(), schema: t.schema() })),
-      this.workspace,
+      this.workspaceName,
       this.userName
     );
 
@@ -153,6 +153,9 @@ export class Agent {
         const displayError = parseError ? `Parsing error: ${parseError}` : "Unknown parsing error";
         await onEvent({ type: "log", message: `[Agent] Malformed tool call detected. ${displayError}` });
         
+        // Log full malformed response for debugging
+        await onEvent({ type: "log", message: `[Agent] FULL MALFORMED RESPONSE:\n${fullText}` });
+
         // Truncate huge malformed responses to avoid context bloat
         let historyContent = fullText;
         if (fullText.length > 5000) {
@@ -197,6 +200,7 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
 
         const tool = this.tools.find(t => t.name() === toolCall.name);
         let result: any;
+        const toolStartTime = Date.now();
         if (tool) {
           try {
             result = await tool.execute(toolCall.arguments);
@@ -209,12 +213,14 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
         } else {
           result = `Error: Tool '${toolCall.name}' not found`;
         }
+        const toolDuration = Date.now() - toolStartTime;
 
         await onEvent({
           type: "tool_finished",
           name: toolCall.name,
           result: result,
-          call_id: callId
+          call_id: callId,
+          parameters: { duration: toolDuration } // Pass duration back
         });
         await onEvent({ type: "log", message: `Tool ${toolCall.name} finished. Result length: ${typeof result === 'string' ? result.length : 'N/A'}` });
 

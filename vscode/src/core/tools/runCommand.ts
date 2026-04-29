@@ -37,7 +37,7 @@ export class RunCommandTool extends BaseTool {
 
     // Execute and capture output
     return new Promise((resolve) => {
-      cp.exec(args.command, { cwd, timeout: 60000, maxBuffer: 1024 * 1024 }, (error: any, stdout: string, stderr: string) => {
+      cp.exec(args.command, { cwd, timeout: 600000, maxBuffer: 10 * 1024 * 1024 }, (error: any, stdout: string, stderr: string) => {
         if (error) {
           resolve(this.formatError(`Command failed with exit code ${error.code}\nStdout: ${stdout}\nStderr: ${stderr}`));
           return;
@@ -49,7 +49,7 @@ export class RunCommandTool extends BaseTool {
 
   private validateCommand(command: string): string | null {
     const workspaceFolders = vscode.workspace.workspaceFolders;
-    const rootPath = workspaceFolders ? workspaceFolders[0].uri.fsPath : null;
+    const rootPath = workspaceFolders ? path.normalize(workspaceFolders[0].uri.fsPath) : null;
 
     const dangerousPatterns = [
       { pattern: new RegExp("rm\\s+-rf\\s+[\\/~]"), reason: "Destructive operations on root (/) or home (~) directories are strictly forbidden." },
@@ -87,7 +87,7 @@ export class RunCommandTool extends BaseTool {
       const absPathRegex = /(?:^|\s)(\/[^\s;&|]+)/g;
       let match;
       while ((match = absPathRegex.exec(command)) !== null) {
-        const p = match[1].trim();
+        const p = path.normalize(match[1].trim());
         if (path.isAbsolute(p) && !p.startsWith(rootPath)) {
            return `Unauthorized access to absolute path outside repository: ${p}`;
         }

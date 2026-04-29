@@ -73,6 +73,39 @@ export class SessionManager {
     fs.appendFileSync(logFile, logLine);
   }
 
+  public logUsage(model: string, usage: any) {
+    if (!this.logDir) return;
+    const usageFile = path.join(this.logDir, 'usage.jsonl');
+    const entry = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      sessionId: this.sessionId,
+      model,
+      ...usage
+    });
+    fs.appendFileSync(usageFile, entry + '\n');
+  }
+
+  public logTool(call: { name: string, arguments: any, result?: any, duration?: number, error?: string }) {
+    if (!this.logDir) return;
+    const toolFile = path.join(this.logDir, 'tools.jsonl');
+    const entry = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      sessionId: this.sessionId,
+      ...call,
+      result: typeof call.result === 'string' && call.result.length > 1000 
+        ? `${call.result.substring(0, 1000)}... [TRUNCATED]` 
+        : call.result
+    });
+    fs.appendFileSync(toolFile, entry + '\n');
+  }
+
+  public logSystem(info: any) {
+    if (!this.logDir) return;
+    const systemFile = path.join(this.logDir, 'system.log');
+    const entry = `[${new Date().toISOString()}] [${this.sessionId}] ${JSON.stringify(info)}\n`;
+    fs.appendFileSync(systemFile, entry);
+  }
+
   public logFullPrompt(messages: any[]) {
     if (!this.sessionLogDir) return;
     this.promptCount++;

@@ -88,11 +88,12 @@ export class ToolCallParser {
   }
 
   private static extractJson(text: string): string | null {
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start !== -1 && end !== -1 && end > start) {
-      return text.substring(start, end + 1);
-    }
-    return null;
+    let firstBrace = text.indexOf('{');
+    if (firstBrace === -1) return null;
+
+    let lastBrace = text.lastIndexOf('}');
+    if (lastBrace === -1 || lastBrace < firstBrace) return null;
+
+    return text.substring(firstBrace, lastBrace + 1);
   }
 }

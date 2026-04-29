@@ -7,7 +7,7 @@ export interface ToolDescription {
 }
 
 export class PromptBuilder {
-  static createSystemPrompt(tools: ToolDescription[], workspace: string, userName: string): string {
+  static createSystemPrompt(tools: ToolDescription[], workspaceName: string, userName: string): string {
     const toolsJson = tools.map(t => ({
       name: t.name,
       description: t.description,
@@ -15,7 +15,7 @@ export class PromptBuilder {
     }));
 
     return `
-You are Mosaic, a powerful AI assistant integrated into VSCode, helping ${userName} in the workspace: ${workspace}.
+You are Mosaic, a powerful AI assistant integrated into VSCode, helping ${userName} in the workspace: ${workspaceName}.
 You are a function calling AI model. You are provided with function signatures within <tools> </tools> XML tags. 
 You may call one or more functions to assist with the user query. 
 If available tools are not relevant in assisting with user query, just respond in natural conversational language. 
@@ -51,7 +51,7 @@ ${TOOL_RESPONSE_END}
 
 # CRITICAL RULES
 - **Workspace Structure**: Explore the workspace using \`list_directory\` and \`read_file\` to understand the project architecture.
-- **Relative Paths**: Use relative paths from the workspace root: ${workspace}
+- **Relative Paths**: All your actions and tool calls MUST use relative paths from the workspace root. You do not need to know the absolute path of the workspace on the host machine.
 - **Directories vs Files**: \`read_file\` ONLY works on files. Use \`list_directory\` for folders.
 - **Always Resume**: Never end a conversation without explaining what was done.
 - **Style**: Maintain a professional tone and avoid excessive emojis.
