@@ -85,7 +85,7 @@ export class SessionManager {
     fs.appendFileSync(usageFile, entry + '\n');
   }
 
-  public logTool(call: { name: string, arguments: any, result?: any, duration?: number, error?: string }) {
+  public logTool(call: { name: string, arguments: any, result?: any, duration?: number, error?: string, call_id?: string }) {
     if (!this.logDir) return;
     const toolFile = path.join(this.logDir, 'tools.jsonl');
     const entry = JSON.stringify({
