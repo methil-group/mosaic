@@ -90,6 +90,16 @@
           "type": "string",
           "default": "deepseek/deepseek-v4-flash",
           "description": "Selected model"
+        },
+        "mosaic.maxToolCalls": {
+          "type": "number",
+          "default": 10,
+          "description": "Maximum number of tool calls allowed per reasoning loop"
+        },
+        "mosaic.preserveThinking": {
+          "type": "boolean",
+          "default": false,
+          "description": "Preserve agent thoughts in history for future turns (uses more context)"
         }
       }
     }

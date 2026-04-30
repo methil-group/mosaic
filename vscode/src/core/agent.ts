@@ -44,10 +44,12 @@ export class Agent {
   constructor(
     private llm: LlmProvider,
     private model: string,
-    private workspaceName: string,
-    private userName: string,
-    private tools: Tool[],
-    initialMessages: any[] = []
+    private readonly workspaceName: string,
+    private readonly userName: string,
+    private readonly tools: Tool[],
+    initialMessages: any[] = [],
+    private readonly maxToolCalls: number = 10,
+    private readonly preserveThinking: boolean = false
   ) {
     this.messages = initialMessages.map(m => ({
       role: m.role,
@@ -93,6 +95,13 @@ export class Agent {
     
     while (!this.stopped) {
       totalSteps++;
+      
+      if (totalSteps > this.maxToolCalls) {
+        await onEvent({ type: "log", message: `⚠️ Max tool calls (${this.maxToolCalls}) reached. Stopping reasoning loop.` });
+        this.messages.push({ role: "system", content: `❌ Maximum tool calls (${this.maxToolCalls}) reached. Reasoning loop stopped to prevent infinite execution.` });
+        break;
+      }
+
       const lastMsg = this.messages[this.messages.length - 1];
       await onEvent({ type: "log", message: `[Agent] Step ${totalSteps} | Last message: ${lastMsg.role} (${lastMsg.content.length} chars)` });
       
@@ -245,9 +254,12 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
         const callIdTag = ` id="${callId}"`;
         const updatedFullText = fullText.replace('<tool_call>', `<tool_call${callIdTag}>`);
         
-        // Remove thoughts from history to save context and avoid self-influence
-        const thoughtRegex = /<(?:thought|thinking)>[\s\S]*?<\/(?:thought|thinking)>/g;
-        const historyContent = updatedFullText.replace(thoughtRegex, '').trim();
+        let historyContent = updatedFullText;
+        if (!this.preserveThinking) {
+          // Remove thoughts from history to save context and avoid self-influence
+          const thoughtRegex = /<(?:thought|thinking)>[\s\S]*?<\/(?:thought|thinking)>/g;
+          historyContent = updatedFullText.replace(thoughtRegex, '').trim();
+        }
         
         this.messages.push({ role: "assistant", content: historyContent });
         this.messages.push({

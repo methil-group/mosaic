@@ -79,6 +79,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
     const lmStudioUrl = this._context.globalState.get<string>('mosaic.lmstudioBaseUrl') || 'http://localhost:1234/v1';
     const model = this._context.globalState.get<string>('mosaic.model') || '';
+    const maxToolCalls = this._context.globalState.get<number>('mosaic.maxToolCalls') || 10;
+    const preserveThinking = this._context.globalState.get<boolean>('mosaic.preserveThinking') || false;
+
     const repoName = vscode.workspace.workspaceFolders?.[0]?.name || 'Mosaic';
     const noWorkspace = !vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0;
     const setupRequired = !provider || (!apiKey && provider === 'openrouter');
@@ -91,7 +94,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       apiKey,
       model,
       noWorkspace,
-      lmStudioUrl
+      lmStudioUrl,
+      maxToolCalls,
+      preserveThinking
     );
 
     if (this._view.webview.html !== newHtml) {
@@ -117,6 +122,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'setLmStudioUrl':
         await this._context.globalState.update('mosaic.lmstudioBaseUrl', data.value);
         this.refresh();
+        break;
+      case 'setMaxToolCalls':
+        await this._context.globalState.update('mosaic.maxToolCalls', data.value);
+        break;
+      case 'setPreserveThinking':
+        await this._context.globalState.update('mosaic.preserveThinking', data.value);
         break;
       case 'fetchModels': return this._handleFetchModels();
       case 'getHistory': return this._handleGetHistory();
@@ -357,8 +368,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       }
     }
 
+    const maxToolCalls = this._context.globalState.get<number>('mosaic.maxToolCalls') || 10;
+    const preserveThinking = this._context.globalState.get<boolean>('mosaic.preserveThinking') || false;
+
     const history = this._sessionManager ? this._sessionManager.getHistory() : [];
-    this._activeAgent = new Agent(llmProvider, model, workspaceName, "User", tools, history);
+    this._activeAgent = new Agent(llmProvider, model, workspaceName, "User", tools, history, maxToolCalls, preserveThinking);
     this._view.webview.postMessage({ type: 'addMessage', role: 'user', content: text, id: userMsgId });
 
     // Log system info at start of message if session just started

@@ -903,28 +903,120 @@ body.vscode-dark .error-logo img {
   margin: 0;
   color: var(--text-color);
 }
+#settings-screen {
+    flex-direction: column;
+    background: var(--vscode-sideBar-background);
+    z-index: 100;
+}
+
+.settings-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    font-weight: 600;
+}
+
+.settings-header button {
+    background: none;
+    border: none;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+}
+
+.settings-header button:hover {
+    background: var(--vscode-toolbar-hoverBackground);
+}
+
+.settings-content {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+}
+
+.settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    background: var(--vscode-editor-background);
+    border-radius: 6px;
+    border: 1px solid var(--vscode-panel-border);
+}
+
+.section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 4px;
+}
 
 .setup-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 100%;
-  text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-.setup-group label {
-  font-size: 0.85rem;
-  color: var(--vscode-descriptionForeground);
+.label-with-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.setup-group select,
-.setup-group input {
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border);
-  padding: 0.5rem;
-  border-radius: 2px;
-  width: 100%;
+.label-with-info label {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.label-with-info .codicon-info {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    cursor: help;
+}
+
+.label-with-info .codicon-info:hover {
+    color: var(--vscode-textLink-foreground);
+}
+
+.setup-group select, .setup-group input[type="text"], .setup-group input[type="password"], .setup-group input[type="number"] {
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    padding: 6px 8px;
+    border-radius: 2px;
+    outline: none;
+}
+
+.setup-group input[type="number"] {
+    width: 80px;
+}
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+}
+
+.checkbox-wrapper input {
+    cursor: pointer;
+}
+
+.settings-help {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+}
+width: 100%;
   box-sizing: border-box;
 }
 

@@ -377,13 +377,22 @@ class MosaicUI {
         const pEl = document.getElementById('settings-provider');
         const kEl = document.getElementById('settings-apikey');
         const uEl = document.getElementById('settings-lmstudio-url');
+        const mEl = document.getElementById('settings-max-tools');
+        const tEl = document.getElementById('settings-preserve-thinking');
+
         if (pEl) {
             const p = pEl.value;
             const k = kEl ? kEl.value : '';
             const u = uEl ? uEl.value : '';
+            const m = mEl ? parseInt(mEl.value) : 10;
+            const t = tEl ? tEl.checked : false;
+
             vscode.postMessage({ type: 'setProvider', value: p });
             if (k) vscode.postMessage({ type: 'setApiKey', value: k });
             if (u) vscode.postMessage({ type: 'setLmStudioUrl', value: u });
+            vscode.postMessage({ type: 'setMaxToolCalls', value: m });
+            vscode.postMessage({ type: 'setPreserveThinking', value: t });
+
             this.toggleSettingsScreen(false);
         }
     }
