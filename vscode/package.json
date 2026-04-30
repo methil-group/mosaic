@@ -2,7 +2,7 @@
   "name": "mosaic-vscode",
   "displayName": "Mosaic",
   "description": "AI-powered coding assistant with full tool-calling capabilities.",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "icon": "assets/icon.png",
   "publisher": "methil",
   "license": "Unlicense",

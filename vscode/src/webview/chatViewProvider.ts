@@ -181,13 +181,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
     const lmStudioUrl = this._context.globalState.get<string>('mosaic.lmstudioBaseUrl') || 'http://localhost:1234/v1';
     const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider(lmStudioUrl) : new OpenRouterProvider(apiKey);
-
     try {
       const models = await llmProvider.fetchModels();
       let currentModel = this._context.globalState.get<string>('mosaic.model');
-      if (models.length > 0 && (!currentModel || !models.includes(currentModel))) {
-        await this._context.globalState.update('mosaic.model', models[0]);
-        currentModel = models[0];
+      const modelIds = models.map(m => m.id);
+      if (models.length > 0 && (!currentModel || !modelIds.includes(currentModel))) {
+        await this._context.globalState.update('mosaic.model', models[0].id);
+        currentModel = models[0].id;
       }
       this._view.webview.postMessage({ type: 'setAvailableModels', models, currentModel });
     } catch (e) {
@@ -239,7 +239,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       // Properly restore manager
       const sessionId = chatId.replace('chat_', '').replace('.json', '');
       this._sessionManager = new SessionManager(workspacePath, sessionId);
-      this._sessionManager.restoreHistory(session.history);
+      this._sessionManager.restoreHistory(session.history, session.totalCost);
       if (session.title) this._sessionManager.setTitle(session.title);
 
       this._view.webview.postMessage({ type: 'clearMessages' });
@@ -378,6 +378,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const startTime = Date.now();
     let firstTokenTime: number | null = null;
     let lastUsage: any = null;
+    let currentCost = 0;
 
     try {
       await this._activeAgent.run(text, async (event: StreamEvent) => {
@@ -408,8 +409,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             break;
           case 'usage':
             lastUsage = event.data;
+            const pricing = llmProvider.getPricing(model);
+            if (pricing && lastUsage) {
+              currentCost = (lastUsage.prompt_tokens / 1000000) * (pricing.prompt || 0) + 
+                           (lastUsage.completion_tokens / 1000000) * (pricing.completion || 0);
+            }
             if (this._sessionManager) {
-              this._sessionManager.logUsage(model, event.data);
+              this._sessionManager.logUsage(model, event.data, currentCost);
             }
             break;
           case 'tool_started': {
@@ -460,6 +466,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
               tps: tps.toFixed(1),
               inputTokens: lastUsage?.prompt_tokens || 0,
               outputTokens: outputTokens,
+              cost: currentCost.toFixed(5),
+              totalCost: this._sessionManager?.getTotalCost().toFixed(5),
               modifiedFiles: event.parameters?.modifiedFiles || []
             };
 

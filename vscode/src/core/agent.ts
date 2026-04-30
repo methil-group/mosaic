@@ -19,8 +19,21 @@ export interface StreamEvent {
   call_id?: string;
 }
 
+export interface ModelPricing {
+  prompt: number;     // USD per 1M tokens
+  completion: number; // USD per 1M tokens
+}
+
+export interface ModelInfo {
+  id: string;
+  name?: string;
+  pricing?: ModelPricing;
+}
+
 export interface LlmProvider {
   streamChat(model: string, messages: Message[]): AsyncIterable<StreamEvent>;
+  fetchModels(): Promise<ModelInfo[]>;
+  getPricing(model: string): ModelPricing | undefined;
 }
 
 export class Agent {

@@ -8,16 +8,21 @@ export function renderChatScreen(repoName: string, iconUri: string, provider?: s
             <span id="active-chat-title">New Chat</span>
             <span id="rename-chat-btn" class="codicon codicon-edit" title="Rename Chat"></span>
         </div>
-        <div class="header-actions">
-            <button id="settings-btn" title="Settings">
-                <span class="codicon codicon-settings"></span>
-            </button>
-            <button id="new-chat-btn" title="New Chat">
-                <span class="codicon codicon-add"></span>
-            </button>
-            <button id="history-btn" title="Recent Chats">
-                <span class="codicon codicon-history"></span>
-            </button>
+        <div class="header-right">
+            <div class="header-actions">
+                <button id="settings-btn" title="Settings">
+                    <span class="codicon codicon-settings"></span>
+                </button>
+                <button id="new-chat-btn" title="New Chat">
+                    <span class="codicon codicon-add"></span>
+                </button>
+                <button id="history-btn" title="Recent Chats">
+                    <span class="codicon codicon-history"></span>
+                </button>
+            </div>
+            <div id="session-cost-container" style="display:none;">
+                <span id="session-total-cost">$0.0000</span>
+            </div>
         </div>
     </div>
     <div id="tasks-container" style="display:none">

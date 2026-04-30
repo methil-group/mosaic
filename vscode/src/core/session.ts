@@ -20,6 +20,7 @@ export interface ChatSession {
   title?: string;
   last_updated: string;
   history: ChatMessage[];
+  totalCost?: number;
 }
 
 export class SessionManager {
@@ -30,6 +31,7 @@ export class SessionManager {
   private promptCount = 0;
   private title = "New Chat";
   private history: ChatMessage[] = [];
+  private totalCost = 0;
   constructor(workspacePath: string, sessionId?: string) {
     if (sessionId) {
       this.sessionId = sessionId;
@@ -73,16 +75,20 @@ export class SessionManager {
     fs.appendFileSync(logFile, logLine);
   }
 
-  public logUsage(model: string, usage: any) {
+  public logUsage(model: string, usage: any, cost?: number) {
     if (!this.sessionLogDir) return;
+    if (cost) this.totalCost += cost;
+    
     const usageFile = path.join(this.sessionLogDir, 'usage.jsonl');
     const entry = JSON.stringify({
       timestamp: new Date().toISOString(),
       sessionId: this.sessionId,
       model,
-      ...usage
+      ...usage,
+      cost
     });
     fs.appendFileSync(usageFile, entry + '\n');
+    if (this.chatDir) this.saveSession();
   }
 
   public logTool(call: { name: string, arguments: any, result?: any, duration?: number, error?: string, call_id?: string }) {
@@ -178,7 +184,8 @@ export class SessionManager {
     return [...this.history];
   }
 
-  public restoreHistory(history: ChatMessage[]) {
+  public restoreHistory(history: ChatMessage[], totalCost?: number) {
+    if (totalCost !== undefined) this.totalCost = totalCost;
     // Filter out messages that only contain stray brackets or whitespace
     this.history = history.map(msg => {
       if (Array.isArray(msg.content)) {
@@ -202,13 +209,18 @@ export class SessionManager {
     return this.sessionId;
   }
 
+  public getTotalCost(): number {
+    return this.totalCost;
+  }
+
   private saveSession() {
     if (!this.chatDir) return;
     const session: ChatSession = {
       session_id: this.sessionId,
       title: this.title,
       last_updated: new Date().toISOString(),
-      history: this.history
+      history: this.history,
+      totalCost: this.totalCost
     };
     const chatFile = path.join(this.chatDir, `chat_${this.sessionId}.json`);
     fs.writeFileSync(chatFile, JSON.stringify(session, null, 2));

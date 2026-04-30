@@ -1,7 +1,9 @@
 import axios from 'axios';
-import { StreamEvent, Message, LlmProvider } from '../../core/agent';
+import { StreamEvent, Message, LlmProvider, ModelInfo, ModelPricing } from '../../core/agent';
 
 export class BaseLlmProvider implements LlmProvider {
+  protected models: ModelInfo[] = [];
+
   constructor(
     private apiKey: string, 
     private baseUrl: string,
@@ -88,7 +90,7 @@ export class BaseLlmProvider implements LlmProvider {
     }
   }
 
-  async fetchModels(): Promise<string[]> {
+  async fetchModels(): Promise<ModelInfo[]> {
     try {
       const response = await axios.get(`${this.baseUrl}/models`, {
         headers: {
@@ -96,17 +98,28 @@ export class BaseLlmProvider implements LlmProvider {
           'Content-Type': 'application/json',
           ...this.headers
         },
-        timeout: 5000 // Short timeout to quickly fail if LM Studio isn't running
+        timeout: 5000 
       });
 
       if (response.status === 200 && response.data && Array.isArray(response.data.data)) {
-        return response.data.data.map((m: any) => m.id);
+        this.models = response.data.data.map((m: any) => ({
+          id: m.id,
+          name: m.name || m.id,
+          pricing: m.pricing ? {
+            prompt: parseFloat(m.pricing.prompt) * 1000000,
+            completion: parseFloat(m.pricing.completion) * 1000000
+          } : undefined
+        }));
+        return this.models;
       }
       return [];
     } catch (e) {
-      // If fetching fails (e.g. localhost down), return empty array
       return [];
     }
+  }
+
+  getPricing(modelId: string): ModelPricing | undefined {
+    return this.models.find(m => m.id === modelId)?.pricing;
   }
 }
 
@@ -114,22 +127,29 @@ export class LMStudioProvider extends BaseLlmProvider {
   constructor(baseUrl = "http://localhost:1234/v1") {
     super("lm-studio", baseUrl);
   }
+
+  async fetchModels(): Promise<ModelInfo[]> {
+    const models = await super.fetchModels();
+    // LM Studio models are free
+    return models.map(m => ({
+      ...m,
+      pricing: { prompt: 0, completion: 0 }
+    }));
+  }
+
+  getPricing(modelId: string): ModelPricing | undefined {
+    return { prompt: 0, completion: 0 };
+  }
 }
 
 export const PREFERRED_MODELS = [
-  'deepseek/deepseek-v4-flash',
-  'deepseek/deepseek-v4-pro',
-  'deepseek/deepseek-v3.2',
-  'google/gemma-4-31b-it',
-  'xiaomi/mimo-v2.5-pro',
-  'qwen/qwen3.6-plus',
-  'qwen/qwen3.6-35b-a3b',
-  'qwen/qwen3.6-27b',
-  'minimax/minimax-m2.7',
-  'qwen/qwen3-coder-next',
-  'moonshotai/kimi-k2.6',
-  'z-ai/glm-5.1',
-  'essentialai/rnj-1-instruct'
+  'deepseek/deepseek-chat',
+  'deepseek/deepseek-reasoner',
+  'anthropic/claude-3.5-sonnet',
+  'google/gemini-pro-1.5',
+  'openai/gpt-4o-mini',
+  'meta-llama/llama-3.1-405b-instruct',
+  'qwen/qwen-2.5-72b-instruct'
 ];
 
 export class OpenRouterProvider extends BaseLlmProvider {
@@ -140,16 +160,17 @@ export class OpenRouterProvider extends BaseLlmProvider {
     });
   }
 
-  async fetchModels(): Promise<string[]> {
+  async fetchModels(): Promise<ModelInfo[]> {
     const allModels = await super.fetchModels();
-    if (allModels.length === 0) return PREFERRED_MODELS;
+    if (allModels.length === 0) {
+        return PREFERRED_MODELS.map(id => ({ id, name: id, pricing: { prompt: 0, completion: 0 } }));
+    }
     
-    const featured = PREFERRED_MODELS.filter(m => allModels.includes(m));
-    // const others = allModels.filter(m => !PREFERRED_MODELS.includes(m));
+    // Prioritize preferred models but keep others
+    const featured = allModels.filter(m => PREFERRED_MODELS.includes(m.id));
+    const others = allModels.filter(m => !PREFERRED_MODELS.includes(m.id));
     
-    // We only want to show a "smaller list" as requested, but maybe keep others just in case?
-    // The user said "Fais une liste plus petite avec...", so I'll prioritize these 4.
-    // If they are not found in the fetched list (unlikely since we checked), we still want them.
-    return [...new Set([...featured, ...PREFERRED_MODELS])];
+    this.models = [...featured, ...others];
+    return this.models;
   }
 }

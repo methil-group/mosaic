@@ -1565,3 +1565,49 @@ body.vscode-high-contrast .welcome-logo img {
 .tool-group-header * {
   pointer-events: none;
 }
+
+/* Pricing and Cost Styles */
+.message-cost {
+  color: var(--vscode-charts-green);
+  font-weight: 600;
+  opacity: 1 !important;
+}
+
+.message-cost.free {
+  color: var(--vscode-descriptionForeground);
+  font-weight: normal;
+  opacity: 0.6 !important;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+#session-cost-container {
+  display: none;
+  align-items: center;
+  font-size: 9px;
+  opacity: 0.5;
+  padding: 0 4px;
+  color: var(--vscode-descriptionForeground);
+  letter-spacing: 0.02rem;
+  transition: opacity 0.2s;
+}
+
+#session-cost-container:hover {
+  opacity: 1;
+}
+
+#session-total-cost {
+  font-family: var(--vscode-editor-font-family);
+  font-weight: 600;
+}
+
+.meta-model {
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  opacity: 1;
+}

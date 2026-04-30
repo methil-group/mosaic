@@ -66,7 +66,9 @@ export class RunCommandTool extends BaseTool {
     }
 
     // Home directory protection
-    if (command.includes('~')) {
+    // Only block if ~ is used at the start of a path (e.g., ~, ~/, " ~ ", etc.)
+    // Avoid blocking ~ when used as 'approximately' (e.g., ~10-100 MB)
+    if (/(?:^|\s|["'])~(?:[/\s"']|$)/.test(command)) {
       return "Access to home directory (~) is strictly forbidden.";
     }
 

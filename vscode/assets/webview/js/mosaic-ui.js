@@ -660,16 +660,16 @@ class MosaicUI {
         const metaDiv = document.createElement('div');
         metaDiv.className = 'message-metadata';
         metaDiv.innerHTML = `
-            <span>${metadata.model}</span>
+            <span class="meta-model">${metadata.model}</span>
             <span>•</span>
             <span>${metadata.tps} t/s</span>
             <span>•</span>
-            <span>TTFT: ${metadata.ttft}ms</span>
-            <span>•</span>
-            <span>In: ${metadata.inputTokens}</span>
-            <span>•</span>
-            <span>Out: ${metadata.outputTokens}</span>
+            <span>In: ${metadata.inputTokens} | Out: ${metadata.outputTokens}</span>
+            ${metadata.cost && metadata.cost !== '0.00000' ? `<span>•</span> <span class="message-cost" title="Message Cost">$${metadata.cost}</span>` : '<span>•</span> <span class="message-cost free">free</span>'}
         `;
+        if (metadata.totalCost) {
+            this.updateSessionCost(metadata.totalCost);
+        }
         msgDiv.appendChild(metaDiv);
 
         if (metadata.modifiedFiles && metadata.modifiedFiles.length > 0) {
@@ -745,12 +745,39 @@ class MosaicUI {
 
             const isFocused = document.activeElement === select;
             select.innerHTML = msg.models.map(m => {
-                const parts = m.split('/');
+                const modelId = typeof m === 'string' ? m : m.id;
+                const modelName = typeof m === 'string' ? m : (m.name || m.id);
+                const pricing = (typeof m === 'string' || !m.pricing) ? null : m.pricing;
+                
+                let pricingStr = '';
+                let shortPricing = '';
+                if (pricing) {
+                    if (pricing.prompt === 0 && pricing.completion === 0) {
+                        pricingStr = ' (free)';
+                        shortPricing = ' (free)';
+                    } else {
+                        pricingStr = ` ($${pricing.prompt.toFixed(2)}/$${pricing.completion.toFixed(2)} per 1M)`;
+                        shortPricing = ' (paid)';
+                    }
+                }
+
+                const parts = modelId.split('/');
                 const short = parts[parts.length - 1];
-                const display = isFocused ? m : short;
-                return `<option value="${m}" data-full="${m}" data-short="${short}" ${m === this.currentModel ? 'selected' : ''}>${display}</option>`;
+                const displayShort = short + shortPricing;
+                const displayFull = modelName + pricingStr;
+                
+                const display = isFocused ? displayFull : displayShort;
+                return `<option value="${modelId}" data-full="${displayFull}" data-short="${displayShort}" ${modelId === this.currentModel ? 'selected' : ''}>${display}</option>`;
             }).join('');
         });
+    }
+
+    updateSessionCost(totalCost) {
+        const costEl = document.getElementById('session-total-cost');
+        if (costEl) {
+            costEl.innerText = `$${parseFloat(totalCost).toFixed(4)}`;
+            costEl.parentElement.style.display = totalCost > 0 ? 'flex' : 'none';
+        }
     }
 
     _updateInputAvailability(hasModels, isLoading) {
