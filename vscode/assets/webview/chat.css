@@ -1611,3 +1611,24 @@ body.vscode-high-contrast .welcome-logo img {
   color: var(--vscode-foreground);
   opacity: 1;
 }
+
+/* Task Finished Marker */
+.task-finished-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--vscode-charts-green);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 1rem 0;
+  align-self: center;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.task-finished-marker .codicon {
+  font-size: 0.9rem;
+}

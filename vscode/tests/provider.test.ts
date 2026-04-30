@@ -10,7 +10,7 @@ describe('LLM Providers', () => {
     });
 
     describe('BaseLlmProvider', () => {
-        it('fetchModels should return a list of model IDs on success', async () => {
+        it('fetchModels should return a list of ModelInfo objects on success', async () => {
             const provider = new BaseLlmProvider('test-key', 'http://test-url');
             mockedAxios.get.mockResolvedValueOnce({
                 status: 200,
@@ -20,7 +20,10 @@ describe('LLM Providers', () => {
             });
 
             const models = await provider.fetchModels();
-            expect(models).toEqual(['model-1', 'model-2']);
+            expect(models).toEqual([
+                { id: 'model-1', name: 'model-1', pricing: undefined },
+                { id: 'model-2', name: 'model-2', pricing: undefined }
+            ]);
             expect(mockedAxios.get).toHaveBeenCalledWith('http://test-url/models', expect.any(Object));
         });
 

@@ -12,7 +12,7 @@ function renderMarkdown(content) {
     }
     
     const blocks = [];
-    const blockRegex = /<+(?<tag>thought|tool_call|tool_response|tool_result)[\s\S]*?(?:<\/\k<tag>>|(?=<+(?:thought|tool_call|tool_response|tool_result))|$)/g;
+    const blockRegex = /<+(?<tag>thought|tool_call|tool_response|tool_result|task_finished)[\s\S]*?(?:<\/\k<tag>>|(?=<+(?:thought|tool_call|tool_response|tool_result|task_finished))|(?<=\/)>|$)/g;
     
     let lastIdx = 0;
     let match;
@@ -28,6 +28,7 @@ function renderMarkdown(content) {
         if (tag === 'thought') type = 'thought';
         else if (tag === 'tool_call') type = 'tool_call';
         else if (tag === 'tool_response' || tag === 'tool_result') type = 'user_tool_result';
+        else if (tag === 'task_finished') type = 'task_finished';
         
         let cleanedContent = match[0].replace(/^<+/, '<');
         blocks.push({ type: type, content: cleanedContent });
@@ -187,6 +188,10 @@ function renderPart(part) {
                 return `<div class="tool-call loading"><div class="tool-header loading">Running ${name.replace(/_/g, ' ')}...</div></div>`;
             }
         }
+    }
+    
+    if (type === 'task_finished') {
+        return `<div class="task-finished-marker"><span class="codicon codicon-pass-filled"></span> Task Completed</div>`;
     }
     
     if (type === 'user_tool_result') {

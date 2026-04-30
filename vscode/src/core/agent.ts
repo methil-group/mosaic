@@ -86,6 +86,10 @@ export class Agent {
 
   private async reasoningLoop(onEvent: (event: StreamEvent) => Promise<void>) {
     let totalSteps = 0;
+    let emptyRetries = 0;
+    let consecutiveNudges = 0;
+    const maxEmptyRetries = 5;
+    const maxConsecutiveNudges = 3;
     
     while (!this.stopped) {
       totalSteps++;
@@ -242,25 +246,63 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
           role: "user",
           content: PromptBuilder.formatToolResult(toolCall.name, result, callId)
         });
+        consecutiveNudges = 0; // Reset on tool call
       } else {
-        // Check if the model only provided thoughts without any action or final response
-        const thoughtRegex = /<thought>[\s\S]*?<\/thought>/g;
+        // Strip all thinking/thought content to check what's left
+        const thoughtRegex = /<(?:thought|thinking)>[\s\S]*?<\/(?:thought|thinking)>/g;
         const textWithoutThoughts = fullText.replace(thoughtRegex, '').trim();
         
-        if (textWithoutThoughts.length === 0 && fullText.includes('<thought>')) {
-          await onEvent({ type: "log", message: `[Agent] LLM only provided thoughts without action. Nudging...` });
-          this.messages.push({ role: "assistant", content: fullText });
-          
-          const nudge = "You provided your thoughts but didn't call any tool or provide a final response. Please proceed with an action or a final answer.";
-          this.messages.push({ 
-            role: "user", 
-            content: nudge
-          });
-          
-          await onEvent({ type: "log", message: `[Agent] Internal User Nudge: ${nudge}` });
+        // Case 1: Completely empty response — silent retry without polluting history
+        if (fullText.trim().length === 0) {
+          emptyRetries++;
+          if (emptyRetries >= maxEmptyRetries) {
+            await onEvent({ type: "error", message: `LLM returned empty responses ${maxEmptyRetries} times. Stopping.` });
+            break;
+          }
+          await onEvent({ type: "log", message: `[Agent] Empty response from LLM. Retrying silently (${emptyRetries}/${maxEmptyRetries})...` });
+          await new Promise(resolve => setTimeout(resolve, 1000));
           continue;
         }
 
+        // Case 2: Only thoughts, no action or text — retry without adding nudge to history
+        if (textWithoutThoughts.length === 0) {
+          emptyRetries++;
+          if (emptyRetries >= maxEmptyRetries) {
+            await onEvent({ type: "error", message: `LLM returned only thoughts ${maxEmptyRetries} times. Stopping.` });
+            break;
+          }
+          await onEvent({ type: "log", message: `[Agent] LLM only provided thoughts without action. Retrying silently (${emptyRetries}/${maxEmptyRetries})...` });
+          // Don't push to history — just retry as if nothing happened
+          await new Promise(resolve => setTimeout(resolve, 500));
+          continue;
+        }
+
+        // Case 3: Task explicitly finished
+        if (fullText.includes('<task_finished')) {
+          await onEvent({ type: "log", message: "[Agent] Task finished tag detected. Stopping loop." });
+          await onEvent({ 
+            type: "final_answer", 
+            data: fullText,
+            parameters: { modifiedFiles: Array.from(this.modifiedFiles) }
+          });
+          break;
+        }
+
+        // Case 4: LLM responded with actual content but no <task_finished />
+        // If we haven't nudged too many times, try to encourage it to continue.
+        if (consecutiveNudges < maxConsecutiveNudges) {
+          consecutiveNudges++;
+          await onEvent({ type: "log", message: `[Agent] LLM responded with content but no <task_finished />. Nudging (${consecutiveNudges}/${maxConsecutiveNudges})...` });
+          
+          this.messages.push({ role: "assistant", content: fullText });
+          const nudge = "You provided a response but did not include the <task_finished /> tag and did not call any tool. If you are finished, please provide a final summary and include <task_finished />. If you have more work to do, please proceed with the next step or tool call.";
+          this.messages.push({ role: "user", content: nudge });
+          
+          continue;
+        }
+
+        // Only treat as final answer after exceeding max nudges
+        await onEvent({ type: "log", message: `[Agent] Exceeded max nudges without task completion tag. Treating as final answer.` });
         await onEvent({ 
           type: "final_answer", 
           data: fullText,

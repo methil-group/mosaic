@@ -19,7 +19,8 @@ export class BaseLlmProvider implements LlmProvider {
           model: model,
           messages: messages.map(({ role, content }) => ({ role, content })),
           stream: true,
-          stream_options: { include_usage: true }
+          stream_options: { include_usage: true },
+          include_reasoning: true
         },
         {
           headers: {
@@ -56,6 +57,11 @@ export class BaseLlmProvider implements LlmProvider {
               }
 
               const content = parsed.choices[0]?.delta?.content;
+              const reasoning = parsed.choices[0]?.delta?.reasoning;
+              
+              if (reasoning) {
+                yield { type: 'token', data: reasoning };
+              }
               if (content) {
                 yield { type: 'token', data: content };
               }
