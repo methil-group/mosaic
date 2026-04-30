@@ -33,8 +33,15 @@ const setMockPath = (p: string) => {
     }];
 };
 
-const API_KEY = "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";
+require('dotenv').config();
+
+const API_KEY = process.env.OPENROUTER_API_KEY;
 const MODEL = "qwen/qwen-2.5-coder-32b-instruct"; 
+
+if (!API_KEY) {
+  console.error("❌ OPENROUTER_API_KEY not found in .env file");
+  process.exit(1);
+}
 
 async function runBenchmark() {
   console.log("🚀 Starting Mosaic Benchmark Suite...");
@@ -59,6 +66,7 @@ async function runBenchmark() {
   for (const task of tasks) {
     console.log(`\n--------------------------------------------------`);
     console.log(`📝 Task: ${task.name} (${task.id})`);
+    console.log(`🤖 Model: ${task.model || MODEL}`);
     if (task.workspace) console.log(`📂 Workspace: ${task.workspace}`);
     console.log(`--------------------------------------------------`);
 
