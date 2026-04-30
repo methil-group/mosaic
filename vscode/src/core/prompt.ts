@@ -45,10 +45,10 @@ ${TOOL_CALL_START}
 ${TOOL_CALL_END}
 
 # TOOL RESPONSE FORMAT
-After calling & executing the functions, you will be provided with function results within ${TOOL_RESPONSE_START} ${TOOL_RESPONSE_END} XML tags.
+After calling & executing the functions, you will be provided with function results within ${TOOL_RESPONSE_START} ${TOOL_RESPONSE_END} XML tags. The system will automatically link responses to calls using unique IDs.
 Example:
-${TOOL_RESPONSE_START}
-{"tool_call_id": "unique_id", "name": "tool_name", "content": "result"}
+${TOOL_RESPONSE_START.replace('>', ' id="call_123">')}
+{"tool_call_id": "call_123", "name": "tool_name", "content": "result"}
 ${TOOL_RESPONSE_END}
 
 # CODING WORKFLOW
@@ -71,6 +71,11 @@ ${TOOL_RESPONSE_END}
 
   static formatToolResult(name: string, result: any, callId: string): string {
     const content = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-    return `${TOOL_RESPONSE_START.replace('>', ` id="${callId}">`)}\n${content}\n${TOOL_RESPONSE_END}`;
+    const responseJson = JSON.stringify({
+      tool_call_id: callId,
+      name: name,
+      content: content
+    }, null, 2);
+    return `${TOOL_RESPONSE_START.replace('>', ` id="${callId}">`)}\n${responseJson}\n${TOOL_RESPONSE_END}`;
   }
 }

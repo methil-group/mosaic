@@ -241,7 +241,11 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
         });
         await onEvent({ type: "log", message: `Tool ${toolCall.name} finished. Result length: ${typeof result === 'string' ? result.length : 'N/A'}` });
 
-        this.messages.push({ role: "assistant", content: fullText });
+        // Inject the generated callId into the tool_call tag so the history is consistent
+        const callIdTag = ` id="${callId}"`;
+        const updatedFullText = fullText.replace('<tool_call>', `<tool_call${callIdTag}>`);
+        
+        this.messages.push({ role: "assistant", content: updatedFullText });
         this.messages.push({
           role: "user",
           content: PromptBuilder.formatToolResult(toolCall.name, result, callId)

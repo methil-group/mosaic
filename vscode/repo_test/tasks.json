@@ -1,0 +1,23 @@
+[
+  {
+    "id": "doc_gen",
+    "name": "Documentation Generation",
+    "prompt": "Analyse le fichier src/core/agent.ts et génère une documentation technique complète en français au format markdown dans un nouveau fichier DOCUMENTATION_AGENT.md"
+  },
+  {
+    "id": "todo_management",
+    "name": "TODO & Planning",
+    "prompt": "Crée un plan d'action (TODOs) pour ajouter une fonctionnalité de 'retry' automatique sur les appels outils qui échouent, puis implémente une version simplifiée dans un fichier scratch/retry_logic.ts"
+  },
+  {
+    "id": "refactoring",
+    "name": "Code Refactoring",
+    "prompt": "Trouve toutes les fonctions synchrones qui utilisent fs.readFileSync dans src/core/tools/ et propose une version asynchrone utilisant fs.promises dans un fichier de rapport REFACTORING_REPORT.md"
+  },
+  {
+    "id": "debug_legacy",
+    "name": "Fix Legacy Bug",
+    "workspace": "legacy-buggy-project",
+    "prompt": "Analyse le fichier utils.js dans ce dossier, identifie pourquoi il crashe et corrige le code pour qu'il gère les cas où items est indéfini ou vide."
+  }
+]
