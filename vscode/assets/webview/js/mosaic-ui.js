@@ -10,6 +10,7 @@ class MosaicUI {
         this.queuedMessage = null;
         this.searchDebounceTimer = null;
         this.currentReferences = [];
+        this.currentMode = 'todo';
         this.init();
     }
 
@@ -93,6 +94,22 @@ class MosaicUI {
                     // Optionally remove the button to prevent multiple continues on the same message
                     target.closest('.continue-btn-container').remove();
                 }
+            } else if (target.classList.contains('mode-toggle-btn')) {
+                this.currentMode = this.currentMode === 'todo' ? 'exec' : 'todo';
+                const allBtns = document.querySelectorAll('.mode-toggle-btn');
+                const isTodo = this.currentMode === 'todo';
+                const icon = isTodo ? 'checklist' : 'zap';
+                const tooltip = isTodo 
+                    ? "TODO Mode: The agent MUST use TODOs to plan its work. Includes all task management tools."
+                    : "EXEC Mode: Direct execution without TODO management tools.";
+                
+                allBtns.forEach(btn => {
+                    btn.innerHTML = `<span class="codicon codicon-${icon}"></span> <span>${this.currentMode.toUpperCase()}</span>`;
+                    btn.className = `mode-toggle mode-toggle-btn ${this.currentMode}`;
+                    btn.setAttribute('data-mode', this.currentMode);
+                    btn.setAttribute('data-tooltip', tooltip);
+                });
+                log('Switched to mode:', this.currentMode);
             }
         });
 
@@ -260,7 +277,7 @@ class MosaicUI {
                 return;
             }
             this.setGenerating(true);
-            vscode.postMessage({ type: 'sendMessage', value: text, model: this.currentModel });
+            vscode.postMessage({ type: 'sendMessage', value: text, model: this.currentModel, mode: this.currentMode });
             input.value = '';
             input.style.height = 'auto';
             // Clear state
@@ -383,7 +400,7 @@ class MosaicUI {
             const text = input ? input.value.trim() : '';
             if (text) {
                 this.setGenerating(true);
-                vscode.postMessage({ type: 'sendMessage', value: text, model: this.currentModel });
+                vscode.postMessage({ type: 'sendMessage', value: text, model: this.currentModel, mode: this.currentMode });
                 input.value = '';
                 input.style.height = 'auto';
                 // Clear state

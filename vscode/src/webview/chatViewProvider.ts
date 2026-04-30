@@ -6,7 +6,7 @@ import { SessionManager } from '../core/session';
 import { LMStudioProvider, OpenRouterProvider } from '../framework/llm/provider';
 import { ReadFileTool, WriteFileTool, EditFileTool, ListDirectoryTool } from '../core/tools/fileTools';
 import { RunCommandTool } from '../core/tools/runCommand';
-import { CreateTodoTool, UpdateTodoTool, ListTodosTool, DeleteTodoTool, TodoManager } from '../core/tools/todoTools';
+import { CreateTodoTool, UpdateTodoTool, ListTodosTool, DeleteTodoTool, ClearTodosTool, TodoManager } from '../core/tools/todoTools';
 import { WebviewHandler } from './webviewHandler';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
@@ -101,7 +101,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   private async _handleWebviewMessage(data: any) {
     switch (data.type) {
-      case 'sendMessage': return this._handleSendMessage(data.value, data.model);
+      case 'sendMessage': return this._handleSendMessage(data.value, data.model, data.mode);
       case 'stopGeneration': return this._handleStopGeneration();
       case 'setProvider':
         await this._context.globalState.update('mosaic.provider', data.value);
@@ -314,7 +314,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private async _handleSendMessage(text: string, requestedModel?: string) {
+  private async _handleSendMessage(text: string, requestedModel?: string, mode: 'todo' | 'exec' = 'todo') {
     if (!this._view) return;
 
     const providerType = this._context.globalState.get<string>('mosaic.provider') || 'openrouter';
@@ -330,11 +330,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
     const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider(lmStudioUrl) : new OpenRouterProvider(apiKey);
 
-    const tools = [
+    const tools: any[] = [
       new ReadFileTool(), new WriteFileTool(), new EditFileTool(),
-      new ListDirectoryTool(), new RunCommandTool(), new CreateTodoTool(),
-      new UpdateTodoTool(), new ListTodosTool(), new DeleteTodoTool()
+      new ListDirectoryTool(), new RunCommandTool()
     ];
+
+    if (mode === 'todo') {
+      tools.push(new CreateTodoTool(), new UpdateTodoTool(), new ListTodosTool(), new DeleteTodoTool(), new ClearTodosTool());
+    }
 
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath || '';
     const workspaceName = vscode.workspace.workspaceFolders?.[0]?.name || 'Workspace';

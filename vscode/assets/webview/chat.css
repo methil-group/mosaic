@@ -1632,3 +1632,144 @@ body.vscode-high-contrast .welcome-logo img {
 .task-finished-marker .codicon {
   font-size: 0.9rem;
 }
+
+/* Mode Toggle Button */
+.mode-toggle {
+    background: var(--vscode-dropdown-background);
+    color: var(--vscode-descriptionForeground);
+    border: 1px solid var(--border-color);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-family: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    height: 26px; /* Match compact-select */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 65px;
+    text-transform: uppercase;
+    position: relative;
+    box-sizing: border-box;
+    margin-left: 2px;
+}
+
+.mode-toggle:hover {
+    border-color: var(--vscode-focusBorder);
+    color: var(--vscode-foreground);
+}
+
+.mode-toggle .codicon {
+    font-size: 13px;
+}
+
+/* Tooltip implementation for mode toggle */
+.mode-toggle[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%;
+    right: 0; /* Align to right */
+    background: var(--vscode-notifications-background);
+    color: var(--vscode-notifications-foreground);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: pre-wrap;
+    width: 220px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    border: 1px solid var(--vscode-widget-border);
+    pointer-events: none;
+    font-weight: normal;
+    text-transform: none;
+    line-height: 1.4;
+    text-align: left;
+}
+
+/* Todo Component Styling */
+.todo-component {
+    background: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 8px;
+    margin: 12px 0;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-width: 100%;
+}
+
+.todo-component-header {
+    background: var(--vscode-editor-lineHighlightBackground);
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--vscode-widget-border);
+    color: var(--vscode-descriptionForeground);
+}
+
+.todo-component-header .codicon {
+    font-size: 14px;
+    color: var(--vscode-symbolIcon-propertyForeground);
+}
+
+.todo-component-list {
+    padding: 4px 0;
+}
+
+.todo-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 8px 12px;
+    gap: 12px;
+    border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
+    transition: background 0.2s;
+}
+
+.todo-item:last-child {
+    border-bottom: none;
+}
+
+.todo-item:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.todo-icon {
+    font-size: 16px;
+    margin-top: 2px;
+}
+
+.status-todo .todo-icon { color: var(--vscode-descriptionForeground); opacity: 0.6; }
+.status-progress .todo-icon { color: var(--vscode-symbolIcon-eventForeground); }
+.status-done .todo-icon { color: var(--vscode-charts-green); }
+
+.todo-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.todo-title {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--vscode-foreground);
+}
+
+.status-done .todo-title {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+.todo-id {
+    font-size: 10px;
+    font-family: var(--vscode-editor-font-family);
+    color: var(--vscode-descriptionForeground);
+    opacity: 0.5;
+    margin-top: 2px;
+}

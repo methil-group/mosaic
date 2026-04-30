@@ -67,6 +67,19 @@ export class TodoManager {
     this.saveTodos(filtered);
     return true;
   }
+  public clearAll() {
+    if (this._todoFile && fs.existsSync(this._todoFile)) {
+      fs.unlinkSync(this._todoFile);
+    }
+  }
+}
+
+function formatTodoList(todos: Todo[]): string {
+  if (todos.length === 0) return "No active tasks.";
+  const tasksXml = todos.map(t => 
+    `<task id="${t.id}" status="${t.status}">${t.title}</task>`
+  ).join('\n');
+  return `<todo_list>\n${tasksXml}\n</todo_list>`;
 }
 
 export class CreateTodoTool extends BaseTool {
@@ -86,10 +99,8 @@ export class CreateTodoTool extends BaseTool {
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (!workspacePath) return this.formatError("No workspace folder open");
     const manager = new TodoManager(workspacePath);
-    const todo = manager.add(args.title, args.description);
-    const todos = manager.getTodos();
-    const list = todos.map(t => `- [${t.status === 'done' ? 'x' : ' '}] ${t.title}`).join('\n');
-    return `Task added: ${todo.title}\n\n### Current Tasks\n${list}`;
+    manager.add(args.title, args.description);
+    return formatTodoList(manager.getTodos());
   }
 }
 
@@ -112,10 +123,8 @@ export class UpdateTodoTool extends BaseTool {
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (!workspacePath) return this.formatError("No workspace folder open");
     const manager = new TodoManager(workspacePath);
-    const todo = manager.update(args.id, args);
-    const todos = manager.getTodos();
-    const list = todos.map(t => `- [${t.status === 'done' ? 'x' : ' '}] ${t.title}`).join('\n');
-    return todo ? `Task updated to ${todo.status}\n\n### Current Tasks\n${list}` : `Task ${args.id} not found.`;
+    manager.update(args.id, args);
+    return formatTodoList(manager.getTodos());
   }
 }
 
@@ -132,9 +141,7 @@ export class ListTodosTool extends BaseTool {
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (!workspacePath) return this.formatError("No workspace folder open");
     const manager = new TodoManager(workspacePath);
-    const todos = manager.getTodos();
-    if (todos.length === 0) return "No tasks found.";
-    return `### Current Tasks\n` + todos.map(t => `- [${t.status === 'done' ? 'x' : ' '}] ${t.title}`).join('\n');
+    return formatTodoList(manager.getTodos());
   }
 }
 
@@ -154,9 +161,25 @@ export class DeleteTodoTool extends BaseTool {
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (!workspacePath) return this.formatError("No workspace folder open");
     const manager = new TodoManager(workspacePath);
-    const success = manager.delete(args.id);
-    const todos = manager.getTodos();
-    const list = todos.map(t => `- [${t.status === 'done' ? 'x' : ' '}] ${t.title}`).join('\n');
-    return success ? `Task deleted.\n\n### Current Tasks\n${list}` : `Task ${args.id} not found.`;
+    manager.delete(args.id);
+    return formatTodoList(manager.getTodos());
+  }
+}
+
+export class ClearTodosTool extends BaseTool {
+  name() { return 'clear_todos'; }
+  description() { return 'Clear all tasks from the todo list. Use this at the start of a new major task.'; }
+  schema() {
+    return {
+      type: "object",
+      properties: {}
+    };
+  }
+  async execute() {
+    const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+    if (!workspacePath) return this.formatError("No workspace folder open");
+    const manager = new TodoManager(workspacePath);
+    manager.clearAll();
+    return "Todo list cleared.";
   }
 }

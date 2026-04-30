@@ -60,6 +60,10 @@ export function renderChatScreen(repoName: string, iconUri: string, provider?: s
                         <option value="lmstudio" ${provider === 'lmstudio' ? 'selected' : ''}>LMS</option>
                     </select>
                     <select id="model-select" class="compact-select model-select-common"></select>
+                    <button class="mode-toggle mode-toggle-btn todo" data-mode="todo" data-tooltip="TODO Mode: The agent MUST use TODOs to plan its work. Includes all task management tools.">
+                        <span class="codicon codicon-checklist"></span>
+                        <span>TODO</span>
+                    </button>
                 </div>
                 <div class="input-actions">
                     <button id="queue-button" class="queue-button" title="Queue message" style="display:none">

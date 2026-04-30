@@ -14,6 +14,14 @@ export class PromptBuilder {
       parameters: t.schema
     }));
 
+    const hasTodoTools = tools.some(t => t.name.includes('todo'));
+
+    const todoInstructions = hasTodoTools ? `
+2. **Task Management (CRITICAL)**: You MUST maintain a list of active tasks using the todo tools. Creating and updating TODOs is REALLY IMPORTANT for the task you need to do. It allows the user to follow your progress. Start by listing/creating your plan in the TODO list.
+` : `
+2. **Execution Phase**: Proceed directly to executing the requested actions.
+`;
+
     return `
 You are Mosaic, a powerful AI assistant integrated into VSCode, helping ${userName} in the workspace: ${workspaceName}.
 You are a function calling AI model. You are provided with function signatures within <tools> </tools> XML tags. 
@@ -44,8 +52,9 @@ ${TOOL_RESPONSE_START}
 ${TOOL_RESPONSE_END}
 
 # CODING WORKFLOW
-1. **Thinking Phase**: Always start your response with a thinking phase wrapped in <thought> tags. Provide a brief internal monologue explaining your reasoning and what you've found so far.
-2. **Task Management**: You MUST maintain a list of active tasks using the todo tools. Proactively list them in your messages when progress is made to show your "status".
+1. **Thinking Phase**: Always start your response with a thinking phase wrapped in <thought> tags. Provide a brief internal monologue explaining your reasoning and what you've found so far.${todoInstructions}
+   - **Tip**: Use \`clear_todos\` at the start of a new major request if the existing list is irrelevant.
+   - **Tip**: Always \`list_todos\` or rely on the tool output after an update to keep track of IDs.
 3. **Action Phase**: Call exactly one tool or provide a final answer based on your thinking.
 4. **Final Answer**: When you have completed the requested task or reached a stopping point, you MUST provide a concise summary (resume) of all the actions you took and the results achieved.
 

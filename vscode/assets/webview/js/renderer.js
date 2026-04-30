@@ -12,7 +12,7 @@ function renderMarkdown(content) {
     }
     
     const blocks = [];
-    const blockRegex = /<+(?<tag>thought|tool_call|tool_response|tool_result|task_finished)[\s\S]*?(?:<\/\k<tag>>|(?=<+(?:thought|tool_call|tool_response|tool_result|task_finished))|(?<=\/)>|$)/g;
+    const blockRegex = /<+(?<tag>thought|tool_call|tool_response|tool_result|task_finished|todo_list)[\s\S]*?(?:<\/\k<tag>>|(?=<+(?:thought|tool_call|tool_response|tool_result|task_finished|todo_list))|(?<=\/)>|$)/g;
     
     let lastIdx = 0;
     let match;
@@ -29,6 +29,7 @@ function renderMarkdown(content) {
         else if (tag === 'tool_call') type = 'tool_call';
         else if (tag === 'tool_response' || tag === 'tool_result') type = 'user_tool_result';
         else if (tag === 'task_finished') type = 'task_finished';
+        else if (tag === 'todo_list') type = 'todo_list';
         
         let cleanedContent = match[0].replace(/^<+/, '<');
         blocks.push({ type: type, content: cleanedContent });
@@ -203,6 +204,48 @@ function renderPart(part) {
         if (mWithoutId) {
             return `<div class="tool-result-marker" data-id="" style="display:none">${mWithoutId[1]}</div>`;
         }
+    }
+
+    if (type === 'todo_list') {
+        const tasks = [];
+        const taskRegex = /<task id="([^"]+)" status="([^"]+)">([\s\S]*?)<\/task>/g;
+        let m;
+        while ((m = taskRegex.exec(content)) !== null) {
+            tasks.push({ id: m[1], status: m[2], title: m[3] });
+        }
+
+        if (tasks.length === 0) return '';
+
+        return `
+            <div class="todo-component">
+                <div class="todo-component-header">
+                    <span class="codicon codicon-checklist"></span>
+                    <span>Project Plan</span>
+                </div>
+                <div class="todo-component-list">
+                    ${tasks.map(t => {
+                        let icon = 'codicon-circle-outline';
+                        let statusClass = 'status-todo';
+                        if (t.status === 'in_progress') {
+                            icon = 'codicon-loading codicon-modifier-spin';
+                            statusClass = 'status-progress';
+                        } else if (t.status === 'done') {
+                            icon = 'codicon-check';
+                            statusClass = 'status-done';
+                        }
+                        return `
+                            <div class="todo-item ${statusClass}">
+                                <span class="todo-icon codicon ${icon}"></span>
+                                <div class="todo-text">
+                                    <div class="todo-title">${t.title}</div>
+                                    <div class="todo-id">#${t.id}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
     }
     
     return '';
