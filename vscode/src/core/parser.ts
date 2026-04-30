@@ -43,7 +43,7 @@ export class ToolCallParser {
 
       // Case 2: JSON body format <tool_call>{ "name": "...", "arguments": { ... } }</tool_call>
       if (trimmedBody) {
-        let jsonToParse = trimmedBody;
+        const jsonToParse = trimmedBody;
         let parsed: any;
         try {
           parsed = JSON.parse(jsonToParse);
@@ -88,10 +88,10 @@ export class ToolCallParser {
   }
 
   private static extractJson(text: string): string | null {
-    let firstBrace = text.indexOf('{');
+    const firstBrace = text.indexOf('{');
     if (firstBrace === -1) return null;
 
-    let lastBrace = text.lastIndexOf('}');
+    const lastBrace = text.lastIndexOf('}');
     if (lastBrace === -1 || lastBrace < firstBrace) return null;
 
     return text.substring(firstBrace, lastBrace + 1);

@@ -8,6 +8,8 @@ class MosaicUI {
         this.suggestionIndex = 0;
         this.activeAutocompleteInput = null;
         this.queuedMessage = null;
+        this.searchDebounceTimer = null;
+        this.currentReferences = [];
         this.init();
     }
 
@@ -15,7 +17,7 @@ class MosaicUI {
         log('Initializing Event Delegation...');
         
         document.addEventListener('click', (e) => {
-            const target = e.target.closest('button, .history-item, .tool-header, .thought-header, .quick-action-item, .autocomplete-item, .tool-group-header, .file-badge, .remove-chip, .close-modal, .delete-btn, .confirm-yes, .confirm-no, #rename-chat-btn');
+            const target = e.target.closest('button, .history-item, .tool-header, .thought-header, .quick-action-item, .autocomplete-item, .tool-group-header, .file-badge, .remove-chip, .close-modal, .delete-btn, .confirm-yes, .confirm-no, #rename-chat-btn, .continue-btn');
             if (!target) {
                 this.closeAutocomplete();
                 return;
@@ -83,6 +85,14 @@ class MosaicUI {
                 }
             } else if (target.classList.contains('autocomplete-item')) {
                 this.selectSuggestion(target.innerText);
+            } else if (target.classList.contains('continue-btn')) {
+                const input = document.getElementById('chat-input');
+                if (input) {
+                    input.value = 'continue';
+                    this.handleAction();
+                    // Optionally remove the button to prevent multiple continues on the same message
+                    target.closest('.continue-btn-container').remove();
+                }
             }
         });
 
@@ -153,8 +163,15 @@ class MosaicUI {
                 if (lastAt !== -1 && !text.substring(lastAt, cursor).includes(' ')) {
                     const query = text.substring(lastAt + 1, cursor);
                     this.activeAutocompleteInput = input;
-                    vscode.postMessage({ type: 'searchFiles', value: query });
+                    
+                    // Debounce searchFiles
+                    if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
+                    this.searchDebounceTimer = setTimeout(() => {
+                        vscode.postMessage({ type: 'searchFiles', value: query });
+                        this.searchDebounceTimer = null;
+                    }, 300);
                 } else {
+                    if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
                     this.closeAutocomplete();
                 }
 
@@ -176,7 +193,12 @@ class MosaicUI {
             if (e.target.id === 'provider-select' || e.target.id === 'welcome-provider-select') {
                 vscode.postMessage({ type: 'setProvider', value: e.target.value });
             } else if (e.target.id === 'model-select' || e.target.id === 'welcome-model-select') {
+                this.currentModel = e.target.value;
                 vscode.postMessage({ type: 'setModel', value: e.target.value });
+                // Sync all model selects
+                document.querySelectorAll('.model-select-common').forEach(s => {
+                    if (s !== e.target) s.value = e.target.value;
+                });
                 e.target.blur();
             } else if (e.target.id === 'settings-provider') {
                 const apikeyGroup = document.getElementById('settings-apikey-group');
@@ -238,7 +260,7 @@ class MosaicUI {
                 return;
             }
             this.setGenerating(true);
-            vscode.postMessage({ type: 'sendMessage', value: text });
+            vscode.postMessage({ type: 'sendMessage', value: text, model: this.currentModel });
             input.value = '';
             input.style.height = 'auto';
             // Clear state
@@ -288,7 +310,7 @@ class MosaicUI {
         }
         if (text) {
             this.setGenerating(true);
-            vscode.postMessage({ type: 'sendMessage', value: text });
+            vscode.postMessage({ type: 'sendMessage', value: text, model: this.currentModel });
             this.toggleWelcomeScreen(false);
         }
     }
@@ -361,7 +383,7 @@ class MosaicUI {
             const text = input ? input.value.trim() : '';
             if (text) {
                 this.setGenerating(true);
-                vscode.postMessage({ type: 'sendMessage', value: text });
+                vscode.postMessage({ type: 'sendMessage', value: text, model: this.currentModel });
                 input.value = '';
                 input.style.height = 'auto';
                 // Clear state
@@ -571,6 +593,13 @@ class MosaicUI {
         const matches = text.match(/@([^\s]+)/g) || [];
         const files = [...new Set(matches.map(m => m.substring(1)))];
 
+        // Only update if references actually changed to avoid flickering
+        const currentRefKey = files.sort().join('|');
+        const lastRefKey = this.currentReferences.sort().join('|');
+        
+        if (currentRefKey === lastRefKey) return;
+        this.currentReferences = files;
+
         if (files.length === 0) {
             container.innerHTML = '';
             return;
@@ -662,6 +691,19 @@ class MosaicUI {
             msgDiv.appendChild(filesDiv);
         }
 
+        // Add Continue button for assistant messages
+        if (msgDiv.classList.contains('assistant')) {
+            const continueContainer = document.createElement('div');
+            continueContainer.className = 'continue-btn-container';
+            continueContainer.innerHTML = `
+                <button class="continue-btn" title="Continue generation">
+                    <span class="codicon codicon-play"></span>
+                    <span>Continue</span>
+                </button>
+            `;
+            msgDiv.appendChild(continueContainer);
+        }
+
         this.scrollToBottom();
     }
     
@@ -683,6 +725,7 @@ class MosaicUI {
     }
 
     _updateModels(msg) {
+        if (msg.currentModel) this.currentModel = msg.currentModel;
         const selects = document.querySelectorAll('.model-select-common');
         if (selects.length === 0) return;
         

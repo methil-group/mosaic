@@ -101,7 +101,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   private async _handleWebviewMessage(data: any) {
     switch (data.type) {
-      case 'sendMessage': return this._handleSendMessage(data.value);
+      case 'sendMessage': return this._handleSendMessage(data.value, data.model);
       case 'stopGeneration': return this._handleStopGeneration();
       case 'setProvider':
         await this._context.globalState.update('mosaic.provider', data.value);
@@ -314,13 +314,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private async _handleSendMessage(text: string) {
+  private async _handleSendMessage(text: string, requestedModel?: string) {
     if (!this._view) return;
 
     const providerType = this._context.globalState.get<string>('mosaic.provider') || 'openrouter';
     const apiKey = this._context.globalState.get<string>('mosaic.openrouterApiKey') || '';
     const lmStudioUrl = this._context.globalState.get<string>('mosaic.lmstudioBaseUrl') || 'http://localhost:1234/v1';
-    const model = this._context.globalState.get<string>('mosaic.model') || 'deepseek/deepseek-v4-flash';
+    
+    // Use requestedModel if provided, otherwise fallback to globalState
+    const model = requestedModel || this._context.globalState.get<string>('mosaic.model') || 'deepseek/deepseek-v4-flash';
+    
+    // Ensure globalState is synced if a model was explicitly requested
+    if (requestedModel && requestedModel !== this._context.globalState.get<string>('mosaic.model')) {
+      await this._context.globalState.update('mosaic.model', requestedModel);
+    }
     const llmProvider = providerType === 'lmstudio' ? new LMStudioProvider(lmStudioUrl) : new OpenRouterProvider(apiKey);
 
     const tools = [

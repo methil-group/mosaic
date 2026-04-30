@@ -26,7 +26,7 @@ export class SessionManager {
   private sessionId: string;
   private chatDir: string;
   private logDir: string;
-  private sessionLogDir: string = '';
+  private sessionLogDir = '';
   private promptCount = 0;
   private title = "New Chat";
   private history: ChatMessage[] = [];
@@ -66,16 +66,16 @@ export class SessionManager {
   }
 
   public log(role: string, message: string) {
-    if (!this.logDir) return;
+    if (!this.sessionLogDir) return;
     const timestamp = new Date().toISOString();
     const logLine = `[${timestamp}] [${role.toUpperCase()}] ${message}\n`;
-    const logFile = path.join(this.logDir, `session_${this.sessionId.split('_')[0]}.log`);
+    const logFile = path.join(this.sessionLogDir, 'session.log');
     fs.appendFileSync(logFile, logLine);
   }
 
   public logUsage(model: string, usage: any) {
-    if (!this.logDir) return;
-    const usageFile = path.join(this.logDir, 'usage.jsonl');
+    if (!this.sessionLogDir) return;
+    const usageFile = path.join(this.sessionLogDir, 'usage.jsonl');
     const entry = JSON.stringify({
       timestamp: new Date().toISOString(),
       sessionId: this.sessionId,
@@ -86,8 +86,8 @@ export class SessionManager {
   }
 
   public logTool(call: { name: string, arguments: any, result?: any, duration?: number, error?: string, call_id?: string }) {
-    if (!this.logDir) return;
-    const toolFile = path.join(this.logDir, 'tools.jsonl');
+    if (!this.sessionLogDir) return;
+    const toolFile = path.join(this.sessionLogDir, 'tools.jsonl');
     const entry = JSON.stringify({
       timestamp: new Date().toISOString(),
       sessionId: this.sessionId,
@@ -100,8 +100,8 @@ export class SessionManager {
   }
 
   public logSystem(info: any) {
-    if (!this.logDir) return;
-    const systemFile = path.join(this.logDir, 'system.log');
+    if (!this.sessionLogDir) return;
+    const systemFile = path.join(this.sessionLogDir, 'system.log');
     const entry = `[${new Date().toISOString()}] [${this.sessionId}] ${JSON.stringify(info)}\n`;
     fs.appendFileSync(systemFile, entry);
   }

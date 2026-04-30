@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
+import * as cp from 'child_process';
 import { BaseTool } from './base';
 
 export class ReadFileTool extends BaseTool {
@@ -120,12 +120,13 @@ export class ListDirectoryTool extends BaseTool {
     return {
       type: "object",
       properties: {
-        path: { type: "string", description: "Path to list (relative or absolute). Defaults to current workspace root.", default: "." }
+        path: { type: "string", description: "Path to list (relative or absolute). Defaults to current workspace root.", default: "." },
+        show_ignored: { type: "boolean", description: "Whether to show files ignored by .gitignore. Defaults to false.", default: false }
       }
     };
   }
 
-  async execute(args: { path: string }) {
+  async execute(args: { path: string, show_ignored?: boolean }) {
     const targetPath = args.path || ".";
     const fullPath = this.resolvePath(targetPath);
     if (!fullPath) return this.formatError(`Access denied: '${targetPath}' is outside the workspace.`);
@@ -134,10 +135,34 @@ export class ListDirectoryTool extends BaseTool {
       const uri = vscode.Uri.file(fullPath);
       const entries = await vscode.workspace.fs.readDirectory(uri);
       
-      return entries.map(([name, type]) => ({
+      let results = entries.map(([name, type]) => ({
         name,
         type: type === vscode.FileType.Directory ? "directory" : "file"
       }));
+
+      // Filter ignored files if requested
+      if (args.show_ignored === false) {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders) {
+          try {
+            // Run git check-ignore for all entries at once
+            const names = results.map(r => r.name).join('\n');
+            const ignoredOutput = cp.execSync('git check-ignore --stdin', { 
+              cwd: fullPath,
+              input: names,
+              encoding: 'utf8',
+              stdio: ['pipe', 'pipe', 'ignore'] // Ignore stderr to avoid noise if not a git repo
+            });
+            
+            const ignoredFiles = new Set(ignoredOutput.split('\n').filter(Boolean));
+            results = results.filter(r => !ignoredFiles.has(r.name));
+          } catch (e) {
+            // If git check-ignore fails (e.g. not a git repo), we just don't filter
+          }
+        }
+      }
+      
+      return results;
     } catch (e: any) {
       return this.formatError(`Failed to list directory: ${e.message}`);
     }
