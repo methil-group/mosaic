@@ -39,6 +39,7 @@ For each function call return a JSON object, with the following pydantic model j
 {'title': 'FunctionCall', 'type': 'object', 'properties': {'name': {'title': 'Name', 'type': 'string'}, 'arguments': {'title': 'Arguments', 'type': 'object'}}, 'required': ['name', 'arguments']}
 
 Each function call should be enclosed within ${TOOL_CALL_START} ${TOOL_CALL_END} XML tags.
+IMPORTANT: Do NOT use markdown code blocks (like \`\`\`json) inside the tags. Just the raw JSON object.
 Example:
 ${TOOL_CALL_START}
 {"name": "tool_name", "arguments": {"param1": "value1"}}

@@ -465,6 +465,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
             const metadata = {
               model,
+              mode,
               ttft,
               tps: tps.toFixed(1),
               inputTokens: lastUsage?.prompt_tokens || 0,
@@ -514,8 +515,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       for await (const event of provider.streamChat(model, [{ role: 'user', content: prompt }])) {
         if (event.type === 'token') title += event.data;
       }
-      if (title && this._sessionManager) this._sessionManager.setTitle(title.trim());
-      return title.trim();
+      const finalTitle = title.trim();
+      if (finalTitle.length > 100) return "New Chat";
+      if (finalTitle && this._sessionManager) this._sessionManager.setTitle(finalTitle);
+      return finalTitle || "New Chat";
     } catch (e) {
       return "New Chat";
     }

@@ -1,7 +1,14 @@
-import * as fs from 'fs';
 import * as path from 'path';
+
+// --- MODULE ALIAS SETUP ---
+// This MUST happen before any imports of modules that use 'vscode'
+const moduleAlias = require('module-alias');
+moduleAlias.addAlias('vscode', path.join(__dirname, 'shims', 'vscode'));
+
+import * as fs from 'fs';
+import * as vscode from 'vscode';
 import { OpenRouterProvider } from '../src/framework/llm/provider';
-import { Agent } from '../src/core/agent';
+import { Agent, StreamEvent } from '../src/core/agent';
 import { 
   ReadFileTool, 
   WriteFileTool, 
@@ -17,15 +24,24 @@ import {
   ClearTodosTool 
 } from '../src/core/tools/todoTools';
 
+// This allows us to change the workspace path dynamically between tasks
+const setMockPath = (p: string) => {
+    (vscode.workspace as any).workspaceFolders = [{
+        uri: { fsPath: p },
+        name: 'BenchmarkWorkspace',
+        index: 0
+    }];
+};
+
 const API_KEY = "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";
-const MODEL = "qwen/qwen-2.5-32b-instruct"; // Chemin OpenRouter pour Qwen 32B ou équivalent
+const MODEL = "qwen/qwen-2.5-coder-32b-instruct"; 
 
 async function runBenchmark() {
   console.log("🚀 Starting Mosaic Benchmark Suite...");
   
-  const tasks = JSON.parse(fs.readFileSync(path.join(__dirname, 'tasks.json'), 'utf-8'));
+  const tasksPath = path.join(__dirname, 'tasks.json');
+  const tasks = JSON.parse(fs.readFileSync(tasksPath, 'utf-8'));
   const provider = new OpenRouterProvider(API_KEY);
-  const workspacePath = path.resolve(__dirname, '..');
 
   const tools = [
     new ReadFileTool(),
@@ -46,35 +62,82 @@ async function runBenchmark() {
     if (task.workspace) console.log(`📂 Workspace: ${task.workspace}`);
     console.log(`--------------------------------------------------`);
 
-    const currentWorkspacePath = task.workspace 
+    // Update the mock path for this specific task
+    const currentPath = task.workspace 
         ? path.join(__dirname, 'workspaces', task.workspace)
-        : workspacePath;
+        : path.resolve(__dirname, '..');
+    setMockPath(currentPath);
 
     const agent = new Agent(
       provider,
       MODEL,
-      currentWorkspacePath,
-      "BenchmarkBot",
+      task.workspace || "MainRepo",
+      "BenchUser",
       tools
     );
 
-    // Mock progress reporting
-    const onProgress = (content: string) => {
-      process.stdout.write(content);
+    const onEvent = async (event: StreamEvent) => {
+      if (event.type === "token") {
+        process.stdout.write(event.data);
+      } else if (event.type === "log") {
+        if (event.message && event.message.includes("Internal User Nudge")) {
+            console.log(`\n⚠️  Nudge: ${event.message.split('Internal User Nudge:')[1]}`);
+        }
+      } else if (event.type === "tool_started") {
+        console.log(`\n🛠️  Tool Started: ${event.name}`);
+      } else if (event.type === "tool_finished") {
+        console.log(`\n✅ Tool Finished: ${event.name}`);
+        const resStr = typeof event.result === 'string' ? event.result : JSON.stringify(event.result);
+        console.log(`📦 Result: ${resStr.substring(0, 200)}${resStr.length > 200 ? '...' : ''}`);
+      } else if (event.type === "error") {
+        console.error(`\n❌ Agent Error: ${event.message}`);
+      }
     };
 
     try {
       const startTime = Date.now();
-      await agent.chat(task.prompt, onProgress);
+      await agent.run(task.prompt, onEvent);
       const duration = (Date.now() - startTime) / 1000;
       
-      console.log(`\n\n✅ Task completed in ${duration.toFixed(2)}s`);
+      const lastMsg = (agent as any).messages[(agent as any).messages.length - 1];
+      const finalContent = lastMsg?.content || "";
+      const health = validateResult(finalContent);
+
+      console.log(`\n\n✨ Task completed in ${duration.toFixed(2)}s`);
+      console.log(`🧹 Cleanliness Score: ${health.score}/100`);
+      if (health.issues.length > 0) {
+        console.log(`⚠️  Issues: ${health.issues.join(', ')}`);
+      }
     } catch (error) {
-      console.error(`\n\n❌ Task failed:`, error);
+      console.error(`\n\n💥 Critical failure:`, error);
     }
   }
 
-  console.log("\n✨ Benchmark finished!");
+  console.log("\n🏁 All benchmarks finished!");
+}
+
+function validateResult(content: string) {
+    const issues: string[] = [];
+    let score = 100;
+
+    if (content.includes('<thought>') && !content.includes('</thought>')) {
+        issues.push("Unclosed <thought> tag");
+        score -= 20;
+    }
+    if (content.includes('<tool_call>') && !content.includes('</tool_call>')) {
+        issues.push("Unclosed <tool_call> tag");
+        score -= 30;
+    }
+    if (content.includes('```json')) {
+        issues.push("Found markdown JSON blocks (should be raw or XML)");
+        score -= 10;
+    }
+    if (content.length === 0) {
+        issues.push("Empty response");
+        score = 0;
+    }
+
+    return { score, issues };
 }
 
 runBenchmark().catch(console.error);

@@ -245,7 +245,11 @@ Example: <tool_call>{"name": "tool_name", "arguments": {"param": "value"}}</tool
         const callIdTag = ` id="${callId}"`;
         const updatedFullText = fullText.replace('<tool_call>', `<tool_call${callIdTag}>`);
         
-        this.messages.push({ role: "assistant", content: updatedFullText });
+        // Remove thoughts from history to save context and avoid self-influence
+        const thoughtRegex = /<(?:thought|thinking)>[\s\S]*?<\/(?:thought|thinking)>/g;
+        const historyContent = updatedFullText.replace(thoughtRegex, '').trim();
+        
+        this.messages.push({ role: "assistant", content: historyContent });
         this.messages.push({
           role: "user",
           content: PromptBuilder.formatToolResult(toolCall.name, result, callId)

@@ -1612,26 +1612,55 @@ body.vscode-high-contrast .welcome-logo img {
   opacity: 1;
 }
 
-/* Task Finished Marker */
+/* Task Finished Marker - More Sober */
 .task-finished-marker {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: var(--vscode-charts-green);
-  color: #fff;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin: 1rem 0;
+  gap: 4px;
+  color: var(--vscode-descriptionForeground);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin: 0.5rem 0;
   align-self: center;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
-  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid var(--vscode-widget-border);
+  opacity: 0.8;
 }
 
-.task-finished-marker .codicon {
-  font-size: 0.9rem;
+/* File Grid - Horizontal Scroll */
+.file-grid {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -ms-overflow-style: none;
 }
+
+.file-grid::-webkit-scrollbar {
+  height: 4px;
+}
+
+.file-badge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Message Mode Badge */
+.message-mode-badge {
+    font-size: 9px;
+    font-weight: bold;
+    padding: 1px 4px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    margin-right: 6px;
+    opacity: 0.7;
+    border: 1px solid currentColor;
+}
+
+.message-mode-badge.todo { color: #2ecc71; }
+.message-mode-badge.exec { color: #e74c3c; }
 
 /* Mode Toggle Button */
 .mode-toggle {

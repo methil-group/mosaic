@@ -676,7 +676,11 @@ class MosaicUI {
         
         const metaDiv = document.createElement('div');
         metaDiv.className = 'message-metadata';
+        
+        const modeBadge = metadata.mode ? `<span class="message-mode-badge ${metadata.mode}">${metadata.mode}</span>` : '';
+
         metaDiv.innerHTML = `
+            ${modeBadge}
             <span class="meta-model">${metadata.model}</span>
             <span>•</span>
             <span>${metadata.tps} t/s</span>
@@ -713,7 +717,7 @@ class MosaicUI {
             const continueContainer = document.createElement('div');
             continueContainer.className = 'continue-btn-container';
             continueContainer.innerHTML = `
-                <button class="continue-btn" title="Continue generation">
+                <button class="continue-btn" title="Demander au LLM de continuer sa réponse ou d'aller plus loin dans la tâche">
                     <span class="codicon codicon-play"></span>
                     <span>Continue</span>
                 </button>

@@ -169,7 +169,7 @@ export class OpenRouterProvider extends BaseLlmProvider {
   async fetchModels(): Promise<ModelInfo[]> {
     const allModels = await super.fetchModels();
     if (allModels.length === 0) {
-        return PREFERRED_MODELS.map(id => ({ id, name: id, pricing: { prompt: 0, completion: 0 } }));
+        return PREFERRED_MODELS.map(id => ({ id, name: id }));
     }
     
     // Prioritize preferred models but keep others

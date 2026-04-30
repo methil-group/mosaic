@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "vscode": ["repo_test/shims/vscode"]
+    }
+  },
+  "include": ["repo_test/**/*", "src/**/*"]
+}
